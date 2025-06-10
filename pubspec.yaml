@@ -13,6 +13,9 @@ dependencies:
   flutter:
     sdk: flutter
   video_player: ^2.7.0
+  window_size: ^0.1.0
+  google_fonts: ^6.2.1
+  file_picker: ^8.0.0
 
   cupertino_icons: ^1.0.8
 
@@ -27,4 +30,10 @@ flutter:
 
   uses-material-design: true
   assets:
-    - assets/kruzhka.mp4
+    - assets/videos/kruzhka.mp4
+
+  fonts:
+    - family: Nunito
+      fonts:
+        - asset: assets/fonts/Nunito-Medium.ttf
+          weight: 400
