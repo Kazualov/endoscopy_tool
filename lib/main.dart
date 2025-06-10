@@ -1,9 +1,13 @@
+
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
+
 import 'package:endoscopy_tool/pages/main_page.dart';
-import 'package:endoscopy_tool/pages/test.dart';
+import 'package:endoscopy_tool/pages/start_page.dart';
+import 'package:endoscopy_tool/pages/video_player_widget.dart';
 
 void main() {
-  runApp( MyApp());
+  runApp(MyApp());
 }
 
 class MyApp extends StatelessWidget{
@@ -14,8 +18,8 @@ class MyApp extends StatelessWidget{
 
     return MaterialApp(
       debugShowCheckedModeBanner: false,
+      home: StartPage(),
       //home: MainPage()
-      home: Test()
     );
   }
 }
