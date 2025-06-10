@@ -1,11 +1,11 @@
 from fastapi import APIRouter, UploadFile, File, Form, Depends, HTTPException
 from sqlalchemy.orm import Session
-from models.video import Video
-from database import SessionLocal
+from videoQueries.models.video import Video
+from videoQueries.database import SessionLocal
 import shutil, uuid, os
 
 router = APIRouter()
-VIDEO_DIR = "data/videos"
+VIDEO_DIR = "videoQueries/data/videos"
 
 
 # Dependency
