@@ -17,7 +17,7 @@ class MyApp extends StatelessWidget{
 
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      home: MainPage(videoPath: '/Users/ivan/Documents/Flutter_Projects/endoscopy_tool/endoscopy_tool/assets/videos/strip.mp4')
+      home: MainPage(videoPath: '/Users/ivan/Documents/Videos for project/videos/Bad Piggies Soundtrack | Building Contraptions | ABFT.mp4')
       //home: StartPage(),
     );
   }

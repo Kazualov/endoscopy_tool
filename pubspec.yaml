@@ -35,7 +35,6 @@ flutter:
 
   uses-material-design: true
   assets:
-    - assets/videos/kruzhka.mp4
 
   fonts:
     - family: Nunito
