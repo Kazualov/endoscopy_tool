@@ -3,9 +3,12 @@ from routers import video
 import uvicorn
 from database import init_db
 from fastapi.middleware.cors import CORSMiddleware
+from videoQueries.routers import patient
+
 
 app = FastAPI()
 app.include_router(video.router)
+app.include_router(patient.router)
 
 app.add_middleware(
     CORSMiddleware,
@@ -18,7 +21,6 @@ app.add_middleware(
 @app.on_event("startup")
 def startup_event():
     init_db()
-
 
 if __name__ == "__main__":
     uvicorn.run("main:app", reload=True)
