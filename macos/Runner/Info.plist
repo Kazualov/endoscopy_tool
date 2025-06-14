@@ -28,5 +28,12 @@
 	<string>MainMenu</string>
 	<key>NSPrincipalClass</key>
 	<string>NSApplication</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Это приложение использует камеру для видеозаписи.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Это приложение использует микрофон для записи звука.</string>
+	<key>NSCameraUseContinuityCameraDeviceType</key>
+	<true/>
+
 </dict>
 </plist>
