@@ -41,7 +41,7 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
   @override
   Widget build(BuildContext context) {
     return Column(
-      mainAxisAlignment: MainAxisAlignment.start,
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         if (_controller.value.isInitialized)
           AspectRatio(
@@ -52,10 +52,11 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
         else
           const Center(child: CircularProgressIndicator()),
 
-        const SizedBox(),
+        //const SizedBox(),
 
         // Play/Pause Button
-        IconButton(
+        if (_controller.value.isInitialized)
+          IconButton(
           icon: Icon(
             color: Color(0xFF00ACAB),
             _controller.value.isPlaying ? Icons.pause : Icons.play_arrow_rounded,

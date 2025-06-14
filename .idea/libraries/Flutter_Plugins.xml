@@ -1,0 +1,19 @@
+<component name="libraryTable">
+  <library name="Flutter Plugins" type="FlutterPluginsLibraryType">
+    <CLASSES>
+      <root url="file://$USER_HOME$/.pub-cache/hosted/pub.dev/file_picker-8.3.7" />
+      <root url="file://$USER_HOME$/.pub-cache/hosted/pub.dev/path_provider_windows-2.3.0" />
+      <root url="file://$USER_HOME$/.pub-cache/hosted/pub.dev/video_player_android-2.8.7" />
+      <root url="file://$USER_HOME$/.pub-cache/hosted/pub.dev/path_provider-2.1.5" />
+      <root url="file://$USER_HOME$/.pub-cache/hosted/pub.dev/path_provider_foundation-2.4.1" />
+      <root url="file://$USER_HOME$/.pub-cache/hosted/pub.dev/window_size-0.1.0" />
+      <root url="file://$USER_HOME$/.pub-cache/hosted/pub.dev/video_player_avfoundation-2.7.1" />
+      <root url="file://$USER_HOME$/.pub-cache/hosted/pub.dev/path_provider_linux-2.2.1" />
+      <root url="file://$USER_HOME$/.pub-cache/hosted/pub.dev/path_provider_android-2.2.17" />
+      <root url="file://$USER_HOME$/.pub-cache/hosted/pub.dev/video_player-2.10.0" />
+      <root url="file://$USER_HOME$/.pub-cache/hosted/pub.dev/video_player_web-2.3.5" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES />
+  </library>
+</component>
