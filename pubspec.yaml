@@ -9,9 +9,14 @@ version: 1.0.0+1
 environment:
   sdk: ^3.8.1
 
+
 dependencies:
   flutter:
     sdk: flutter
+
+  screenshot: ^3.0.0
+  path_provider: ^2.1.5
+  http: ^1.4.0
   video_player: ^2.7.0
   window_size: ^0.1.0
   google_fonts: ^6.2.1
