@@ -1,47 +1,74 @@
 import 'dart:io';
+import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:file_picker/file_picker.dart';
 
-class ScreenshotButton extends StatelessWidget {
+class ScreenshotButton extends StatefulWidget {
   final GlobalKey screenshotKey;
 
   const ScreenshotButton({super.key, required this.screenshotKey});
 
+  @override
+  State<ScreenshotButton> createState() => _ScreenshotButtonState();
+}
+
+class _ScreenshotButtonState extends State<ScreenshotButton> {
+  String? _savedFolderPath;
+
   Future<void> _captureAndSaveScreenshot(BuildContext context) async {
     try {
-      final boundary = screenshotKey.currentContext!.findRenderObject() as RenderRepaintBoundary;
+      // Capture screenshot
+      final boundary = widget.screenshotKey.currentContext!.findRenderObject() as RenderRepaintBoundary;
       final image = await boundary.toImage(pixelRatio: 3.0);
       final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
       final pngBytes = byteData!.buffer.asUint8List();
 
-      final now = DateTime.now();
-      final timestamp = "${now.year}${now.month}${now.day}_${now.hour}${now.minute}${now.second}";
+      // Ask for folder only once
+      if (_savedFolderPath == null) {
+        final folderPath = await FilePicker.platform.getDirectoryPath(
+          dialogTitle: 'Select folder to save screenshots',
+        );
 
-      final screenshotsDir = Directory("/Users/ivan/Documents/Flutter Projects/endoscopy_tool/endoscopy_tool/screenshots_by_doctor");
-      if (!screenshotsDir.existsSync()) {
-        screenshotsDir.createSync(recursive: true);
+        if (folderPath == null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Screenshot cancelled')),
+          );
+          return;
+        }
+
+        setState(() {
+          _savedFolderPath = folderPath;
+        });
       }
 
-      final file = File("${screenshotsDir.path}/screenshot_$timestamp.png");
+      // Save the file
+      final now = DateTime.now();
+      final timestamp = "${now.year}${now.month}${now.day}_${now.hour}${now.minute}${now.second}";
+      final filePath = '$_savedFolderPath/screenshot_$timestamp.png';
+
+      final file = File(filePath);
       await file.writeAsBytes(pngBytes);
 
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Screenshot saved to ${file.path}")),
+        SnackBar(content: Text('Saved to: $filePath')),
       );
     } catch (e) {
+      print('Screenshot error: $e');
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Failed: $e")),
+        SnackBar(content: Text('Failed to save screenshot: $e')),
       );
-      print(e);
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return IconButton(
+      color: Color(0xFF00ACAB),
       icon: const Icon(Icons.camera_alt),
+      tooltip: 'Take Screenshot',
       onPressed: () => _captureAndSaveScreenshot(context),
     );
   }
