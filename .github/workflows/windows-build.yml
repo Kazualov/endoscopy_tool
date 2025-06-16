@@ -1,34 +1,36 @@
 name: Build Flutter Windows App
 
 on:
+  workflow_dispatch:  # Allows you to manually trigger the workflow from GitHub UI
   push:
-    branches: [ main ]
-  workflow_dispatch:
+    branches: [main]  # Runs automatically on pushes to the main branch
 
 jobs:
   build:
+    name: Build Windows
     runs-on: windows-latest
 
     steps:
-      - name: Checkout code
+      - name: 📥 Checkout code
         uses: actions/checkout@v3
 
-      - name: Setup Flutter
+      - name: 💻 Setup Flutter
         uses: subosito/flutter-action@v2
         with:
+          flutter-version: '3.22.1'
           channel: stable
 
-      - name: Enable Windows
+      - name: 🔧 Enable Windows desktop
         run: flutter config --enable-windows-desktop
 
-      - name: Install dependencies
+      - name: 📦 Install dependencies
         run: flutter pub get
 
-      - name: Build Windows app
-        run: flutter build windows
+      - name: 🏗️ Build Windows app
+        run: flutter build windows --release
 
-      - name: Upload build artifacts
+      - name: 📤 Upload Windows build
         uses: actions/upload-artifact@v4
         with:
           name: Windows-Build
-          path: build/windows/runner/Release/
+          path: build/windows/x64/runner/Release/
