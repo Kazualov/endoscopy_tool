@@ -16,7 +16,7 @@ jobs:
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.8.1' # or your desired version
+          channel: stable
 
       - name: Enable Windows
         run: flutter config --enable-windows-desktop
