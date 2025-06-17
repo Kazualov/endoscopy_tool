@@ -1,3 +1,5 @@
+import 'package:endoscopy_tool/pages/patients.dart';
+import 'package:endoscopy_tool/pages/video_recorder_page.dart';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 
@@ -31,7 +33,7 @@ class StartPage extends StatelessWidget {
                   // Загрузить видео
                   GestureDetector(
                     onTap: () async {
-                      try {
+                      /*try {
                         final result = await FilePicker.platform.pickFiles(type: FileType.video, allowMultiple: false);
 
                         if (result != null && result.files.isNotEmpty && result.files.single.path != null) {
@@ -48,7 +50,8 @@ class StartPage extends StatelessWidget {
                         }
                       } catch (e) {
                         print("Error picking video: $e");
-                      }
+                      }*/
+                      Navigator.push(context, MaterialPageRoute(builder: (context) => EndoscopistApp()));
                     },
                     child: Container(
                       margin: const EdgeInsets.symmetric(vertical: 300, horizontal: 10),
@@ -78,7 +81,7 @@ class StartPage extends StatelessWidget {
                   // Снять видео (не изменён)
                   GestureDetector(
                     onTap: () {
-                      //Navigator.push(context, MaterialPageRoute(builder: (context) => MainPage(videoPath: 'assets/videos/kruzhka.mp4',)),);
+                      Navigator.push(context, MaterialPageRoute(builder: (context) => VideoRecorderPage()),);
                     },
                     child: Container(
                       margin: const EdgeInsets.symmetric(vertical: 20, horizontal: 10),
