@@ -36,7 +36,6 @@ class StartPage extends StatelessWidget {
 
                         if (result != null && result.files.isNotEmpty && result.files.single.path != null) {
                           String path = result.files.single.path!;
-                          print("Selected video: $path");
 
                           Navigator.push(
                             context,

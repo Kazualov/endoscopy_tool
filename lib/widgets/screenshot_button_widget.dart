@@ -55,7 +55,6 @@ class _ScreenshotButtonState extends State<ScreenshotButton> {
         SnackBar(content: Text('Saved to: $filePath')),
       );
     } catch (e) {
-      print('Screenshot error: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Failed to save screenshot: $e')),
       );

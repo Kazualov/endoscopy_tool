@@ -5,7 +5,7 @@ import 'package:video_player/video_player.dart';
 
 import 'package:endoscopy_tool/pages/start_page.dart';
 import 'package:endoscopy_tool/widgets/video_player_widget.dart';
-import 'package:endoscopy_tool/widgets/screensot_button_widget.dart';
+import 'package:endoscopy_tool/widgets/screenshot_button_widget.dart';
 
 class MainPage extends StatelessWidget {
   final String videoPath;
@@ -42,6 +42,7 @@ class _DynamicListExampleState extends State<MainPageLayout> {
     super.initState();
     _videoController = VideoPlayerController.file(File(widget.videoPath));
 
+    // Here we need to add timecodes to the items array
     // Example items (you can generate dynamically later)
     items = ["0:06", "0:12", "0:00"];
   }
