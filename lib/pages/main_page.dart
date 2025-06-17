@@ -3,7 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
 
-import 'package:endoscopy_tool/pages/start_page.dart';
+import 'package:endoscopy_tool/pages/patient_Library.dart';
 import 'package:endoscopy_tool/widgets/video_player_widget.dart';
 import 'package:endoscopy_tool/widgets/screenshot_button_widget.dart';
 
@@ -178,7 +178,7 @@ class _DynamicListExampleState extends State<MainPageLayout> {
           GestureDetector(
               onTap: () {
                 Navigator.push(context,
-                    MaterialPageRoute(builder: (context) => StartPage()));
+                    MaterialPageRoute(builder: (context) => EndoscopistApp()));
               },
               child: Container(
                 width: 20,
