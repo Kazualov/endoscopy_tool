@@ -1,9 +1,7 @@
 
 import 'package:flutter/material.dart';
 
-import 'package:endoscopy_tool/pages/main_page.dart';
 import 'package:endoscopy_tool/pages/start_page.dart';
-import 'package:endoscopy_tool/widgets/video_player_widget.dart';
 
 void main() {
   runApp(MyApp());
