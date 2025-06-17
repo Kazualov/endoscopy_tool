@@ -1,11 +1,9 @@
 import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
-import 'package:window_size/window_size.dart';
-
 import 'package:endoscopy_tool/pages/start_page.dart';
-import 'package:endoscopy_tool/pages/video_player_widget.dart';
+import 'package:endoscopy_tool/widgets/video_player_widget.dart';
+import 'package:endoscopy_tool/widgets/screensot_button_widget.dart';
 
 class MainPage extends StatelessWidget {
   final String videoPath;
@@ -32,6 +30,7 @@ class MainPageLayout extends StatefulWidget {
 class _DynamicListExampleState extends State<MainPageLayout> {
   // Video controller
   late VideoPlayerController _videoController;
+  final GlobalKey _screenshotKey = GlobalKey();
 
   // List of items → each with time string
   List<String> items = []; // Example: ["0:06", "0:12", "1:30"]
@@ -92,7 +91,7 @@ class _DynamicListExampleState extends State<MainPageLayout> {
                   child: Container(
                     height: 100,
                     width: 300,
-                    margin: EdgeInsets.symmetric(vertical: 5, horizontal: 0),
+                    margin: EdgeInsets.symmetric(vertical: 10, horizontal: 0),
                     decoration: BoxDecoration(
                       color: Color(0xFF00ACAB),
                       borderRadius: BorderRadius.circular(20),
@@ -142,32 +141,35 @@ class _DynamicListExampleState extends State<MainPageLayout> {
           ),
 
           // Video player
-          Container(
-            height: screenSize.height,
-            width: screenSize.width - 500,
-            margin: EdgeInsets.symmetric(vertical: 10, horizontal: 0),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(
-                color: Color(0xFF00ACAB),
-                width: 5
-              )
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(20),
-              child: VideoPlayerWidget(controller: _videoController),
+          RepaintBoundary(
+            key: _screenshotKey,
+            child: Container(
+              height: screenSize.height,
+              width: screenSize.width - 380,
+              margin: EdgeInsets.symmetric(vertical: 15, horizontal: 0),
+              decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                      color: Color(0xFF00ACAB),
+                      width: 5
+                  )
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(20),
+                child: VideoPlayerWidget(controller: _videoController),
+              ),
             ),
           ),
 
           // Button to add new item
-          GestureDetector(
+          /*GestureDetector(
               onTap: addItem,
               child: Container(
                 width: 50,
                 height: 50,
                 color: Colors.black,
-              )),
+              )),*/
 
           // Button to go to StartPage
           GestureDetector(
@@ -176,10 +178,11 @@ class _DynamicListExampleState extends State<MainPageLayout> {
                     MaterialPageRoute(builder: (context) => StartPage()));
               },
               child: Container(
-                width: 50,
-                height: 50,
-                color: Colors.green,
+                width: 20,
+                height: 20,
+                color: Colors.white,
               )),
+          ScreenshotButton(screenshotKey: _screenshotKey),
         ],
       ),
     );

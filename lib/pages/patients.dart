@@ -1,7 +1,5 @@
-import 'package:endoscopy_tool/macos_camera_recorder.dart';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 
@@ -40,7 +38,7 @@ class Patient {
 
 // Сервис для работы с API
 class ApiService {
-  static const String baseUrl = 'http://localhost:8000/api'; // Замените на ваш URL
+  static const String baseUrl = 'http://127.0.0.1:8000/'; // Замените на ваш URL
   
   // Получить всех пациентов
   static Future<List<Patient>> getPatients() async {
