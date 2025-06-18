@@ -169,6 +169,8 @@ class EndoscopistApp extends StatelessWidget {
   }
 }
 
+
+
 class PatientGridScreen extends StatefulWidget {
   PatientGridScreen({super.key});
 
@@ -216,8 +218,8 @@ class _PatientGridScreenState extends State<PatientGridScreen> {
       final filePath = result.files.single.path!;
       
       // Показать диалог для ввода имени
-      final name = await showPatientNameDialog();
-      if (name != null && name.isNotEmpty) {
+      final patientData = await showPatientRegistrationDialog();
+      if (patientData != null && patientData.isNotEmpty) {
         // Показать индикатор загрузки
         showDialog(
           context: context,
@@ -235,7 +237,7 @@ class _PatientGridScreenState extends State<PatientGridScreen> {
         
         // Загрузить видео и создать пациента
         final videoPath = await ApiService.uploadVideo(filePath);
-        final patient = await ApiService.createPatient(name, videoPath);
+        final patient = await ApiService.createPatient(patientData["firstName"]!, videoPath);
         
         Navigator.of(context).pop(); // Закрыть индикатор загрузки
         
@@ -253,32 +255,108 @@ class _PatientGridScreenState extends State<PatientGridScreen> {
     }
   }
 
-  Future<String?> showPatientNameDialog() async {
-    String? name;
-    return showDialog<String>(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: Text('Имя пациента'),
-          content: TextField(
-            onChanged: (value) => name = value,
-            decoration: InputDecoration(hintText: 'Введите имя пациента'),
-            autofocus: true,
+  Future<Map<String, String>?> showPatientRegistrationDialog() async {
+  String? lastName;
+  String? firstName;
+  String? middleName;
+  String? birthDate;
+  String? serviceType;
+  
+  return showDialog<Map<String, String>>(
+    context: context,
+    builder: (context) {
+      return AlertDialog(
+        title: Text('Регистрация пациента'),
+        content: Container(
+          width: double.maxFinite,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                onChanged: (value) => lastName = value,
+                decoration: InputDecoration(
+                  labelText: 'Фамилия',
+                  hintText: 'Введите фамилию пациента',
+                  border: OutlineInputBorder(),
+                ),
+                autofocus: true,
+              ),
+              SizedBox(height: 16),
+              TextField(
+                onChanged: (value) => firstName = value,
+                decoration: InputDecoration(
+                  labelText: 'Имя',
+                  hintText: 'Введите имя пациента',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              SizedBox(height: 16),
+              TextField(
+                onChanged: (value) => middleName = value,
+                decoration: InputDecoration(
+                  labelText: 'Отчество',
+                  hintText: 'Введите отчество пациента',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              SizedBox(height: 16),
+              TextField(
+                onChanged: (value) => birthDate = value,
+                decoration: InputDecoration(
+                  labelText: 'Дата рождения',
+                  hintText: 'ДД.ММ.ГГГГ',
+                  border: OutlineInputBorder(),
+                  suffixIcon: Icon(Icons.calendar_today),
+                ),
+                keyboardType: TextInputType.datetime,
+              ),
+              SizedBox(height: 16),
+              TextField(
+                onChanged: (value) => serviceType = value,
+                decoration: InputDecoration(
+                  labelText: 'Исследование/Услуга',
+                  hintText: 'Введите тип исследования или услуги',
+                  border: OutlineInputBorder(),
+                  suffixIcon: Icon(Icons.medical_services),
+                ),
+              ),
+            ],
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: Text('Отмена'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(name),
-              child: Text('Добавить'),
-            ),
-          ],
-        );
-      },
-    );
-  }
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: Text('Отмена'),
+          ),
+          TextButton(
+            onPressed: () {
+              // Проверяем, что обязательные поля заполнены
+              if (lastName?.isNotEmpty == true && 
+                  firstName?.isNotEmpty == true) {
+                Navigator.of(context).pop({
+                  'lastName': lastName ?? '',
+                  'firstName': firstName ?? '',
+                  'middleName': middleName ?? '',
+                  'birthDate': birthDate ?? '',
+                  'serviceType': serviceType ?? '',
+                });
+              } else {
+                // Можно показать ошибку о незаполненных обязательных полях
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Заполните обязательные поля: Фамилия и Имя'),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+              }
+            },
+            child: Text('Добавить'),
+          ),
+        ],
+      );
+    },
+  );
+}
 
   @override
   Widget build(BuildContext context) {
