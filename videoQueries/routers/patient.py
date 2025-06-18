@@ -1,9 +1,7 @@
 from fastapi import APIRouter, HTTPException, Depends, Form, Body, Query
 from sqlalchemy.orm import Session
 import uuid
-
 from fastapi.responses import JSONResponse
-
 from videoQueries.models.patient import Patient
 from videoQueries.models.video import Video
 from videoQueries.schemas.patient import PatientCreate, PatientOut

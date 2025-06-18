@@ -1,24 +1,16 @@
 from fastapi import APIRouter, UploadFile, File, Form, Depends, HTTPException
 from sqlalchemy.orm import Session
 from fastapi.responses import FileResponse
-
+from videoQueries.models.Examination import Examination
 from videoQueries.models.video import Video
 from videoQueries.database import SessionLocal
 import shutil, uuid, os
 from pathlib import Path
-
+from videoQueries.database import get_db
 router = APIRouter()
 
 
 VIDEO_DIR = Path(__file__).resolve().parent.parent / "data" / "videos"
-
-# Dependency
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
 
 
 @router.post("/upload/")
@@ -111,3 +103,20 @@ def delete_video(video_id: str, db: Session = Depends(get_db)):
     db.delete(video)
     db.commit()
     return {"message": "Видео удалено"}
+
+from fastapi.responses import FileResponse
+
+@router.get("/examinations/{exam_id}/video")
+def get_video_by_examination(exam_id: str, db: Session = Depends(get_db)):
+    exam = db.query(Examination).filter(Examination.id == exam_id).first()
+    if not exam:
+        raise HTTPException(status_code=404, detail="Осмотр не найден")
+
+    if not exam.video:
+        raise HTTPException(status_code=404, detail="Видео для осмотра не найдено")
+
+    if not os.path.exists(exam.video.file_path):
+        raise HTTPException(status_code=404, detail="Файл видео не существует на диске")
+
+    return FileResponse(path=exam.video.file_path, media_type="video/mp4", filename=exam.video.filename)
+
