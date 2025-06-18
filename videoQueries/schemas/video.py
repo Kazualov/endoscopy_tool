@@ -6,4 +6,5 @@ class VideoMetadata(BaseModel):
     patient_id: str
     description: Optional[str]
     timestamp: Optional[str]
+    notes: Optional[str]
 
