@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Form, Depends, HTTPException
 from sqlalchemy.orm import Session
-from videoQueries.models.recording import RecordingSession
-from videoQueries.database import SessionLocal
+from models.recording import RecordingSession
+from database import SessionLocal
 import uuid, datetime
 
 router = APIRouter()
@@ -44,7 +44,7 @@ def stop_recording(patient_id: str = Form(...), db: Session = Depends(get_db)):
     if not session:
         raise HTTPException(status_code=400, detail="No active recording found")
 
-    session.stopped_at = datetime.datetime.utcnow()
+    session.stopped_at = datetime.datetime.utcnow() # type: ignore
     db.commit()
 
     return
