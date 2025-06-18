@@ -14,6 +14,7 @@ def get_db():
     finally:
         db.close()
 
+
 @router.post("/record/start")
 def start_recording(patient_id: str = Form(...), db: Session = Depends(get_db)):
     # Check if there’s an ongoing session for this patient
@@ -31,6 +32,7 @@ def start_recording(patient_id: str = Form(...), db: Session = Depends(get_db)):
     db.commit()
 
     return {"session_id": session_id, "message": "Recording started"}
+
 
 @router.post("/record/stop")
 def stop_recording(patient_id: str = Form(...), db: Session = Depends(get_db)):
