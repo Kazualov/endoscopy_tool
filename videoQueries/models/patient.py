@@ -1,5 +1,6 @@
 from sqlalchemy import Column, String
 from videoQueries.database import Base
+from sqlalchemy.orm import relationship
 
 
 class Patient(Base):
@@ -9,4 +10,5 @@ class Patient(Base):
     name = Column(String)
     age = Column(String)
     gender = Column(String)
+    examinations = relationship("Examination", back_populates="patient")
 
