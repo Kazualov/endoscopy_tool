@@ -1,5 +1,7 @@
 from fastapi import APIRouter, UploadFile, File, Form, Depends, HTTPException
 from sqlalchemy.orm import Session
+from fastapi.responses import FileResponse
+
 from videoQueries.models.video import Video
 from videoQueries.database import SessionLocal
 import shutil, uuid, os
@@ -8,7 +10,6 @@ from pathlib import Path
 router = APIRouter()
 
 
-#VIDEO_DIR = "videoQueries/data/videos"
 VIDEO_DIR = Path(__file__).resolve().parent.parent / "data" / "videos"
 
 # Dependency
@@ -25,6 +26,7 @@ async def upload_video(
         file: UploadFile = File(...),
         patient_id: str = Form(...),
         description: str = Form(""),
+        notes: str = Form(""),
         timestamp: str = Form(""),
         db: Session = Depends(get_db)
 ):
@@ -39,6 +41,7 @@ async def upload_video(
         filename=file.filename,
         patient_id=patient_id,
         description=description,
+        notes=notes,
         timestamp=timestamp,
         file_path=file_path
     )
@@ -58,6 +61,7 @@ def list_videos(db: Session = Depends(get_db)):
             "filename": video.filename,
             "patient_id": video.patient_id,
             "description": video.description,
+            "notes": video.notes,
             "timestamp": video.timestamp
         }
         for video in videos
@@ -75,6 +79,35 @@ def get_video(video_id: str, db: Session = Depends(get_db)):
         "filename": video.filename,
         "patient_id": video.patient_id,
         "description": video.description,
+        "notes": video.notes,
         "timestamp": video.timestamp,
         "file_path": video.file_path
     }
+
+
+#Получение видео по ID
+@router.get("/videos/{video_id}/file", response_class=FileResponse)
+def serve_video(video_id: str):
+    db = SessionLocal()
+    video = db.query(Video).filter(Video.id == video_id).first()
+    db.close()
+
+    if not video or not os.path.exists(video.file_path):
+        raise HTTPException(status_code=404, detail="Видео не найдено")
+
+    return FileResponse(path=video.file_path, media_type="video/mp4")
+
+
+@router.delete("/videos/{video_id}")
+def delete_video(video_id: str, db: Session = Depends(get_db)):
+    video = db.query(Video).filter(Video.id == video_id).first()
+
+    if not video:
+        raise HTTPException(status_code=404, detail="Видео не найдено")
+
+    if os.path.exists(video.file_path):
+        os.remove(video.file_path)
+
+    db.delete(video)
+    db.commit()
+    return {"message": "Видео удалено"}
