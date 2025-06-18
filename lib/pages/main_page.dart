@@ -147,8 +147,8 @@ class _DynamicListExampleState extends State<MainPageLayout> {
             key: _screenshotKey,
             child: Container(
               height: screenSize.height,
-              width: screenSize.width - 500,
-              margin: EdgeInsets.symmetric(vertical: 10, horizontal: 0),
+              width: screenSize.width - 380,
+              margin: EdgeInsets.symmetric(vertical: 15, horizontal: 0),
               decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(20),
@@ -165,13 +165,13 @@ class _DynamicListExampleState extends State<MainPageLayout> {
           ),
 
           // Button to add new item
-          GestureDetector(
+          /*GestureDetector(
               onTap: addItem,
               child: Container(
                 width: 50,
                 height: 50,
                 color: Colors.black,
-              )),
+              )),*/
 
           // Button to go to StartPage
           GestureDetector(
@@ -180,9 +180,9 @@ class _DynamicListExampleState extends State<MainPageLayout> {
                     MaterialPageRoute(builder: (context) => StartPage()));
               },
               child: Container(
-                width: 50,
-                height: 50,
-                color: Colors.green,
+                width: 20,
+                height: 20,
+                color: Colors.white,
               )),
           ScreenshotButton(screenshotKey: _screenshotKey),
         ],
