@@ -4,11 +4,11 @@ import uuid
 
 from fastapi.responses import JSONResponse
 
-from videoQueries.models.patient import Patient
-from videoQueries.models.video import Video
-from videoQueries.schemas.patient import PatientCreate, PatientOut
-from videoQueries.database import get_db
-from videoQueries.database import Base, engine
+from  models.patient import Patient
+from  models.video import Video
+from  schemas.patient import PatientCreate, PatientOut
+from  database import get_db
+from  database import Base, engine
 
 
 router = APIRouter()

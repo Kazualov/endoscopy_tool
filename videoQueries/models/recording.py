@@ -1,5 +1,5 @@
 from sqlalchemy import Column, String, DateTime
-from videoQueries.database import Base
+from database import Base
 import datetime
 
 class RecordingSession(Base):
