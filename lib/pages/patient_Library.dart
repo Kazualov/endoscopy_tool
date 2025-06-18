@@ -38,15 +38,16 @@ class Patient {
 
 // Сервис для работы с API
 class ApiService {
-  static const String baseUrl = 'http://127.0.0.1:8000/'; // Замените на ваш URL
+  static const String baseUrl = 'http://127.0.0.1:8000'; // URL
   
   // Получить всех пациентов
   static Future<List<Patient>> getPatients() async {
     try {
       final response = await http.get(
-        Uri.parse('$baseUrl/patients'),
+        Uri.parse('$baseUrl/patients/'),
         headers: {'Content-Type': 'application/json'},
       );
+      print(response);
       
       if (response.statusCode == 200) {
         final List<dynamic> data = json.decode(response.body);
@@ -61,18 +62,19 @@ class ApiService {
   }
   
   // Создать нового пациента
-  static Future<Patient?> createPatient(String name, String? videoPath) async {
+  static Future<Patient?> createPatient(String name, String age, String gener) async {
     try {
       final response = await http.post(
-        Uri.parse('$baseUrl/patients'),
+        Uri.parse('$baseUrl/patients/'),
         headers: {'Content-Type': 'application/json'},
         body: json.encode({
           'name': name,
-          'video_path': videoPath,
+          'age': age,
+          "gender": gener
         }),
       );
       
-      if (response.statusCode == 201) {
+      if (response.statusCode == 200) {
         return Patient.fromJson(json.decode(response.body));
       } else {
         throw Exception('Failed to create patient: ${response.statusCode}');
@@ -126,24 +128,34 @@ class ApiService {
   }
   
   // Загрузить видео файл
-  static Future<String?> uploadVideo(String filePath) async {
+  static Future<String?> uploadVideo(String filePath, String id) async {
     try {
+
       var request = http.MultipartRequest(
         'POST',
-        Uri.parse('$baseUrl/upload-video'),
+        Uri.parse('$baseUrl/upload/'),
       );
       
-      request.files.add(await http.MultipartFile.fromPath('video', filePath));
+      request.fields.addAll({
+        'patient_id':  id,
+        'description': "defolt",
+      });
       
-      var response = await request.send();
+      request.files.add(
+        await http.MultipartFile.fromPath(
+          'file',             
+          filePath,
+        ),
+      );
       
-      if (response.statusCode == 200) {
-        var responseData = await response.stream.toBytes();
-        var responseString = String.fromCharCodes(responseData);
-        var jsonResponse = json.decode(responseString);
-        return jsonResponse['video_path'];
+      final streamed = await request.send();
+      final res      = await http.Response.fromStream(streamed);
+
+      if (res.statusCode == 200) {
+        final jsonResp = jsonDecode(res.body);
+        return jsonResp['video_path'] as String?;
       } else {
-        throw Exception('Failed to upload video: ${response.statusCode}');
+        throw Exception('Failed (${res.statusCode}): ${res.body}');
       }
     } catch (e) {
       print('Error uploading video: $e');
@@ -236,12 +248,18 @@ class _PatientGridScreenState extends State<PatientGridScreen> {
         );
         
         // Загрузить видео и создать пациента
-        final videoPath = await ApiService.uploadVideo(filePath);
-        final patient = await ApiService.createPatient(patientData["firstName"]!, videoPath);
+        //final videoPath = await ApiService.uploadVideo(filePath);
+        //await ApiService.uploadVideo(filePath);
+
+        //ApiService.createPatient(patientData["firstName"]!, videoPath);
+        //print(patientData["firstName"]!);
+        final patient =  await ApiService.createPatient(patientData["firstName"]!, "10", "male");
+        ApiService.uploadVideo(filePath, patient!.id);
         
         Navigator.of(context).pop(); // Закрыть индикатор загрузки
         
-        if (patient != null) {
+        //if (patient != null) {
+        if (1 == 1) {    // for test
           await loadPatients(); // Обновить список
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text('Пациент добавлен успешно')),
@@ -357,6 +375,8 @@ class _PatientGridScreenState extends State<PatientGridScreen> {
     },
   );
 }
+
+
 
   @override
   Widget build(BuildContext context) {
