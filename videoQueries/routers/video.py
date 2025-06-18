@@ -2,8 +2,8 @@ from fastapi import APIRouter, UploadFile, File, Form, Depends, HTTPException
 from sqlalchemy.orm import Session
 from fastapi.responses import FileResponse
 
-from videoQueries.models.video import Video
-from videoQueries.database import SessionLocal
+from models.video import Video
+from database import SessionLocal
 import shutil, uuid, os
 from pathlib import Path
 
@@ -92,10 +92,10 @@ def serve_video(video_id: str):
     video = db.query(Video).filter(Video.id == video_id).first()
     db.close()
 
-    if not video or not os.path.exists(video.file_path):
+    if not video or not os.path.exists(video.file_path): # type: ignore
         raise HTTPException(status_code=404, detail="Видео не найдено")
 
-    return FileResponse(path=video.file_path, media_type="video/mp4")
+    return FileResponse(path=video.file_path, media_type="video/mp4") # type: ignore
 
 
 @router.delete("/videos/{video_id}")
@@ -105,8 +105,8 @@ def delete_video(video_id: str, db: Session = Depends(get_db)):
     if not video:
         raise HTTPException(status_code=404, detail="Видео не найдено")
 
-    if os.path.exists(video.file_path):
-        os.remove(video.file_path)
+    if os.path.exists(video.file_path): # type: ignore
+        os.remove(video.file_path) # type: ignore
 
     db.delete(video)
     db.commit()

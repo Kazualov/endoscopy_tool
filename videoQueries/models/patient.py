@@ -1,5 +1,5 @@
 from sqlalchemy import Column, String
-from videoQueries.database import Base
+from database import Base
 
 
 class Patient(Base):
