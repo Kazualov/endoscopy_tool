@@ -83,3 +83,15 @@ async def upload_video_to_examination(
     db.refresh(exam)
 
     return {"video_id": video_id, "message": "Видео добавлено к осмотру"}
+
+
+@router.delete("/examinations/{examination_id}")
+def delete_examination(examination_id: str, db: Session = Depends(get_db)):
+    examination = db.query(Examination).filter(Examination.id == examination_id).first()
+
+    if not examination:
+        raise HTTPException(status_code=404, detail="Осмотр не найден")
+
+    db.delete(examination)
+    db.commit()
+    return {"message": "Осмотр удалён"}
