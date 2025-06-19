@@ -29,8 +29,10 @@ def search_patients(name: str = Query(...), db: Session = Depends(get_db)):
         {
             "id": p.id,
             "name": p.name,
-            "age": p.age,
-            "gender": p.gender
+            "surname":p.surname,
+            "middle_name":p.middlename,
+            "birth_date":p.birthday,
+            "gender": p.male
         }
         for p in results
     ]
@@ -43,12 +45,14 @@ def get_patient(patient_id: str, db: Session = Depends(get_db)):
     return {
         "id": patient.id,
         "name": patient.name,
-        "age": patient.age,
-        "gender": patient.gender
+        "surname": patient.surname,
+        "middlename": patient.middlename,
+        "birthday": patient.birthday,
+        "male": patient.male
     }
 
 
-@router.post("/patients/", response_model=PatientOut)
+@router.post("/patients/")
 def create_patient(
     patient: PatientCreate = Body(...),
     db: Session = Depends(get_db)
@@ -57,13 +61,15 @@ def create_patient(
     new_patient = Patient(
         id=patient_id,
         name=patient.name,
-        age=patient.age,
-        gender=patient.gender
+        surname=patient.surname,
+        middlename=patient.middlename,
+        birthday=patient.birthday,
+        male=patient.male
     )
     db.add(new_patient)
     db.commit()
     db.refresh(new_patient)
-    return new_patient
+    return patient_id
 
 @router.put("/patient/{patient_id}", response_model=PatientOut)
 def update_patient(patient_id: str, updated_data: PatientCreate, db: Session = Depends(get_db)):
