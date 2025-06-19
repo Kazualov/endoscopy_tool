@@ -1,12 +1,12 @@
 from fastapi import APIRouter, UploadFile, File, Form, Depends, HTTPException
 from sqlalchemy.orm import Session
 from fastapi.responses import FileResponse
-from models.Examination import Examination
-from models.video import Video
-from database import SessionLocal
+from videoQueries.models.Examination import Examination
+from videoQueries.models.video import Video
+from videoQueries.database import SessionLocal
 import shutil, uuid, os
 from pathlib import Path
-from database import get_db
+from videoQueries.database import get_db
 router = APIRouter()
 
 

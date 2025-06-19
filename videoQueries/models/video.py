@@ -1,7 +1,7 @@
 from sqlalchemy import Column, String, ForeignKey
 from sqlalchemy.orm import relationship
-from database import Base
-from models.Examination import Examination
+from videoQueries.database import Base
+from videoQueries.models.Examination import Examination
 
 # models/Video.py
 class Video(Base):

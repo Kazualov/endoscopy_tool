@@ -1,18 +1,16 @@
 from fastapi import FastAPI
-from routers import video
-from routers import Screenshots
-from routers import Examination
+from videoQueries.routers import video
 import uvicorn
-from database import init_db, clear_tables
+from videoQueries.database import init_db
 from fastapi.middleware.cors import CORSMiddleware
-from routers import patient
-from fastapi import FastAPI
+from videoQueries.routers import patient
+from videoQueries.routers import Examination
+
 
 app = FastAPI()
 app.include_router(video.router)
-app.include_router(Screenshots.router)
-app.include_router(Examination.router)
 app.include_router(patient.router)
+app.include_router(Examination.router)
 
 app.add_middleware(
     CORSMiddleware,
