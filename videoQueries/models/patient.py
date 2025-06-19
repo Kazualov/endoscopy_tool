@@ -12,7 +12,7 @@ class Patient(Base):
     surname = Column(String, nullable=False)
     middlename = Column(String, nullable=True)
     birthday = Column(Date, nullable=True)
-    male = Column(String, nullable=True)
+    gender = Column(String, nullable=True)
     examinations = relationship("Examination", back_populates="patient")
 
 
