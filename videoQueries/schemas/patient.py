@@ -1,15 +1,16 @@
 from pydantic import BaseModel
-
+from typing import Optional
+from datetime import date
 
 class PatientBase(BaseModel):
     name: str
-    age: str
-    gender: str
-
+    surname: str
+    middlename: Optional[str] = None
+    birthday: Optional[date] = None
+    male: Optional[str] = None
 
 class PatientCreate(PatientBase):
     pass
-
 
 class PatientOut(PatientBase):
     id: str
