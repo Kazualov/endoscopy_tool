@@ -1,5 +1,5 @@
 from sqlalchemy import Column, String, Date
-from videoQueries.database import Base
+from database import Base
 from sqlalchemy.orm import relationship
 
 

@@ -1,13 +1,13 @@
-from videoQueries.schemas.examination import ExaminationCreate, ExaminationResponse
+from schemas.examination import ExaminationCreate, ExaminationResponse
 from typing import List
 from fastapi import APIRouter, UploadFile, File, Depends, HTTPException, status
-from videoQueries.models.patient import Patient
+from models.patient import Patient
 from sqlalchemy.orm import Session
 import shutil
 import uuid
-from videoQueries.models.video import Video
-from videoQueries.models.Examination import Examination
-from videoQueries.database import get_db
+from models.video import Video
+from models.Examination import Examination
+from database import get_db
 
 router = APIRouter()
 
