@@ -10,6 +10,7 @@ from videoQueries.database import get_db
 router = APIRouter()
 
 
+
 VIDEO_DIR = Path(__file__).resolve().parent.parent / "data" / "videos"
 
 
@@ -104,7 +105,6 @@ def delete_video(video_id: str, db: Session = Depends(get_db)):
     db.commit()
     return {"message": "Видео удалено"}
 
-from fastapi.responses import FileResponse
 
 @router.get("/examinations/{exam_id}/video")
 def get_video_by_examination(exam_id: str, db: Session = Depends(get_db)):
