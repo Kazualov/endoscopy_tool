@@ -1,11 +1,11 @@
 from fastapi import FastAPI
-from videoQueries.routers import video
-from videoQueries.routers import Screenshots
-from videoQueries.routers import Examination
+from routers import video
+from routers import Screenshots
+from routers import Examination
 import uvicorn
-from videoQueries.database import init_db, clear_tables
+from database import init_db, clear_tables
 from fastapi.middleware.cors import CORSMiddleware
-from videoQueries.routers import patient
+from routers import patient
 from fastapi import FastAPI
 
 app = FastAPI()
