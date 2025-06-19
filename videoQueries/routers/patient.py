@@ -2,11 +2,11 @@ from fastapi import APIRouter, HTTPException, Depends, Form, Body, Query
 from sqlalchemy.orm import Session
 import uuid
 from fastapi.responses import JSONResponse
-from models.patient import Patient
-from models.video import Video
-from schemas.patient import PatientCreate, PatientOut
-from database import get_db
-from database import Base, engine
+from videoQueries.models.patient import Patient
+from videoQueries.models.video import Video
+from videoQueries.schemas.patient import PatientCreate, PatientOut
+from videoQueries.database import get_db
+from videoQueries.database import Base, engine
 
 
 router = APIRouter()
@@ -83,8 +83,8 @@ def update_patient(patient_id: str, updated_data: PatientCreate, db: Session = D
     return patient
 
 
-@router.delete("/patients/")
-def delete_patients(db: Session = Depends(get_db)):
+@router.delete("/base/")
+def delete_base(db: Session = Depends(get_db)):
     Base.metadata.drop_all(bind=engine)
     Base.metadata.create_all(bind=engine)
 

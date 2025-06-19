@@ -1,13 +1,13 @@
 from fastapi import APIRouter, UploadFile, File, Form, Depends, HTTPException
 from sqlalchemy.orm import Session
 from fastapi.responses import FileResponse
-from models.Examination import Examination
-from models.Screenshot import Screenshot
-from models.video import Video
-from database import SessionLocal
+from videoQueries.models.Examination import Examination
+from videoQueries.models.Screenshot import Screenshot
+from videoQueries.models.video import Video
+from videoQueries.database import SessionLocal
 import shutil, uuid, os
 from typing import List
-from schemas.screenshots import ScreenshotResponse
+from videoQueries.schemas.screenshots import ScreenshotResponse
 from pathlib import Path
 
 def get_db():
