@@ -2,11 +2,12 @@
 
 
 a = Analysis(
-    ['C:\\Users\\kuril\\PycharmProjects\\endoscopy_tool\\videoQueries\\main.py'],
-    pathex=[],
+    ['videoQueries\\main.py'],
+    pathex=['.'],
     binaries=[],
-    datas=[],
-    hiddenimports=[],
+    datas=[('videoQueries\\data\\videos', 'videoQueries\\data\\videos'), ('videoQueries\\data\\screenshots',
+     'videoQueries\\data\\screenshots')],
+    hiddenimports=['python-multipart'],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],

@@ -19,7 +19,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-#
+
 
 @app.on_event("startup")
 def startup_event():
@@ -27,4 +27,5 @@ def startup_event():
 
 
 if __name__ == "__main__":
-    uvicorn.run("main:app", reload=True)
+    uvicorn.run(app, host="127.0.0.1", port=8000, reload=False)
+

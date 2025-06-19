@@ -146,7 +146,7 @@ class ApiService {
           'surname': surname,
           'middlename': middleName,
           'birthday': birthday,
-          'male': gender,
+          'gender': gender,
         }),
       );
       
@@ -398,7 +398,7 @@ class _ExaminationGridScreenState extends State<ExaminationGridScreen> {
             registrationData["lastName"]!,
             registrationData["middleName"] ?? "",
             registrationData["birthDate"] ?? "",
-            "male", // По умолчанию, можно добавить выбор пола в диалог
+            "gender", // По умолчанию, можно добавить выбор пола в диалог
           );
           
           if (patient != null) {
@@ -480,7 +480,7 @@ class _ExaminationGridScreenState extends State<ExaminationGridScreen> {
           registrationData["lastName"]!,
           registrationData["middleName"] ?? "",
           registrationData["birthDate"] ?? "",
-          "male", // По умолчанию
+          "gender", // По умолчанию
         );
         
         if (patient != null) {
