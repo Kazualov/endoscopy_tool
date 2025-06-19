@@ -1,13 +1,14 @@
-from schemas.examination import ExaminationCreate, ExaminationResponse
+from videoQueries.schemas.examination import ExaminationCreate, ExaminationResponse
 from typing import List
 from fastapi import APIRouter, UploadFile, File, Depends, HTTPException, status
-from models.patient import Patient
+from videoQueries.models.patient import Patient
 from sqlalchemy.orm import Session
 import shutil
 import uuid
-from models.video import Video
-from models.Examination import Examination
-from database import get_db
+from videoQueries.models.video import Video
+from videoQueries.models.Examination import Examination
+from videoQueries.database import get_db
+from pathlib import Path
 
 router = APIRouter()
 
@@ -62,7 +63,8 @@ async def upload_video_to_examination(
         raise HTTPException(status_code=400, detail="У этого осмотра уже есть видео")
 
     video_id = str(uuid.uuid4())
-    save_path = f"./data/videos/{video_id}_{file.filename}"
+    save_path = Path(__file__).resolve().parent.parent / "data" / "videos" / f"{video_id}_{file.filename}"
+    #save_path = f"./data/videos/{video_id}_{file.filename}"
 
     with open(save_path, "wb") as f:
         shutil.copyfileobj(file.file, f)
@@ -70,7 +72,7 @@ async def upload_video_to_examination(
     video = Video(
         id=video_id,
         filename=file.filename,
-        file_path=save_path,
+        file_path=str(save_path),
     )
     db.add(video)
     db.commit()
