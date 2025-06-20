@@ -37,6 +37,7 @@ def search_patients(name: str = Query(...), db: Session = Depends(get_db)):
         for p in results
     ]
 
+
 @router.get("/patients/{patient_id}", response_model=PatientOut)
 def get_patient(patient_id: str, db: Session = Depends(get_db)):
     patient = db.query(Patient).filter(Patient.id == patient_id).first()
