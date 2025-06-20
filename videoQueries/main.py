@@ -7,6 +7,7 @@ from videoQueries.routers import Screenshots
 from videoQueries.routers import Examination
 from contextlib import asynccontextmanager
 import uvicorn
+import voiceCommand
 
 
 @asynccontextmanager
@@ -23,7 +24,7 @@ app.include_router(video.router)
 app.include_router(patient.router)
 app.include_router(Examination.router)
 app.include_router(Screenshots.router)
-
+app.include_router(voiceCommand.router)
 
 # CORS
 app.add_middleware(

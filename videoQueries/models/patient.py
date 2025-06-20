@@ -3,7 +3,6 @@ from videoQueries.database import Base
 from sqlalchemy.orm import relationship
 
 
-
 class Patient(Base):
     __tablename__ = "patients"
 
