@@ -1,14 +1,17 @@
-from fastapi import APIRouter, UploadFile, File, Form, Depends, HTTPException
-from sqlalchemy.orm import Session
+import os
+import shutil
+from pathlib import Path
+from typing import List
+
+from fastapi import APIRouter, UploadFile, File, Depends, HTTPException
 from fastapi.responses import FileResponse
+from sqlalchemy.orm import Session
+
+from videoQueries.database import SessionLocal
 from videoQueries.models.Examination import Examination
 from videoQueries.models.Screenshot import Screenshot
-from videoQueries.models.video import Video
-from videoQueries.database import SessionLocal
-import shutil, uuid, os
-from typing import List
 from videoQueries.schemas.screenshots import ScreenshotResponse
-from pathlib import Path
+
 
 def get_db():
     db = SessionLocal()
@@ -17,10 +20,12 @@ def get_db():
     finally:
         db.close()
 
+
 router = APIRouter()
 
 SCREENSHOT_DIR = Path(__file__).resolve().parent.parent / "data" / "screenshots"
 os.makedirs(SCREENSHOT_DIR, exist_ok=True)
+
 
 @router.post("/exams/{exam_id}/upload_screenshot/")
 async def upload_screenshot(
@@ -87,8 +92,4 @@ def get_screenshot_file(screenshot_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Скриншот не найден")
 
     return FileResponse(screenshot.file_path, media_type="image/jpeg")  # или image/jpeg
-
-
-
-
 
