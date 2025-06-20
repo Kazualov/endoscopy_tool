@@ -5,6 +5,10 @@ from datetime import date
 
 class PatientBase(BaseModel):
     name: str
+    surname: str
+    middlename: Optional[str] = None
+    birthday: Optional[date] = None
+    gender: Optional[str] = None
 
 class PatientCreate(PatientBase):
     pass
