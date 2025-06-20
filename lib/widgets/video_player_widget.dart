@@ -45,7 +45,7 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
       children: [
         if (_controller.value.isInitialized)
           AspectRatio(
-            aspectRatio: 16/9,
+            aspectRatio: 16/10,
             //aspectRatio: _controller.value.aspectRatio,
             child: VideoPlayer(_controller),
           )
@@ -60,7 +60,7 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
           icon: Icon(
             color: Color(0xFF00ACAB),
             _controller.value.isPlaying ? Icons.pause : Icons.play_arrow_rounded,
-            size: 80,
+            size: 60,
           ),
           onPressed: () {
             setState(() {
@@ -90,7 +90,7 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
 
               // Current time / total time
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                padding: const EdgeInsets.symmetric(horizontal: 20.0),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
