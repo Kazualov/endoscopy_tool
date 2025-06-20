@@ -1,4 +1,5 @@
 import 'package:endoscopy_tool/pages/main_page.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:http/http.dart' as http;
@@ -7,36 +8,40 @@ import 'dart:convert';
 class Examination {
   final String id;
   final String patientId;
-  final String name;
+  String? name;
   final String? description;
-  final String? videoId;
+  String? video_id;
 
   Examination({
     required this.id,
     required this.patientId,
-    required this.name,
+    this.name,
     this.description,
-    this.videoId,
+    this.video_id,
   });
 
   factory Examination.fromJson(Map<String, dynamic> json) {
     return Examination(
       id: json['id'],
-      patientId: json['patientId'],
+      patientId: json['patient_id'],
       name: json["name"],
       description: json['description'],
-      videoId: json['videoId'],
+      video_id: json['video_id'],
     );
   }
 
   Map<String, dynamic> toJson() {
     return {
       'id': id,
-      'patientId': patientId,
+      'patient_id': patientId,
       "name": name,
       'description': description,
-      'videoId': videoId,
+      'video_id': video_id,
     };
+  }
+
+  Future<void> addName(String name) async {
+    this.name = name;
   }
 }
 
@@ -48,7 +53,6 @@ class Patient {
   final String? middleName;
   final String? birthday;
   final String? gender;
-  final String? videoPath;
 
   Patient({
     required this.id,
@@ -57,7 +61,6 @@ class Patient {
     this.middleName,
     this.birthday,
     this.gender,
-    this.videoPath,
   });
 
   factory Patient.fromJson(Map<String, dynamic> json) {
@@ -68,7 +71,6 @@ class Patient {
       middleName: json['middleName'],
       birthday: json['birthday'],
       gender: json['gender'],
-      videoPath: json['video_path'],
     );
   }
 
@@ -80,15 +82,13 @@ class Patient {
       'middleName': middleName,
       'birthday': birthday,
       'gender': gender,
-      'video_path': videoPath,
     };
   }
 }
 
 // Сервис для работы с API
 class ApiService {
-  // Попробуйте разные варианты URL для macOS
-  static const String baseUrl = 'http://127.0.0.1:8000'; // Альтернатива 1
+  static const String baseUrl = 'http://127.0.0.1:8000'; 
 
 
   static Future<List<Examination>> getExamination() async {
@@ -132,7 +132,7 @@ class ApiService {
   }
   
   // Создать нового пациента
-  static Future<Patient?> createPatient(String name, String surname, String middleName, String birthday, String gender) async {
+  static Future<String?> createPatient(String name, String surname, String middleName, String birthday, String gender) async {
     try {
       final response = await http.post(
         Uri.parse('$baseUrl/patients/'),
@@ -147,8 +147,10 @@ class ApiService {
       );
       
       if (response.statusCode == 200) {
-        return Patient.fromJson(json.decode(response.body));
-      } else {
+          // Сервер возвращает строку с ID в кавычках, убираем кавычки
+        String patientId = response.body.replaceAll('"', '');
+        return patientId;
+      } else {  
         throw Exception('Failed to create patient: ${response.statusCode}');
       }
     } catch (e) {
@@ -156,18 +158,17 @@ class ApiService {
       return null;
     }
   }
-
+  
   // Создать новое обследование
-  static Future<Examination?> createExamination(String patientId, String name, String description, String? videoId) async {
+  static Future<Examination?> createExamination(String patientId, String description) async {
     try {
       final response = await http.post(
         Uri.parse('$baseUrl/examinations/'),
         headers: {'Content-Type': 'application/json'},
         body: json.encode({
-          'patientId': patientId,
-          'name': name,
+          'patient_id': patientId,
           'description': description,
-          'videoId': videoId,
+          'name': 'Default Name'
         }),
       );
       
@@ -223,6 +224,40 @@ class ApiService {
       return null;
     }
   }
+
+
+  static Future<String?> uploadVideoToExamination(String examination_id, String filePath) async {
+    try {
+      var request = http.MultipartRequest(
+        'POST',
+        Uri.parse('$baseUrl/examinations/$examination_id/video/'),
+      );
+      
+      request.fields.addAll({
+        'examination_id': examination_id
+      });
+      
+      request.files.add(
+        await http.MultipartFile.fromPath(
+          'file',             
+          filePath,
+        ),
+      ); 
+      
+      final streamed = await request.send();
+      final res = await http.Response.fromStream(streamed);
+
+      if (res.statusCode == 200) {
+        final jsonResp = jsonDecode(res.body);
+        return jsonResp['video_id'] as String?; // Возвращаем video_id вместо video_path
+      } else {
+        throw Exception('Failed (${res.statusCode}): ${res.body}');
+      }
+    } catch (e) {
+      print('Error uploading video: $e');
+      return null;
+    }
+  }
   
   // Загрузить видео файл
   static Future<String?> uploadVideo(String filePath, String patientId) async {
@@ -249,7 +284,7 @@ class ApiService {
 
       if (res.statusCode == 200) {
         final jsonResp = jsonDecode(res.body);
-        return jsonResp['video_id'] as String?; // Возвращаем videoId вместо video_path
+        return jsonResp['video_id'] as String?; // Возвращаем video_id вместо video_path
       } else {
         throw Exception('Failed (${res.statusCode}): ${res.body}');
       }
@@ -259,9 +294,9 @@ class ApiService {
     }
   }
 
-  static Future<String?> loadVideo(String videoId) async {
+  static Future<String?> loadVideo(String video_id) async {
     try {
-      final response = await http.get(Uri.parse('$baseUrl/videos/$videoId'));
+      final response = await http.get(Uri.parse('$baseUrl/videos/$video_id/file'));
 
       if (response.statusCode == 200) {
         return response.body;
@@ -339,8 +374,8 @@ class _ExaminationGridScreenState extends State<ExaminationGridScreen> {
   }
 
   Future<String?> getVideoPath(Examination examination) async {
-    if (examination.videoId != null) {
-      return await ApiService.loadVideo(examination.videoId!);
+    if (examination.video_id != null) {
+      return await ApiService.loadVideo(examination.video_id!);
     }
     return null;
   }
@@ -350,7 +385,7 @@ class _ExaminationGridScreenState extends State<ExaminationGridScreen> {
       return examinations;
     }
     return examinations.where((examination) => 
-      examination.name.toLowerCase().contains(searchQuery.toLowerCase())
+      examination.name!.toLowerCase().contains(searchQuery.toLowerCase())
     ).toList();
   }
 
@@ -389,7 +424,7 @@ class _ExaminationGridScreenState extends State<ExaminationGridScreen> {
         
         try {
           // 1. Создать пациента
-          final patient = await ApiService.createPatient(
+          final patient_id = await ApiService.createPatient(
             registrationData["firstName"]!,
             registrationData["lastName"]!,
             registrationData["middleName"] ?? "",
@@ -397,44 +432,39 @@ class _ExaminationGridScreenState extends State<ExaminationGridScreen> {
             "gender", // По умолчанию, можно добавить выбор пола в диалог
           );
           
-          if (patient != null) {
-            // 2. Загрузить видео
-            final videoId = await ApiService.uploadVideo(filePath, patient.id);
-            
-            // 3. Создать обследование
+          if (patient_id != null) {
+                        
+            // 2. Создать обследование
             final examination = await ApiService.createExamination(
-              patient.id,
-              registrationData["serviceType"] ?? "Обследование",
-              "Новое обследование",
-              videoId,
+              patient_id,
+              registrationData["serviceType"] ?? "Обследование"
             );
-            
+
+            print("f");
+
+            // 3. Загрузить видео
+            final video_id = await ApiService.uploadVideoToExamination(examination!.id, filePath);
+            examination.video_id = video_id;
+
             Navigator.of(context).pop(); // Закрыть индикатор загрузки
             
-            if (examination != null) {
-              await loadExamination(); // Обновить список обследований
-              await loadPatients(); // Обновить список пациентов
-              
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Обследование создано успешно')),
-              );
-              
-              // Открыть MainPage с видео
-              if (videoId != null) {
-                final videoPath = await getVideoPath(examination);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => MainPage(videoPath: videoPath!),
-                  ),
-                );
-              }
-            } else {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Ошибка при создании обследования')),
+            await loadExamination(); // Обновить список обследований
+            await loadPatients(); // Обновить список пациентов
+            
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Обследование создано успешно')),
+            );
+            
+            // Открыть MainPage с видео
+            if (video_id != null) {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => MainPage(videoPath: filePath),
+                ),
               );
             }
-          } else {
+                    } else {
             Navigator.of(context).pop(); // Закрыть индикатор загрузки
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(content: Text('Ошибка при создании пациента')),
@@ -471,7 +501,7 @@ class _ExaminationGridScreenState extends State<ExaminationGridScreen> {
       
       try {
         // 1. Создать пациента
-        final patient = await ApiService.createPatient(
+        final patient_id = await ApiService.createPatient(
           registrationData["firstName"]!,
           registrationData["lastName"]!,
           registrationData["middleName"] ?? "",
@@ -479,18 +509,18 @@ class _ExaminationGridScreenState extends State<ExaminationGridScreen> {
           "gender", // По умолчанию
         );
         
-        if (patient != null) {
+        if (patient_id != null) {
           // 2. Создать обследование без видео
           final examination = await ApiService.createExamination(
-            patient.id,
+            patient_id,
             registrationData["serviceType"] ?? "Обследование",
-            "Новое обследование",
-            null, // Без видео
           );
+          
           
           Navigator.of(context).pop(); // Закрыть индикатор загрузки
           
           if (examination != null) {
+            examination.addName(registrationData["firstName"]!);
             await loadExamination(); // Обновить список обследований
             await loadPatients(); // Обновить список пациентов
             
@@ -506,6 +536,7 @@ class _ExaminationGridScreenState extends State<ExaminationGridScreen> {
               ),
             );
           } else {
+            // ignore: use_build_context_synchronously
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(content: Text('Ошибка при создании обследования')),
             );
@@ -708,13 +739,13 @@ class _ExaminationGridScreenState extends State<ExaminationGridScreen> {
                                   border: Border.all(color: Colors.black, width: 2),
                                   borderRadius: BorderRadius.circular(8),
                                 ),
-                                child: examination.videoId != null
+                                child: examination.video_id != null
                                     ? Icon(Icons.video_library, size: 30, color: Colors.blue)
                                     : Icon(Icons.medical_services, size: 30, color: Colors.grey),
                               ),
                               SizedBox(height: 8),
                               Text(
-                                examination.name,
+                                examination.id,
                                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
                                 textAlign: TextAlign.center,
                                 maxLines: 2,
