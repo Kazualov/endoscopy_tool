@@ -7,6 +7,10 @@ from videoQueries.models.video import Video
 from videoQueries.schemas.patient import PatientCreate, PatientOut
 from videoQueries.database import get_db
 from videoQueries.database import Base, engine
+from faker import Faker
+
+fake = Faker()
+
 
 
 router = APIRouter()
@@ -29,10 +33,6 @@ def search_patients(name: str = Query(...), db: Session = Depends(get_db)):
         {
             "id": p.id,
             "name": p.name,
-            "surname": p.surname,
-            "middle_name": p.middlename,
-            "birth_date": p.birthday,
-            "gender": p.gender
         }
         for p in results
     ]
@@ -46,10 +46,6 @@ def get_patient(patient_id: str, db: Session = Depends(get_db)):
     return {
         "id": patient.id,
         "name": patient.name,
-        "surname": patient.surname,
-        "middlename": patient.middlename,
-        "birthday": patient.birthday,
-        "gender": patient.gender
     }
 
 
@@ -58,19 +54,14 @@ def create_patient(
     patient: PatientCreate = Body(...),
     db: Session = Depends(get_db)
 ):
-    patient_id = str(uuid.uuid4())
     new_patient = Patient(
-        id=patient_id,
-        name=patient.name,
-        surname=patient.surname,
-        middlename=patient.middlename,
-        birthday=patient.birthday,
-        gender=patient.gender
+        id=patient.id,
+        name=fake.first_name()
     )
     db.add(new_patient)
     db.commit()
     db.refresh(new_patient)
-    return patient_id
+    return new_patient
 
 @router.put("/patient/{patient_id}", response_model=PatientOut)
 def update_patient(patient_id: str, updated_data: PatientCreate, db: Session = Depends(get_db)):
@@ -82,12 +73,6 @@ def update_patient(patient_id: str, updated_data: PatientCreate, db: Session = D
     db.commit()
     db.refresh(patient)
     return patient
-
-
-@router.delete("/base/")
-def delete_base(db: Session = Depends(get_db)):
-    Base.metadata.drop_all(bind=engine)
-    Base.metadata.create_all(bind=engine)
 
 
 #Для получения всех видео по ID пациента
