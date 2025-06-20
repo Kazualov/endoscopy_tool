@@ -2,6 +2,7 @@ from sqlalchemy import Column, String, DateTime
 from videoQueries.database import Base
 import datetime
 
+
 class RecordingSession(Base):
     __tablename__ = "recording_sessions"
     
