@@ -155,7 +155,7 @@ class _MainPageLayoutState extends State<MainPageLayout> {
             margin: const EdgeInsets.symmetric(vertical: 5, horizontal: 5),
 
             decoration: BoxDecoration(
-              color: Color(0xFFD9D9D9),
+              color: Color(0xFFFFFFFF),
               borderRadius: BorderRadius.circular(20)
             ),
             child: ListView.builder(
@@ -227,7 +227,7 @@ class _MainPageLayoutState extends State<MainPageLayout> {
           Container(
             margin: EdgeInsetsGeometry.symmetric(vertical: 5, horizontal: 5),
               decoration: BoxDecoration(
-                color: Color(0xFFD9D9D9),
+                color: Color(0xFFFFFFFF),
                 borderRadius: BorderRadius.circular(20)
               ),
               
@@ -249,6 +249,13 @@ class _MainPageLayoutState extends State<MainPageLayout> {
                       );
                     },
                     icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Color(0xFF00ACAB)),
+                  ),
+                  IconButton(
+                    onPressed: exportText,
+                    icon: const Icon(
+                      Icons.settings_rounded,
+                      color: Color(0xFF00ACAB),
+                    ),
                   ),
                 ],
               )
