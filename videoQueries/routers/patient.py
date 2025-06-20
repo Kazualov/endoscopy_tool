@@ -10,15 +10,13 @@ from videoQueries.database import Base, engine
 from faker import Faker
 
 fake = Faker()
-
-
-
 router = APIRouter()
 
 
 @router.get("/patients/", response_model=list[PatientOut])
 def get_patients(db: Session = Depends(get_db)):
     return db.query(Patient).all()
+
 
 @router.get("/patients/search")
 def search_patients(name: str = Query(...), db: Session = Depends(get_db)):
