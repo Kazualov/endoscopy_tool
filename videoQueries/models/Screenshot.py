@@ -1,5 +1,5 @@
 from sqlalchemy import Column, String, Integer, ForeignKey, DateTime, func
-from database import Base
+from videoQueries.database import Base
 
 class Screenshot(Base):
     __tablename__ = "screenshots"
