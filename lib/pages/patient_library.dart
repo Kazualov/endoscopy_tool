@@ -146,7 +146,7 @@ class ApiService {
         }),
       );
       
-      if (response.statusCode == 200) {
+      if (response.statusCode == 201) {
           // Сервер возвращает строку с ID в кавычках, убираем кавычки
         String patientId = response.body.replaceAll('"', '');
         return patientId;
