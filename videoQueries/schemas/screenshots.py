@@ -1,6 +1,7 @@
 from pydantic import BaseModel
 from datetime import datetime
 
+
 class ScreenshotResponse(BaseModel):
     screenshot_id: int
     exam_id: str  # заменено с video_id
@@ -9,5 +10,5 @@ class ScreenshotResponse(BaseModel):
     created_at: datetime
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
