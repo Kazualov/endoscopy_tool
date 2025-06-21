@@ -131,13 +131,13 @@ class ApiService {
   }
   
   // Создать нового пациента
-  static Future<String?> createPatient(String name) async {
+  static Future<String?> createPatient(String id) async {
     try {
       final response = await http.post(
         Uri.parse('$baseUrl/patients/'),
         headers: {'Content-Type': 'application/json'},
         body: json.encode({
-          'name': name,
+          'id': id,
         }),
       );
       
@@ -420,7 +420,7 @@ class _ExaminationGridScreenState extends State<ExaminationGridScreen> {
         try {
           // 1. Создать пациента
           final patient_id = await ApiService.createPatient(
-            registrationData["firstName"]!,
+            registrationData["patient_id"]!,
           );
           
           if (patient_id != null) {
@@ -431,7 +431,7 @@ class _ExaminationGridScreenState extends State<ExaminationGridScreen> {
               registrationData["serviceType"] ?? "Обследование"
             );
 
-            print("f");
+            print("Обследование создано");
 
             // 3. Загрузить видео
             final video_id = await ApiService.uploadVideoToExamination(examination!.id, filePath);
@@ -448,14 +448,17 @@ class _ExaminationGridScreenState extends State<ExaminationGridScreen> {
             
             // Открыть MainPage с видео
             if (video_id != null) {
+              Navigator.of(context, rootNavigator: true).pop();
+              print("video id exist");
               Navigator.push(
                 context,
                 MaterialPageRoute(
                   builder: (context) => MainPage(videoPath: filePath),
                 ),
               );
+              print("mainPage open");
             }
-                    } else {
+          } else {
             Navigator.of(context).pop(); // Закрыть индикатор загрузки
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(content: Text('Ошибка при создании пациента')),
@@ -493,7 +496,7 @@ class _ExaminationGridScreenState extends State<ExaminationGridScreen> {
       try {
         // 1. Создать пациента
         final patient_id = await ApiService.createPatient(
-          registrationData["firstName"]!,
+          registrationData["patient_id"]!,
         );
         
         if (patient_id != null) {
@@ -507,7 +510,7 @@ class _ExaminationGridScreenState extends State<ExaminationGridScreen> {
           Navigator.of(context).pop(); // Закрыть индикатор загрузки
           
           if (examination != null) {
-            examination.addName(registrationData["firstName"]!);
+            examination.addName(registrationData["patient_id"]!);
             await loadExamination(); // Обновить список обследований
             await loadPatients(); // Обновить список пациентов
             
@@ -544,7 +547,7 @@ class _ExaminationGridScreenState extends State<ExaminationGridScreen> {
   }
 
   Future<Map<String, String>?> showPatientRegistrationDialog() async {
-    String? firstName;
+    String? patient_id;
     String? serviceType;
     
     return showDialog<Map<String, String>>(
@@ -558,10 +561,10 @@ class _ExaminationGridScreenState extends State<ExaminationGridScreen> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 TextField(
-                  onChanged: (value) => firstName = value,
+                  onChanged: (value) => patient_id = value,
                   decoration: InputDecoration(
-                    labelText: 'Имя *',
-                    hintText: 'Введите имя пациента',
+                    labelText: 'Id *',
+                    hintText: 'Введите id пациента',
                     border: OutlineInputBorder(),
                   ),
                 ),
@@ -586,9 +589,9 @@ class _ExaminationGridScreenState extends State<ExaminationGridScreen> {
             TextButton(
               onPressed: () {
                 // Проверяем, что обязательные поля заполнены
-                if (firstName?.isNotEmpty == true) {
+                if (patient_id?.isNotEmpty == true) {
                   Navigator.of(context).pop({
-                    'firstName': firstName ?? '',
+                    'patient_id': patient_id ?? '',
                     'serviceType': serviceType ?? '',
                   });
                 } else {
@@ -641,10 +644,6 @@ class _ExaminationGridScreenState extends State<ExaminationGridScreen> {
           ),
           IconButton(
             icon: Icon(Icons.settings, color: Colors.black),
-            onPressed: () {},
-          ),
-          IconButton(
-            icon: Icon(Icons.emoji_emotions, color: Colors.black),
             onPressed: () {},
           ),
         ],
@@ -753,8 +752,8 @@ class _ExaminationGridScreenState extends State<ExaminationGridScreen> {
                       },
                       child: Container(
                         decoration: BoxDecoration(
-                          border: Border.all(color: Color(0xFF00ACAB), width: 2),
-                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Color(0xFF00ACAB), width: 3),
+                          borderRadius: BorderRadius.circular(20),
                         ),
                         child: Center(
                           child: Icon(Icons.add, size: 40),
