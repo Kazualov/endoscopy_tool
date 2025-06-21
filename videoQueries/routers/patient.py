@@ -11,8 +11,6 @@ from faker import Faker
 
 fake = Faker()
 
-
-
 router = APIRouter()
 
 
@@ -37,7 +35,6 @@ def search_patients(name: str = Query(...), db: Session = Depends(get_db)):
         for p in results
     ]
 
-
 @router.get("/patients/{patient_id}", response_model=PatientOut)
 def get_patient(patient_id: str, db: Session = Depends(get_db)):
     patient = db.query(Patient).filter(Patient.id == patient_id).first()
@@ -55,13 +52,14 @@ def create_patient(
     db: Session = Depends(get_db)
 ):
     new_patient = Patient(
-        id=patient.id,
-        name=fake.first_name()
+        id= patient.id,
+        name = fake.first_name()
+
     )
     db.add(new_patient)
     db.commit()
     db.refresh(new_patient)
-    return new_patient
+    return patient.id
 
 @router.put("/patient/{patient_id}", response_model=PatientOut)
 def update_patient(patient_id: str, updated_data: PatientCreate, db: Session = Depends(get_db)):
