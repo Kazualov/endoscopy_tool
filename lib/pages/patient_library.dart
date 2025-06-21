@@ -1,5 +1,4 @@
 import 'package:endoscopy_tool/pages/main_page.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:http/http.dart' as http;
@@ -132,17 +131,13 @@ class ApiService {
   }
   
   // Создать нового пациента
-  static Future<String?> createPatient(String name, String surname, String middleName, String birthday, String gender) async {
+  static Future<String?> createPatient(String name) async {
     try {
       final response = await http.post(
         Uri.parse('$baseUrl/patients/'),
         headers: {'Content-Type': 'application/json'},
         body: json.encode({
           'name': name,
-          'surname': surname,
-          'middlename': middleName,
-          'birthday': birthday,
-          'gender': gender,
         }),
       );
       
@@ -168,7 +163,6 @@ class ApiService {
         body: json.encode({
           'patient_id': patientId,
           'description': description,
-          'name': 'Default Name'
         }),
       );
       
@@ -198,29 +192,6 @@ class ApiService {
       }
     } catch (e) {
       print('Error fetching patient: $e');
-      return null;
-    }
-  }
-  
-  // Обновить пациента
-  static Future<Patient?> updatePatient(String id, String name, String? videoPath) async {
-    try {
-      final response = await http.put(
-        Uri.parse('$baseUrl/patients/$id'),
-        headers: {'Content-Type': 'application/json'},
-        body: json.encode({
-          'name': name,
-          'video_path': videoPath,
-        }),
-      );
-      
-      if (response.statusCode == 200) {
-        return Patient.fromJson(json.decode(response.body));
-      } else {
-        throw Exception('Failed to update patient: ${response.statusCode}');
-      }
-    } catch (e) {
-      print('Error updating patient: $e');
       return null;
     }
   }
@@ -308,7 +279,31 @@ class ApiService {
       return null;
     } 
   }
+
+  /// Возвращает абсолютный путь к видео либо `null`, если что‑то пошло не так.
+  static Future<String?> loadVideoPath(String videoId) async {
+    try {
+      final url = Uri.parse('$baseUrl/videos/$videoId');
+      final response = await http.get(url);
+
+      if (response.statusCode == 200) {
+        // Декодируем тело в Map<String, dynamic>
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        // Берём путь, если он есть и он строка
+        return data['file_path'] as String?;
+      } else {
+        throw Exception('Failed to load video: ${response.statusCode}');
+      }
+    } catch (e) {
+      // Можно заменить debugPrint, log и т.д.
+      print('Error loading video path: $e');
+      return null;
+    }
+  }
 }
+
+
+
 
 class EndoscopistApp extends StatelessWidget {
   const EndoscopistApp({super.key});
@@ -375,7 +370,7 @@ class _ExaminationGridScreenState extends State<ExaminationGridScreen> {
 
   Future<String?> getVideoPath(Examination examination) async {
     if (examination.video_id != null) {
-      return await ApiService.loadVideo(examination.video_id!);
+      return await ApiService.loadVideoPath(examination.video_id!);
     }
     return null;
   }
@@ -426,10 +421,6 @@ class _ExaminationGridScreenState extends State<ExaminationGridScreen> {
           // 1. Создать пациента
           final patient_id = await ApiService.createPatient(
             registrationData["firstName"]!,
-            registrationData["lastName"]!,
-            registrationData["middleName"] ?? "",
-            registrationData["birthDate"] ?? "",
-            "gender", // По умолчанию, можно добавить выбор пола в диалог
           );
           
           if (patient_id != null) {
@@ -503,10 +494,6 @@ class _ExaminationGridScreenState extends State<ExaminationGridScreen> {
         // 1. Создать пациента
         final patient_id = await ApiService.createPatient(
           registrationData["firstName"]!,
-          registrationData["lastName"]!,
-          registrationData["middleName"] ?? "",
-          registrationData["birthDate"] ?? "",
-          "gender", // По умолчанию
         );
         
         if (patient_id != null) {
@@ -557,10 +544,7 @@ class _ExaminationGridScreenState extends State<ExaminationGridScreen> {
   }
 
   Future<Map<String, String>?> showPatientRegistrationDialog() async {
-    String? lastName;
     String? firstName;
-    String? middleName;
-    String? birthDate;
     String? serviceType;
     
     return showDialog<Map<String, String>>(
@@ -574,42 +558,12 @@ class _ExaminationGridScreenState extends State<ExaminationGridScreen> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 TextField(
-                  onChanged: (value) => lastName = value,
-                  decoration: InputDecoration(
-                    labelText: 'Фамилия *',
-                    hintText: 'Введите фамилию пациента',
-                    border: OutlineInputBorder(),
-                  ),
-                  autofocus: true,
-                ),
-                SizedBox(height: 16),
-                TextField(
                   onChanged: (value) => firstName = value,
                   decoration: InputDecoration(
                     labelText: 'Имя *',
                     hintText: 'Введите имя пациента',
                     border: OutlineInputBorder(),
                   ),
-                ),
-                SizedBox(height: 16),
-                TextField(
-                  onChanged: (value) => middleName = value,
-                  decoration: InputDecoration(
-                    labelText: 'Отчество',
-                    hintText: 'Введите отчество пациента',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-                SizedBox(height: 16),
-                TextField(
-                  onChanged: (value) => birthDate = value,
-                  decoration: InputDecoration(
-                    labelText: 'Дата рождения',
-                    hintText: 'ДД.ММ.ГГГГ',
-                    border: OutlineInputBorder(),
-                    suffixIcon: Icon(Icons.calendar_today),
-                  ),
-                  keyboardType: TextInputType.datetime,
                 ),
                 SizedBox(height: 16),
                 TextField(
@@ -632,13 +586,9 @@ class _ExaminationGridScreenState extends State<ExaminationGridScreen> {
             TextButton(
               onPressed: () {
                 // Проверяем, что обязательные поля заполнены
-                if (lastName?.isNotEmpty == true && 
-                    firstName?.isNotEmpty == true) {
+                if (firstName?.isNotEmpty == true) {
                   Navigator.of(context).pop({
-                    'lastName': lastName ?? '',
                     'firstName': firstName ?? '',
-                    'middleName': middleName ?? '',
-                    'birthDate': birthDate ?? '',
                     'serviceType': serviceType ?? '',
                   });
                 } else {
@@ -760,7 +710,7 @@ class _ExaminationGridScreenState extends State<ExaminationGridScreen> {
                                 overflow: TextOverflow.ellipsis,
                               ),
                               Text(
-                                'ID: ${examination.id}',
+                                'Exam ID: ${examination.id}',
                                 style: TextStyle(fontSize: 8, color: Colors.grey),
                               ),
                             ],
