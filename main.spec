@@ -4,9 +4,10 @@
 a = Analysis(
     ['videoQueries\\main.py'],
     pathex=['.'],
-    binaries=[],
+    binaries=[('venv\\Lib\\site-packages\\vosk\\libvosk.dll', 'vosk')],
     datas=[('videoQueries\\data\\videos', 'videoQueries\\data\\videos'), ('videoQueries\\data\\screenshots',
-     'videoQueries\\data\\screenshots')],
+     'videoQueries\\data\\screenshots'), ('videoQueries\\vosk-model-small-ru-0.22',
+      'videoQueries\\vosk-model-small-ru-0.22')],
     hiddenimports=['python-multipart'],
     hookspath=[],
     hooksconfig={},
