@@ -7,9 +7,6 @@ from videoQueries.models.video import Video
 from videoQueries.schemas.patient import PatientCreate, PatientOut
 from videoQueries.database import get_db
 from videoQueries.database import Base, engine
-from faker import Faker
-
-fake = Faker()
 
 
 
@@ -33,10 +30,13 @@ def search_patients(name: str = Query(...), db: Session = Depends(get_db)):
         {
             "id": p.id,
             "name": p.name,
+            "surname": p.surname,
+            "middlename": p.middlename,
+            "birthday": p.birthday,
+            "gender": p.gender,
         }
         for p in results
     ]
-
 
 @router.get("/patients/{patient_id}", response_model=PatientOut)
 def get_patient(patient_id: str, db: Session = Depends(get_db)):
@@ -46,6 +46,10 @@ def get_patient(patient_id: str, db: Session = Depends(get_db)):
     return {
         "id": patient.id,
         "name": patient.name,
+        "surname": patient.surname,
+        "middlename": patient.middlename,
+        "birthday": patient.birthday,
+        "gender": patient.gender,
     }
 
 
@@ -55,8 +59,13 @@ def create_patient(
     db: Session = Depends(get_db)
 ):
     new_patient = Patient(
-        id=patient.id,
-        name=fake.first_name()
+        id= str(uuid.uuid4()),
+        name= patient.name,
+        surname= patient.surname,
+        middlename= patient.middlename,
+        birthday= patient.birthday,
+        gender= patient.gender
+
     )
     db.add(new_patient)
     db.commit()
