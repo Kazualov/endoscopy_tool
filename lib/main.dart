@@ -1,5 +1,5 @@
 
-import 'package:endoscopy_tool/pages/start_page.dart';
+import 'package:endoscopy_tool/pages/main_page.dart';
 import 'package:flutter/material.dart';
 
 import 'package:endoscopy_tool/pages/patient_library.dart';
@@ -16,7 +16,7 @@ class MyApp extends StatelessWidget{
 
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      //home: MainPage(videoPath: '/Users/ivan/Documents/Videos for project/videos/Bad Piggies Soundtrack | Building Contraptions | ABFT.mp4')
+      //home: MainPage(videoPath: '/Users/egornava/Downloads/2025-06-16-13-55-53 (online-video-cutter.com).mp4')
       home: EndoscopistApp(),
       //home: StartPage()
     );

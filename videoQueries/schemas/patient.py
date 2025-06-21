@@ -4,17 +4,13 @@ from datetime import date
 
 
 class PatientBase(BaseModel):
-    name: str
-    surname: str
-    middlename: Optional[str] = None
-    birthday: Optional[date] = None
-    gender: Optional[str] = None
+    id: str
 
 class PatientCreate(PatientBase):
     pass
 
 class PatientOut(PatientBase):
-    id: str
+    name: str
 
     class Config:
         from_attributes = True
