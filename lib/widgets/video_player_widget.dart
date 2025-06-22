@@ -9,7 +9,7 @@ class VideoPlayerWidget extends StatefulWidget {
   @override
   State<VideoPlayerWidget> createState() => _VideoPlayerWidgetState();
 }
-
+//
 class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
   late final Player _player;
   late final VideoController _videoController;
