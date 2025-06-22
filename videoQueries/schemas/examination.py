@@ -2,9 +2,11 @@ from pydantic import BaseModel
 from typing import Optional
 from datetime import datetime
 
+
 class ExaminationCreate(BaseModel):
     patient_id: str
     description: Optional[str] = ""
+
 
 class ExaminationResponse(BaseModel):
     id: str
