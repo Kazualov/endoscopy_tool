@@ -1,13 +1,14 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:video_player/video_player.dart';
+import 'package:media_kit/media_kit.dart';
+import 'package:media_kit_video/media_kit_video.dart';
 import 'package:ffmpeg_kit_flutter_new/ffmpeg_kit.dart';
 import 'package:ffmpeg_kit_flutter_new/return_code.dart';
 import 'package:path_provider/path_provider.dart';
 
 import 'package:endoscopy_tool/pages/patient_library.dart';
-import 'package:endoscopy_tool/widgets/video_player_widget.dart';
+import 'package:endoscopy_tool/widgets/video_player_widget.dart'; // New media_kit-based version
 import 'package:endoscopy_tool/widgets/screenshot_button_widget.dart';
 
 class MainPage extends StatelessWidget {
@@ -33,7 +34,6 @@ class MainPageLayout extends StatefulWidget {
 }
 
 class _MainPageLayoutState extends State<MainPageLayout> {
-  VideoPlayerController? _videoController;
   final GlobalKey _screenshotKey = GlobalKey();
   File? _convertedFile;
   bool _isLoading = true;
@@ -41,11 +41,18 @@ class _MainPageLayoutState extends State<MainPageLayout> {
 
   List<String> items = ["0:06", "0:12", "0:00"];
 
+  late final Player _player;
+  late final VideoController _videoController;
+
   @override
   void initState() {
     super.initState();
+    _player = Player();
+    _videoController = VideoController(_player);
+
     _prepareAndPlay(widget.videoPath);
   }
+
 
   Future<void> _prepareAndPlay(String inputPath) async {
     setState(() {
@@ -70,12 +77,7 @@ class _MainPageLayoutState extends State<MainPageLayout> {
       }
     }
 
-    _videoController = VideoPlayerController.file(playableFile);
-    await _videoController!.initialize();
-    _videoController!.addListener(() {
-      if (mounted) setState(() {});
-    });
-
+    await _player.open(Media(playableFile.path));
     setState(() {
       _isLoading = false;
     });
@@ -85,18 +87,24 @@ class _MainPageLayoutState extends State<MainPageLayout> {
     final tempDir = await getTemporaryDirectory();
     final outputPath = '${tempDir.path}/${DateTime.now().millisecondsSinceEpoch}.mp4';
 
-    // Fast remux only (no re-encode)
+    // ✅ Re-encode video (libx264) & audio (aac) to ensure compatibility
     final command = '-i "${inputFile.path}" -c copy "$outputPath"';
+
+    print('Running FFmpeg command: $command');
     final session = await FFmpegKit.execute(command);
     final returnCode = await session.getReturnCode();
 
     if (ReturnCode.isSuccess(returnCode)) {
+      print('FFmpeg conversion succeeded: $outputPath');
       return File(outputPath);
     } else {
-      print('FFmpeg failed: ${await session.getAllLogsAsString()}');
+      final log = await session.getAllLogsAsString();
+      print('FFmpeg failed: $log');
+      _showError("Video conversion failed. Please try a different file.");
       return null;
     }
   }
+
 
   void _showError(String message) {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
@@ -107,7 +115,7 @@ class _MainPageLayoutState extends State<MainPageLayout> {
 
   void _seekToTimecode(String timeString) {
     final duration = _parseDuration(timeString);
-    _videoController?.seekTo(duration);
+    _player.seek(duration);
   }
 
   Duration _parseDuration(String timeString) {
@@ -121,7 +129,7 @@ class _MainPageLayoutState extends State<MainPageLayout> {
 
   @override
   void dispose() {
-    _videoController?.dispose();
+    _player.dispose();
     super.dispose();
   }
 
@@ -153,10 +161,9 @@ class _MainPageLayoutState extends State<MainPageLayout> {
             height: screenSize.height,
             width: 200,
             margin: const EdgeInsets.symmetric(vertical: 5, horizontal: 5),
-
             decoration: BoxDecoration(
               color: Color(0xFFFFFFFF),
-              borderRadius: BorderRadius.circular(20)
+              borderRadius: BorderRadius.circular(20),
             ),
             child: ListView.builder(
               itemCount: items.length,
@@ -215,52 +222,50 @@ class _MainPageLayoutState extends State<MainPageLayout> {
                 border: Border.all(color: const Color(0xFF00ACAB), width: 5),
               ),
               child: ClipRRect(
-                borderRadius: BorderRadius.circular(20),
-                child: _videoController!.value.isInitialized
-                    ? VideoPlayerWidget(controller: _videoController!)
-                    : const Center(child: CircularProgressIndicator()),
+                borderRadius: BorderRadius.circular(15),
+                child: VideoPlayerWidget(player: _player),
               ),
             ),
           ),
 
           // Navigation & Screenshot
           Container(
-            margin: EdgeInsetsGeometry.symmetric(vertical: 5, horizontal: 5),
-              decoration: BoxDecoration(
-                color: Color(0xFFFFFFFF),
-                borderRadius: BorderRadius.circular(20)
-              ),
-              
-              child: Column(
-                children: [
-                  ScreenshotButton(screenshotKey: _screenshotKey),
-                  IconButton(
-                    onPressed: exportText,
-                    icon: const Icon(
-                      Icons.import_export_rounded,
-                      color: Color(0xFF00ACAB),
-                    ),
+            margin: const EdgeInsets.symmetric(vertical: 5, horizontal: 5),
+            decoration: BoxDecoration(
+              color: Color(0xFFFFFFFF),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Column(
+              children: [
+                ScreenshotButton(screenshotKey: _screenshotKey),
+                IconButton(
+                  onPressed: exportText,
+                  icon: const Icon(
+                    Icons.download_rounded,
+                    color: Color(0xFF00ACAB),
                   ),
-                  IconButton(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (context) => EndoscopistApp()),
-                      );
-                    },
-                    icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Color(0xFF00ACAB)),
+                ),
+                IconButton(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (context) => EndoscopistApp()),
+                    );
+                  },
+                  icon: const Icon(Icons.arrow_back_ios_new_rounded,
+                      color: Color(0xFF00ACAB)),
+                ),
+                IconButton(
+                  onPressed: exportText,
+                  icon: const Icon(
+                    Icons.settings_rounded,
+                    color: Color(0xFF00ACAB),
                   ),
-                  IconButton(
-                    onPressed: exportText,
-                    icon: const Icon(
-                      Icons.settings_rounded,
-                      color: Color(0xFF00ACAB),
-                    ),
-                  ),
-                ],
-              )
-          )
-
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );
