@@ -222,7 +222,7 @@ class _MainPageLayoutState extends State<MainPageLayout> {
                 border: Border.all(color: const Color(0xFF00ACAB), width: 5),
               ),
               child: ClipRRect(
-                borderRadius: BorderRadius.circular(20),
+                borderRadius: BorderRadius.circular(15),
                 child: VideoPlayerWidget(player: _player),
               ),
             ),

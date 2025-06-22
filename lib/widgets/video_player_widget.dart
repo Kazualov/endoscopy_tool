@@ -44,6 +44,7 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
         return Column(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
+
             AspectRatio(
               aspectRatio: 16 / 10,
               child: Video(controller: _videoController, controls: NoVideoControls,),
