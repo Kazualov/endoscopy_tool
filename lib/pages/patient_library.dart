@@ -4,17 +4,17 @@ import 'package:file_picker/file_picker.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 
+// hello Gleb
+
 class Examination {
   final String id;
   final String patientId;
-  String? name;
   final String? description;
   String? video_id;
 
   Examination({
     required this.id,
     required this.patientId,
-    this.name,
     this.description,
     this.video_id,
   });
@@ -23,7 +23,6 @@ class Examination {
     return Examination(
       id: json['id'],
       patientId: json['patient_id'],
-      name: json["name"],
       description: json['description'],
       video_id: json['video_id'],
     );
@@ -33,14 +32,9 @@ class Examination {
     return {
       'id': id,
       'patient_id': patientId,
-      "name": name,
       'description': description,
       'video_id': video_id,
     };
-  }
-
-  Future<void> addName(String name) async {
-    this.name = name;
   }
 }
 
@@ -364,7 +358,7 @@ class _ExaminationGridScreenState extends State<ExaminationGridScreen> {
       return examinations;
     }
     return examinations.where((examination) => 
-      examination.name!.toLowerCase().contains(searchQuery.toLowerCase())
+      examination.id.toLowerCase().contains(searchQuery.toLowerCase())
     ).toList();
   }
 
@@ -494,7 +488,6 @@ class _ExaminationGridScreenState extends State<ExaminationGridScreen> {
           Navigator.of(context).pop(); // Закрыть индикатор загрузки
           
           if (examination != null) {
-            examination.addName(registrationData["patient_id"]!);
             await loadExamination(); // Обновить список обследований
             await loadPatients(); // Обновить список пациентов
             
