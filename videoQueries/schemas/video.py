@@ -7,4 +7,3 @@ class VideoMetadata(BaseModel):
     description: Optional[str]
     timestamp: Optional[str]
     notes: Optional[str]
-
