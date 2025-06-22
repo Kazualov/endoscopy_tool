@@ -8,7 +8,7 @@ from videoQueries.routers import Examination
 from contextlib import asynccontextmanager
 import uvicorn
 #import voiceCommand
-
+//
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
