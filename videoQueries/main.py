@@ -8,7 +8,7 @@ from videoQueries.routers import Examination
 from contextlib import asynccontextmanager
 import uvicorn
 #import voiceCommand
-//
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -24,12 +24,13 @@ app.include_router(video.router)
 app.include_router(patient.router)
 app.include_router(Examination.router)
 app.include_router(Screenshots.router)
-#app.include_router(voiceCommand.router)
+#app.include_router(voiceCommand.router) # discarded for simplicity
+
 
 # CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # for development
+    allow_origins=["*"],  # For development
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

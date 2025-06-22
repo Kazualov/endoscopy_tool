@@ -9,4 +9,3 @@ class Patient(Base):
     name = Column(String, nullable=False)
     examinations = relationship("Examination", back_populates="patient")
 
-
