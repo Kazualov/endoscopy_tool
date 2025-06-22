@@ -108,4 +108,4 @@ install(FILES "${AOT_LIBRARY}" DESTINATION "${INSTALL_BUNDLE_DATA_DIR}"
   COMPONENT Runtime)
 
 # Copy the .exe tool to the build directory
-file(COPY "${CMAKE_CURRENT_LIST_DIR}/assets/backend_launcher/main.exe" DESTINATION "${CMAKE_CURRENT_BINARY_DIR}/data")
+file(COPY "${CMAKE_CURRENT_LIST_DIR}/runner/assets/backend_launcher/main.exe" DESTINATION "${CMAKE_CURRENT_BINARY_DIR}/data")
