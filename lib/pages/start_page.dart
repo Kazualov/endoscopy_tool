@@ -81,7 +81,7 @@ class StartPage extends StatelessWidget {
                   // Снять видео (не изменён)
                   GestureDetector(
                     onTap: () {
-                      Navigator.push(context, MaterialPageRoute(builder: (context) => VideoRecorderPage()),);
+                      //Navigator.push(context, MaterialPageRoute(builder: (context) => VideoRecorderPage()),);
                     },
                     child: Container(
                       margin: const EdgeInsets.symmetric(vertical: 20, horizontal: 10),
