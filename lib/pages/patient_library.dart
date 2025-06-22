@@ -693,10 +693,6 @@ class _ExaminationGridScreenState extends State<ExaminationGridScreen> {
             icon: Icon(Icons.settings, color: Colors.black),
             onPressed: () {},
           ),
-          IconButton(
-            icon: Icon(Icons.emoji_emotions, color: Colors.black),
-            onPressed: () {},
-          ),
         ],
       ),
       body: Padding(
@@ -803,8 +799,8 @@ class _ExaminationGridScreenState extends State<ExaminationGridScreen> {
                       },
                       child: Container(
                         decoration: BoxDecoration(
-                          border: Border.all(color: Color(0xFF00ACAB), width: 2),
-                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Color(0xFF00ACAB), width: 3),
+                          borderRadius: BorderRadius.circular(20),
                         ),
                         child: Center(
                           child: Icon(Icons.add, size: 40),
