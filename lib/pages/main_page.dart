@@ -241,7 +241,7 @@ class _MainPageLayoutState extends State<MainPageLayout> {
                 IconButton(
                   onPressed: exportText,
                   icon: const Icon(
-                    Icons.import_export_rounded,
+                    Icons.download_rounded,
                     color: Color(0xFF00ACAB),
                   ),
                 ),
