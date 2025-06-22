@@ -10,3 +10,4 @@ class RecordingSession(Base):
     patient_id = Column(String, nullable=False)
     started_at = Column(DateTime, default=datetime.datetime.utcnow)
     stopped_at = Column(DateTime, nullable=True)
+
