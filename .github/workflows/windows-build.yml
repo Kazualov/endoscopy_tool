@@ -1,9 +1,9 @@
 name: Build Flutter Windows App
 
 on:
-  workflow_dispatch:  # Allows you to manually trigger the workflow from GitHub UI
+  workflow_dispatch:  # Manual trigger
   push:
-    branches: [main]  # Runs automatically on pushes to the main branch
+    branches: [main]  # Auto-trigger on main branch
 
 jobs:
   build:
@@ -13,6 +13,9 @@ jobs:
     steps:
       - name: 📥 Checkout code
         uses: actions/checkout@v3
+        with:
+          lfs: true           # ✅ Enables Git LFS (important for binary files like .exe)
+          fetch-depth: 0      # ✅ Full clone, not shallow
 
       - name: 💻 Setup Flutter
         uses: subosito/flutter-action@v2
@@ -25,6 +28,11 @@ jobs:
 
       - name: 📦 Install dependencies
         run: flutter pub get
+
+      - name: 🧪 Confirm .exe exists
+        run: |
+          echo "Contents of backend_launcher:"
+          dir windows\runner\assets\backend_launcher
 
       - name: 🏗️ Build Windows app
         run: flutter build windows --release
