@@ -50,28 +50,16 @@ class Examination {
 class Patient {
   final String id;
   final String name;
-  final String? surname;
-  final String? middleName;
-  final String? birthday;
-  final String? gender;
 
   Patient({
     required this.id,
     required this.name,
-    this.surname,
-    this.middleName,
-    this.birthday,
-    this.gender,
   });
 
   factory Patient.fromJson(Map<String, dynamic> json) {
     return Patient(
       id: json['id'],
       name: json['name'],
-      surname: json['surname'],
-      middleName: json['middleName'],
-      birthday: json['birthday'],
-      gender: json['gender'],
     );
   }
 
@@ -79,10 +67,6 @@ class Patient {
     return {
       'id': id,
       'name': name,
-      'surname': surname,
-      'middleName': middleName,
-      'birthday': birthday,
-      'gender': gender,
     };
   }
 }
