@@ -46,7 +46,7 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
           children: [
             AspectRatio(
               aspectRatio: 16 / 10,
-              child: Video(controller: _videoController),
+              child: Video(controller: _videoController, controls: NoVideoControls,),
             ),
             IconButton(
               icon: Icon(
