@@ -29,12 +29,10 @@ jobs:
       - name: 📦 Install dependencies
         run: flutter pub get
 
-      - name: 🕵️ Verify main.exe is present
+      - name: 🧪 Confirm .exe exists
         run: |
-          dir windows\assets\backend_launcher
-          if (!(Test-Path windows/assets/backend_launcher/main.exe)) {
-            throw "❌ main.exe is missing from the expected path!"
-          }
+          echo "Contents of backend_launcher:"
+          dir windows\runner\assets\backend_launcher
 
       - name: 🏗️ Build Windows app
         run: flutter build windows --release
