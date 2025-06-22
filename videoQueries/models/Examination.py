@@ -4,6 +4,7 @@ from sqlalchemy import Column, String, ForeignKey, DateTime, func
 from sqlalchemy.orm import relationship
 from videoQueries.database import Base  # Импорт единого Base
 
+
 class Examination(Base):
     __tablename__ = "examinations"
     id = Column(String, primary_key=True, index=True)

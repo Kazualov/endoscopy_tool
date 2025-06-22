@@ -6,8 +6,10 @@ from datetime import date
 class PatientBase(BaseModel):
     id: str
 
+
 class PatientCreate(PatientBase):
     pass
+
 
 class PatientOut(PatientBase):
     name: str
