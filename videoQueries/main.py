@@ -24,8 +24,6 @@ app.include_router(video.router)
 app.include_router(patient.router)
 app.include_router(Examination.router)
 app.include_router(Screenshots.router)
-#app.include_router(voiceCommand.router) # discarded for simplicity
-
 
 # CORS
 app.add_middleware(
