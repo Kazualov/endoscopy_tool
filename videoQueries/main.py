@@ -7,7 +7,7 @@ from videoQueries.routers import Screenshots
 from videoQueries.routers import Examination
 from contextlib import asynccontextmanager
 import uvicorn
-import voiceCommand
+#import voiceCommand
 
 
 @asynccontextmanager
