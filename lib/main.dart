@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:endoscopy_tool/pages/start_page.dart';
 import 'package:flutter/material.dart';
 import 'package:media_kit/media_kit.dart';
+import 'package:endoscopy_tool/pages/screenShotsEditor.dart';
 
 import 'package:endoscopy_tool/pages/patient_library.dart';
 
@@ -35,8 +36,10 @@ class MyApp extends StatelessWidget{
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       //home: MainPage(videoPath: '/Users/ivan/Documents/Videos for project/videos/Bad Piggies Soundtrack | Building Contraptions | ABFT.mp4')
-      home: EndoscopistApp(),
+      //home: EndoscopistApp(),
       //home: StartPage()
-    );
+      home: ScreenshotEditor(
+        screenshot: FileImage(File("/Users/egornava/Pictures/screenshots/photo/Screenshot 2025-05-21 at 18.52.41.png")),
+        otherScreenshots : [FileImage(File("/Users/egornava/Pictures/screenshots/photo/Screenshot 2025-05-21 at 18.52.41.png"))]));
   }
 }
