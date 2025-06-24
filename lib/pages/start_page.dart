@@ -1,5 +1,4 @@
 import 'package:endoscopy_tool/pages/patient_library.dart';
-import 'package:endoscopy_tool/pages/video_recorder_page.dart';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 
