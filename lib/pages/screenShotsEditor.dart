@@ -5,12 +5,15 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:vector_math/vector_math_64.dart' hide Colors;
+
 
 // ──────────────────────────────────────────────────────────────────────
-//  Screenshot Editor – v2
+//  Screenshot Editor – v3 with Zoom & Pan
 //  • Rectangle, Pen, Eraser
 //  • Color palette
 //  • Undo / Redo
+//  • Zoom & Pan support
 //  • Save annotated image  → call  `await editorKey.currentState!.save()`
 // ──────────────────────────────────────────────────────────────────────
 enum Tool { rect, pen, eraser }
@@ -146,7 +149,7 @@ class ScreenshotEditor extends StatefulWidget {
   State<ScreenshotEditor> createState() => ScreenshotEditorState();
 }
 
-class ScreenshotEditorState extends State<ScreenshotEditor> {
+class ScreenshotEditorState extends State<ScreenshotEditor> with TickerProviderStateMixin {
   // Tools & palette
   Tool _tool = Tool.rect;
   EraserMode _eraserMode = EraserMode.shape;
@@ -164,10 +167,25 @@ class ScreenshotEditorState extends State<ScreenshotEditor> {
   List<Offset> _draftPoints = []; // For storing path points
   Offset? _rectStart;
 
+  // Transform controls
+  late TransformationController _transformController;
+
   // Keys
   final GlobalKey _repaintKey = GlobalKey();
 
   Color get _currentColor => _colors[_colorIx];
+
+  @override
+  void initState() {
+    super.initState();
+    _transformController = TransformationController();
+  }
+
+  @override
+  void dispose() {
+    _transformController.dispose();
+    super.dispose();
+  }
 
   void _pushUndo() {
     _undoStack.add(List.of(_marks));
@@ -190,12 +208,21 @@ class ScreenshotEditorState extends State<ScreenshotEditor> {
       ..addAll(_redoStack.removeLast()));
   }
 
+  // Convert screen coordinates to image coordinates
+  Offset _screenToImageCoords(Offset screenPoint, Size canvasSize) {
+    final matrix = _transformController.value;
+    final invertedMatrix = Matrix4.inverted(matrix);
+    final vector = Vector4(screenPoint.dx, screenPoint.dy, 0, 1);
+    final transformed = invertedMatrix.transform(vector);
+    return Offset(transformed.x, transformed.y);
+  }
+
   // Erase based on current eraser mode
-  void _eraseAt(Offset p) {
+  void _eraseAt(Offset imagePoint) {
     if (_eraserMode == EraserMode.shape) {
-      _eraseShape(p);
+      _eraseShape(imagePoint);
     } else {
-      _erasePixel(p);
+      _erasePixel(imagePoint);
     }
   }
 
@@ -212,7 +239,10 @@ class ScreenshotEditorState extends State<ScreenshotEditor> {
 
   // Pixel-based erasing
   void _erasePixel(Offset p) {
-    const eraserRadius = 15.0;
+    // Scale eraser radius based on current zoom level
+    final scale = _transformController.value.getMaxScaleOnAxis();
+    final eraserRadius = 15.0 / scale;
+
     bool hasChanges = false;
     _pushUndo();
 
@@ -245,6 +275,10 @@ class ScreenshotEditorState extends State<ScreenshotEditor> {
             : EraserMode.shape;
       });
     }
+  }
+
+  void _resetZoom() {
+    _transformController.value = Matrix4.identity();
   }
 
   // Save composite image to Documents directory, returns path
@@ -319,6 +353,13 @@ class ScreenshotEditorState extends State<ScreenshotEditor> {
             ),
           )),
           const Spacer(),
+          // Zoom reset button
+          _ToolBtn(
+            icon: Icons.zoom_out_map,
+            onTap: _resetZoom,
+            subtitle: 'Reset',
+          ),
+          const SizedBox(height: 12),
           _ToolBtn(icon: Icons.undo, onTap: _onUndo),
           _ToolBtn(icon: Icons.redo, onTap: _onRedo),
         ],
@@ -331,83 +372,91 @@ class ScreenshotEditorState extends State<ScreenshotEditor> {
     return Center(
       child: AspectRatio(
         aspectRatio: 4 / 3,
-        child: RepaintBoundary(
-          key: _repaintKey,
-          child: GestureDetector(
-            behavior: HitTestBehavior.translucent,
-            onPanStart: (d) {
-              final local = _eventPos(d.localPosition);
-              switch (_tool) {
-                case Tool.rect:
-                  _rectStart = local;
-                  _draftRect = Rect.fromPoints(local, local);
-                  break;
-                case Tool.pen:
-                  _draftPoints = [local];
-                  _draftPath = Path()..moveTo(local.dx, local.dy);
-                  break;
-                case Tool.eraser:
-                  _eraseAt(local);
-                  break;
-              }
-            },
-            onPanUpdate: (d) {
-              final local = _eventPos(d.localPosition);
-              setState(() {
-                switch (_tool) {
-                  case Tool.rect:
-                    if (_rectStart != null) {
-                      _draftRect = Rect.fromPoints(_rectStart!, local);
-                    }
-                    break;
-                  case Tool.pen:
-                    _draftPoints.add(local);
-                    _draftPath!.lineTo(local.dx, local.dy);
-                    break;
-                  case Tool.eraser:
-                    _eraseAt(local);
-                    break;
-                }
-              });
-            },
-            onPanEnd: (_) {
-              if (_draftRect != null || _draftPath != null) {
-                _pushUndo();
-                if (_draftRect != null) {
-                  _marks.add(_RectMark(_draftRect!, _currentColor));
-                }
-                if (_draftPath != null && _draftPoints.length > 1) {
-                  _marks.add(_PathMark(_draftPath!, _currentColor, List.of(_draftPoints)));
-                }
-              }
-              _draftRect = null;
-              _draftPath = null;
-              _draftPoints.clear();
-              _rectStart = null;
-            },
-            child: CustomPaint(
-              painter: _StagePainter(
-                widget.screenshot,
-                _marks,
-                draftRect: _draftRect,
-                draftPath: _draftPath,
-                draftPaint: Paint()
-                  ..color = _currentColor
-                  ..strokeWidth = 3
-                  ..style = PaintingStyle.stroke
-                  ..strokeCap = StrokeCap.round,
-                eraserMode: _tool == Tool.eraser ? _eraserMode : null,
+        child: ClipRect(
+          child: InteractiveViewer(
+            transformationController: _transformController,
+            minScale: 0.5,
+            maxScale: 5.0,
+            boundaryMargin: const EdgeInsets.all(100),
+            child: RepaintBoundary(
+              key: _repaintKey,
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  return GestureDetector(
+                    behavior: HitTestBehavior.translucent,
+                    onPanStart: (d) {
+                      final imagePoint = _screenToImageCoords(d.localPosition, constraints.biggest);
+                      switch (_tool) {
+                        case Tool.rect:
+                          _rectStart = imagePoint;
+                          _draftRect = Rect.fromPoints(imagePoint, imagePoint);
+                          break;
+                        case Tool.pen:
+                          _draftPoints = [imagePoint];
+                          _draftPath = Path()..moveTo(imagePoint.dx, imagePoint.dy);
+                          break;
+                        case Tool.eraser:
+                          _eraseAt(imagePoint);
+                          break;
+                      }
+                    },
+                    onPanUpdate: (d) {
+                      final imagePoint = _screenToImageCoords(d.localPosition, constraints.biggest);
+                      setState(() {
+                        switch (_tool) {
+                          case Tool.rect:
+                            if (_rectStart != null) {
+                              _draftRect = Rect.fromPoints(_rectStart!, imagePoint);
+                            }
+                            break;
+                          case Tool.pen:
+                            _draftPoints.add(imagePoint);
+                            _draftPath!.lineTo(imagePoint.dx, imagePoint.dy);
+                            break;
+                          case Tool.eraser:
+                            _eraseAt(imagePoint);
+                            break;
+                        }
+                      });
+                    },
+                    onPanEnd: (_) {
+                      if (_draftRect != null || _draftPath != null) {
+                        _pushUndo();
+                        if (_draftRect != null) {
+                          _marks.add(_RectMark(_draftRect!, _currentColor));
+                        }
+                        if (_draftPath != null && _draftPoints.length > 1) {
+                          _marks.add(_PathMark(_draftPath!, _currentColor, List.of(_draftPoints)));
+                        }
+                      }
+                      _draftRect = null;
+                      _draftPath = null;
+                      _draftPoints.clear();
+                      _rectStart = null;
+                    },
+                    child: CustomPaint(
+                      size: constraints.biggest,
+                      painter: _StagePainter(
+                        widget.screenshot,
+                        _marks,
+                        draftRect: _draftRect,
+                        draftPath: _draftPath,
+                        draftPaint: Paint()
+                          ..color = _currentColor
+                          ..strokeWidth = 3
+                          ..style = PaintingStyle.stroke
+                          ..strokeCap = StrokeCap.round,
+                        eraserMode: _tool == Tool.eraser ? _eraserMode : null,
+                      ),
+                    ),
+                  );
+                },
               ),
             ),
           ),
         ),
       ),
     );
-  }
-
-  Offset _eventPos(Offset raw) {
-    // GestureDetector delivers local offset inside AspectRatio, fine
-    return raw;
   }
 
   // ───────────────── Right thumbs ─────────────────
@@ -466,6 +515,7 @@ class _StagePainter extends CustomPainter {
       paintBackground(canvas, size);
     }
 
+    // Draw all marks and drafts in image coordinate space
     for (final m in marks) m.draw(canvas);
     if (draftRect != null) canvas.drawRect(draftRect!, draftPaint);
     if (draftPath != null) canvas.drawPath(draftPath!, draftPaint);
