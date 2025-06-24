@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-
+import 'package:file_picker/file_picker.dart';
 import '../widgets/SettingsStorage.dart';
 
 
@@ -90,7 +90,12 @@ class _SettingsDialogState extends State<SettingsDialog> {
                   tooltip: 'Выбрать папку',
                   icon: const Icon(Icons.folder_open),
                   onPressed: () async {
-                    // TODO: Integrate a folder‑picker such as `file_picker`.
+                    final selectedDirectory = await FilePicker.platform.getDirectoryPath();
+                    if (selectedDirectory != null) {
+                      setState(() {
+                        _pathCtl.text = selectedDirectory;
+                      });
+                    }
                   },
                 ),
               ),
