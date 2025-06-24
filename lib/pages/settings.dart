@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 
+import '../widgets/SettingsStorage.dart';
+
+
 class SettingsDialog extends StatefulWidget {
   const SettingsDialog({
     super.key,
@@ -165,7 +168,9 @@ Future<({String resolution, String path, ThemeMode theme})?> showSettingsDialog(
       initialTheme: initialTheme,
       onSave: (res, p, t) {
         result = (resolution: res, path: p, theme: t);
+        SettingsStorage.saveSettings(resolution: res, path: p, theme: t); // ← Сохраняем
       },
+
     ),
   );
   return result;
