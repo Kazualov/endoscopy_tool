@@ -7,13 +7,14 @@ import 'package:flutter/rendering.dart';
 import 'package:path_provider/path_provider.dart';
 
 // ──────────────────────────────────────────────────────────────────────
-//  Screenshot Editor – v2
+//  Screenshot Editor – v2
 //  • Rectangle, Pen, Eraser
 //  • Color palette
 //  • Undo / Redo
 //  • Save annotated image  → call  `await editorKey.currentState!.save()`
 // ──────────────────────────────────────────────────────────────────────
 enum Tool { rect, pen, eraser }
+enum EraserMode { pixel, shape }
 
 abstract class _Mark {
   final Paint paint;
@@ -23,31 +24,112 @@ abstract class _Mark {
     ..style = PaintingStyle.stroke
     ..strokeCap = StrokeCap.round;
   void draw(Canvas canvas);
-  bool hit(Offset point); // for eraser
+  bool hit(Offset point); // for shape eraser
+  _Mark? erasePixel(Offset point, double radius); // for pixel eraser
 }
 
 class _RectMark extends _Mark {
   Rect rect;
   _RectMark(this.rect, Color c) : super(c);
+
   @override
   void draw(Canvas canvas) => canvas.drawRect(rect, paint);
+
   @override
-  bool hit(Offset p) => rect.inflate(6).contains(p);
+  bool hit(Offset p) {
+    // Check if point is on the rectangle border (not inside)
+    final tolerance = 8.0;
+    final outerRect = rect.inflate(tolerance);
+    final innerRect = rect.deflate(tolerance);
+    return outerRect.contains(p) && !innerRect.contains(p);
+  }
+
+  @override
+  _Mark? erasePixel(Offset point, double radius) {
+    // For rectangles, we don't support pixel erasing - only shape erasing
+    return hit(point) ? null : this;
+  }
 }
 
 class _PathMark extends _Mark {
   final Path path;
-  _PathMark(this.path, Color c) : super(c);
+  final List<Offset> points; // Store original points for pixel erasing
+
+  _PathMark(this.path, Color c, this.points) : super(c);
+
   @override
   void draw(Canvas canvas) => canvas.drawPath(path, paint);
+
   @override
   bool hit(Offset p) {
-    final pathMetrics = path.computeMetrics();
-    for (final m in pathMetrics) {
-      final pos = m.getTangentForOffset(m.length * 0.5)?.position ?? Offset.zero;
-      if ((pos - p).distance < 8) return true;
+    // Check if point is near any segment of the path
+    const tolerance = 12.0;
+    for (int i = 0; i < points.length - 1; i++) {
+      final start = points[i];
+      final end = points[i + 1];
+      if (_distanceToLineSegment(p, start, end) < tolerance) {
+        return true;
+      }
     }
     return false;
+  }
+
+  @override
+  _Mark? erasePixel(Offset point, double radius) {
+    // Remove points that are within the eraser radius
+    final newPoints = <Offset>[];
+    bool hasChanges = false;
+
+    for (final p in points) {
+      final distance = (p - point).distance;
+      if (distance > radius) {
+        newPoints.add(p);
+      } else {
+        hasChanges = true;
+      }
+    }
+
+    // If no points left or too few points, return null (delete mark)
+    if (newPoints.length < 2) return null;
+
+    // If no changes, return original mark
+    if (!hasChanges) return this;
+
+    // Create new path from remaining points
+    final newPath = Path();
+    if (newPoints.isNotEmpty) {
+      newPath.moveTo(newPoints.first.dx, newPoints.first.dy);
+      for (int i = 1; i < newPoints.length; i++) {
+        newPath.lineTo(newPoints[i].dx, newPoints[i].dy);
+      }
+    }
+
+    return _PathMark(newPath, paint.color, newPoints);
+  }
+
+  double _distanceToLineSegment(Offset point, Offset start, Offset end) {
+    final A = point.dx - start.dx;
+    final B = point.dy - start.dy;
+    final C = end.dx - start.dx;
+    final D = end.dy - start.dy;
+
+    final dot = A * C + B * D;
+    final lenSq = C * C + D * D;
+
+    if (lenSq == 0) return (point - start).distance;
+
+    final param = dot / lenSq;
+
+    Offset projection;
+    if (param < 0) {
+      projection = start;
+    } else if (param > 1) {
+      projection = end;
+    } else {
+      projection = Offset(start.dx + param * C, start.dy + param * D);
+    }
+
+    return (point - projection).distance;
   }
 }
 
@@ -67,6 +149,7 @@ class ScreenshotEditor extends StatefulWidget {
 class ScreenshotEditorState extends State<ScreenshotEditor> {
   // Tools & palette
   Tool _tool = Tool.rect;
+  EraserMode _eraserMode = EraserMode.shape;
   int _colorIx = 0;
   final _colors = [Colors.red, Colors.green, Colors.blue, Colors.orange, Colors.purple];
 
@@ -78,6 +161,8 @@ class ScreenshotEditorState extends State<ScreenshotEditor> {
   // In‑progress drawing
   Rect? _draftRect;
   Path? _draftPath;
+  List<Offset> _draftPoints = []; // For storing path points
+  Offset? _rectStart;
 
   // Keys
   final GlobalKey _repaintKey = GlobalKey();
@@ -105,14 +190,60 @@ class ScreenshotEditorState extends State<ScreenshotEditor> {
       ..addAll(_redoStack.removeLast()));
   }
 
-  // Erase first mark under point
+  // Erase based on current eraser mode
   void _eraseAt(Offset p) {
+    if (_eraserMode == EraserMode.shape) {
+      _eraseShape(p);
+    } else {
+      _erasePixel(p);
+    }
+  }
+
+  // Erase first mark under point (original behavior)
+  void _eraseShape(Offset p) {
     for (int i = _marks.length - 1; i >= 0; --i) {
       if (_marks[i].hit(p)) {
         _pushUndo();
         setState(() => _marks.removeAt(i));
         break;
       }
+    }
+  }
+
+  // Pixel-based erasing
+  void _erasePixel(Offset p) {
+    const eraserRadius = 15.0;
+    bool hasChanges = false;
+    _pushUndo();
+
+    setState(() {
+      final List<_Mark> newMarks = [];
+
+      for (final mark in _marks) {
+        final result = mark.erasePixel(p, eraserRadius);
+        if (result != null) {
+          newMarks.add(result);
+          if (result != mark) hasChanges = true;
+        } else {
+          hasChanges = true;
+        }
+      }
+
+      if (hasChanges) {
+        _marks.clear();
+        _marks.addAll(newMarks);
+      }
+    });
+  }
+
+  // Toggle eraser mode on double tap when eraser is selected
+  void _toggleEraserMode() {
+    if (_tool == Tool.eraser) {
+      setState(() {
+        _eraserMode = _eraserMode == EraserMode.shape
+            ? EraserMode.pixel
+            : EraserMode.shape;
+      });
     }
   }
 
@@ -161,10 +292,16 @@ class ScreenshotEditorState extends State<ScreenshotEditor> {
         children: [
           const SizedBox(height: 48),
           for (int i = 0; i < icons.length; ++i)
-            _ToolBtn(
-              icon: icons[i],
-              active: _tool.index == i,
-              onTap: () => setState(() => _tool = Tool.values[i]),
+            GestureDetector(
+              onDoubleTap: i == 1 ? _toggleEraserMode : null, // Double tap on eraser to toggle mode
+              child: _ToolBtn(
+                icon: icons[i],
+                active: _tool.index == i,
+                onTap: () => setState(() => _tool = Tool.values[i]),
+                subtitle: i == 1 && _tool == Tool.eraser
+                    ? (_eraserMode == EraserMode.shape ? 'Shape' : 'Pixel')
+                    : null,
+              ),
             ),
           const SizedBox(height: 24),
           // Palette
@@ -202,9 +339,11 @@ class ScreenshotEditorState extends State<ScreenshotEditor> {
               final local = _eventPos(d.localPosition);
               switch (_tool) {
                 case Tool.rect:
+                  _rectStart = local;
                   _draftRect = Rect.fromPoints(local, local);
                   break;
                 case Tool.pen:
+                  _draftPoints = [local];
                   _draftPath = Path()..moveTo(local.dx, local.dy);
                   break;
                 case Tool.eraser:
@@ -217,9 +356,12 @@ class ScreenshotEditorState extends State<ScreenshotEditor> {
               setState(() {
                 switch (_tool) {
                   case Tool.rect:
-                    _draftRect = Rect.fromPoints(_draftRect!.topLeft, local);
+                    if (_rectStart != null) {
+                      _draftRect = Rect.fromPoints(_rectStart!, local);
+                    }
                     break;
                   case Tool.pen:
+                    _draftPoints.add(local);
                     _draftPath!.lineTo(local.dx, local.dy);
                     break;
                   case Tool.eraser:
@@ -231,11 +373,17 @@ class ScreenshotEditorState extends State<ScreenshotEditor> {
             onPanEnd: (_) {
               if (_draftRect != null || _draftPath != null) {
                 _pushUndo();
-                if (_draftRect != null) _marks.add(_RectMark(_draftRect!, _currentColor));
-                if (_draftPath != null) _marks.add(_PathMark(_draftPath!, _currentColor));
+                if (_draftRect != null) {
+                  _marks.add(_RectMark(_draftRect!, _currentColor));
+                }
+                if (_draftPath != null && _draftPoints.length > 1) {
+                  _marks.add(_PathMark(_draftPath!, _currentColor, List.of(_draftPoints)));
+                }
               }
               _draftRect = null;
               _draftPath = null;
+              _draftPoints.clear();
+              _rectStart = null;
             },
             child: CustomPaint(
               painter: _StagePainter(
@@ -246,7 +394,9 @@ class ScreenshotEditorState extends State<ScreenshotEditor> {
                 draftPaint: Paint()
                   ..color = _currentColor
                   ..strokeWidth = 3
-                  ..style = PaintingStyle.stroke,
+                  ..style = PaintingStyle.stroke
+                  ..strokeCap = StrokeCap.round,
+                eraserMode: _tool == Tool.eraser ? _eraserMode : null,
               ),
             ),
           ),
@@ -292,9 +442,15 @@ class _StagePainter extends CustomPainter {
   final Rect? draftRect;
   final Path? draftPath;
   final Paint draftPaint;
+  final EraserMode? eraserMode;
   ui.Image? _bgImage;
 
-  _StagePainter(this.bg, this.marks, {this.draftRect, this.draftPath, required this.draftPaint});
+  _StagePainter(this.bg, this.marks, {
+    this.draftRect,
+    this.draftPath,
+    required this.draftPaint,
+    this.eraserMode,
+  });
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -322,7 +478,6 @@ class _StagePainter extends CustomPainter {
     canvas.drawImageRect(_bgImage!, src, output, Paint());
   }
 
-
   @override
   bool shouldRepaint(covariant _StagePainter old) => true;
 }
@@ -332,7 +487,15 @@ class _ToolBtn extends StatelessWidget {
   final IconData icon;
   final VoidCallback onTap;
   final bool active;
-  const _ToolBtn({required this.icon, required this.onTap, this.active = false});
+  final String? subtitle;
+
+  const _ToolBtn({
+    required this.icon,
+    required this.onTap,
+    this.active = false,
+    this.subtitle,
+  });
+
   @override
   Widget build(BuildContext context) => GestureDetector(
     onTap: onTap,
@@ -343,7 +506,22 @@ class _ToolBtn extends StatelessWidget {
         color: active ? Theme.of(context).colorScheme.primary : Theme.of(context).colorScheme.surfaceVariant,
         borderRadius: BorderRadius.circular(12),
       ),
-      child: Icon(icon, size: 24, color: active ? Colors.white : Theme.of(context).iconTheme.color),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 24, color: active ? Colors.white : Theme.of(context).iconTheme.color),
+          if (subtitle != null) ...[
+            const SizedBox(height: 2),
+            Text(
+              subtitle!,
+              style: TextStyle(
+                fontSize: 10,
+                color: active ? Colors.white : Theme.of(context).textTheme.bodySmall?.color,
+              ),
+            ),
+          ],
+        ],
+      ),
     ),
   );
 }
