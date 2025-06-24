@@ -37,9 +37,7 @@ class MyApp extends StatelessWidget{
       //
       debugShowCheckedModeBanner: false,
       home: Scaffold(
-        body: Container(
-          height: 720,
-          width: 1028,
+        body: Center(
           child: CameraStreamWidget(),
         ),
       ),
