@@ -27,10 +27,8 @@ class SettingsStorage {
   }
 
 
-  Future<
-      ({String resolution, String path, ThemeMode theme})?> loadSettings() async {
+  static Future<({String resolution, String path, ThemeMode theme})?> loadSettings() async {
     try {
-      // Получаем путь к файлу
       final dir = await getApplicationDocumentsDirectory();
       final file = File('${dir.path}/settings.json');
 
@@ -42,20 +40,28 @@ class SettingsStorage {
       final resolution = jsonMap['resolution'] as String? ?? '1920x1080';
       final path = jsonMap['path'] as String? ?? '';
       final themeString = jsonMap['theme'] as String? ?? 'system';
-
-      // Преобразуем строку в ThemeMode
       final theme = _themeModeFromString(themeString);
 
-      // Возвращаем как запись
       return (resolution: resolution, path: path, theme: theme);
     } catch (e) {
-      // В случае ошибки логируем и возвращаем null
-      debugPrint('Ошибка при загрузке настроек: $e');
+      debugPrint('Ошибка загрузки настроек: $e');
       return null;
     }
   }
 
-  ThemeMode _themeModeFromString(String value) {
+  static String _themeModeToString(ThemeMode mode) {
+    switch (mode) {
+      case ThemeMode.light:
+        return 'light';
+      case ThemeMode.dark:
+        return 'dark';
+      case ThemeMode.system:
+      default:
+        return 'system';
+    }
+  }
+
+  static ThemeMode _themeModeFromString(String value) {
     switch (value) {
       case 'light':
         return ThemeMode.light;
@@ -67,4 +73,3 @@ class SettingsStorage {
     }
   }
 }
-

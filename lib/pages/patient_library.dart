@@ -623,21 +623,10 @@ class _ExaminationGridScreenState extends State<ExaminationGridScreen> {
           IconButton(
             icon: Icon(Icons.settings, color: Colors.black),
             onPressed: () async {
-              final result = await showSettingsDialog(
-                context,
-                initialResolution: '1280x720',
-                initialPath: '/Users/username/Videos',
-                initialTheme: ThemeMode.dark,
-              );
-
+              final result = await showSettingsDialog(context);
               if (result != null) {
-                // Пользователь нажал "Сохранить"
-                print('Разрешение: ${result.resolution}');
-                print('Путь: ${result.path}');
-                print('Тема: ${result.theme}');
-              } else {
-                // Пользователь нажал "Отмена"
-                print('Настройки отменены');
+                print('Настройки обновлены: ${result.resolution}, ${result.path}, ${result.theme}');
+                // Если нужно — обнови UI, состояние и т.п.
               }
             },
           ),
