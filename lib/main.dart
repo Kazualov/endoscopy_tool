@@ -1,9 +1,10 @@
 import 'dart:io';
-import 'package:endoscopy_tool/pages/start_page.dart';
 import 'package:flutter/material.dart';
 import 'package:media_kit/media_kit.dart';
 
 import 'package:endoscopy_tool/pages/patient_library.dart';
+import 'package:endoscopy_tool/pages/start_page.dart';
+import 'package:endoscopy_tool/widgets/video_capturing_widget.dart';
 
 Future<void> launchMyExe() async {
   final exePath = 'endoscopy_tool/windows/runner/assets/backend_launcher/main.exe'; // relative to your app executable
@@ -34,8 +35,13 @@ class MyApp extends StatelessWidget{
 
     return MaterialApp(
       debugShowCheckedModeBanner: false,
+      home: Scaffold(
+        body: Center(
+          child: CameraStreamWidget(),
+        ),
+      ),
       //home: MainPage(videoPath: '/Users/ivan/Documents/Videos for project/videos/Bad Piggies Soundtrack | Building Contraptions | ABFT.mp4')
-      home: EndoscopistApp(),
+      //home: EndoscopistApp(),
       //home: StartPage()
     );
   }
