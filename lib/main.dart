@@ -38,7 +38,13 @@ class MyApp extends StatelessWidget{
       debugShowCheckedModeBanner: false,
       home: Scaffold(
         body: Center(
-          child: CameraStreamWidget(),
+          child: CameraStreamWidget(
+            width: 1280,
+            height: 720,
+            showHeader: true,
+            showDeviceInfo: true,
+            aspectRatio: 16 / 9,
+          )
         ),
       ),
       //home: MainPage(videoPath: '/Users/ivan/Documents/Videos for project/videos/Bad Piggies Soundtrack | Building Contraptions | ABFT.mp4')
