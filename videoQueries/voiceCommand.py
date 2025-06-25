@@ -9,7 +9,7 @@ router = APIRouter()
 SAMPLE_RATE = 16000
 CHANNELS = 1
 AUDIO_QUEUE = queue.Queue()
-model = Model("_internal/videoQueries/vosk-model-small-ru-0.22")
+model = Model("vosk-model-small-ru-0.22")
 
 recognizer = KaldiRecognizer(model, SAMPLE_RATE)
 

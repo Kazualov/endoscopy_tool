@@ -1,6 +1,8 @@
 import 'dart:io';
-
 import 'package:flutter/material.dart';
+import 'package:endoscopy_tool/widgets/screenshot_button_widget.dart';
+
+
 import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
 import 'package:ffmpeg_kit_flutter_new/ffmpeg_kit.dart';
@@ -9,7 +11,8 @@ import 'package:path_provider/path_provider.dart';
 
 import 'package:endoscopy_tool/pages/patient_library.dart';
 import 'package:endoscopy_tool/widgets/video_player_widget.dart'; // New media_kit-based version
-import 'package:endoscopy_tool/widgets/screenshot_button_widget.dart';
+
+import '../main.dart';
 
 class MainPage extends StatelessWidget {
   final String videoPath;
@@ -35,6 +38,8 @@ class MainPageLayout extends StatefulWidget {
 
 class _MainPageLayoutState extends State<MainPageLayout> {
   final GlobalKey _screenshotKey = GlobalKey();
+  final GlobalKey<ScreenshotButtonState> screenshotButtonKey = GlobalKey();
+
   File? _convertedFile;
   bool _isLoading = true;
   String? _loadingMessage;
@@ -266,6 +271,72 @@ class _MainPageLayoutState extends State<MainPageLayout> {
               ],
             ),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+
+
+class VoiceCommandHome extends StatefulWidget {
+  @override
+  _VoiceCommandHomeState createState() => _VoiceCommandHomeState();
+}
+
+class _VoiceCommandHomeState extends State<VoiceCommandHome> {
+  final GlobalKey screenshotKey = GlobalKey();
+  final GlobalKey<ScreenshotButtonState> screenshotButtonKey = GlobalKey();
+
+  String _lastCommand = 'Ожидание...';
+
+  @override
+  void initState() {
+    super.initState();
+
+    voiceService.commandStream.listen((command) async {
+      print('[LOG] Получена команда: $command'); // ← ЛОГ В КОНСОЛЬ
+
+      setState(() {
+        _lastCommand = '✅ Команда: $command';
+      });
+
+      if (command == 'screenshot') {
+        final state = screenshotButtonKey.currentState;
+        if (state != null) {
+          await state.captureAndSaveScreenshot(context);
+        }
+      }
+      // можно расширить на другие команды
+    }, onError: (error) {
+      print('[ERROR] Ошибка потока команд: $error'); // ← ЛОГ ОШИБКИ
+      setState(() {
+        _lastCommand = '❌ Ошибка: $error';
+      });
+    });
+  }
+
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: Text('Голосовые команды')),
+      body: Column(
+        children: [
+          RepaintBoundary(
+            key: screenshotKey,
+            child: Container(
+              height: 200,
+              color: Colors.amber,
+              child: Center(child: Text('📸 Зона скриншота')),
+            ),
+          ),
+          ScreenshotButton(
+            key: screenshotButtonKey,
+            screenshotKey: screenshotKey,
+          ),
+          SizedBox(height: 20),
+          Text(_lastCommand, style: TextStyle(fontSize: 18)),
         ],
       ),
     );
