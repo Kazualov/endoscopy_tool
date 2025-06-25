@@ -64,7 +64,7 @@
       <excludeFolder url="file://$MODULE_DIR$/windows/flutter/ephemeral/.plugin_symlinks/window_size/.pub" />
       <excludeFolder url="file://$MODULE_DIR$/windows/flutter/ephemeral/.plugin_symlinks/window_size/build" />
     </content>
-    <orderEntry type="jdk" jdkName="/opt/anaconda3" jdkType="Python SDK" />
+    <orderEntry type="jdk" jdkName="Python 3.11 (endoscopy_tool)" jdkType="Python SDK" />
     <orderEntry type="sourceFolder" forTests="false" />
     <orderEntry type="library" name="Dart SDK" level="project" />
     <orderEntry type="library" name="Flutter Plugins" level="project" />
