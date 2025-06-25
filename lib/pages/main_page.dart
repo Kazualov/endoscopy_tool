@@ -1,6 +1,9 @@
 import 'dart:io';
+import 'dart:typed_data';
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
 import 'package:ffmpeg_kit_flutter_new/ffmpeg_kit.dart';
@@ -8,8 +11,21 @@ import 'package:ffmpeg_kit_flutter_new/return_code.dart';
 import 'package:path_provider/path_provider.dart';
 
 import 'package:endoscopy_tool/pages/patient_library.dart';
-import 'package:endoscopy_tool/widgets/video_player_widget.dart'; // New media_kit-based version
+import 'package:endoscopy_tool/widgets/video_player_widget.dart';
 import 'package:endoscopy_tool/widgets/screenshot_button_widget.dart';
+
+// Модель для хранения данных скриншота
+class ScreenshotItem {
+  final String timeCode;
+  final Uint8List? imageBytes;
+  final String? imagePath;
+
+  ScreenshotItem({
+    required this.timeCode,
+    this.imageBytes,
+    this.imagePath,
+  });
+}
 
 class MainPage extends StatelessWidget {
   final String videoPath;
@@ -39,7 +55,9 @@ class _MainPageLayoutState extends State<MainPageLayout> {
   bool _isLoading = true;
   String? _loadingMessage;
 
-  List<String> items = ["0:06", "0:12", "0:00"];
+  // Заменяем список строк на список объектов ScreenshotItem
+  List<ScreenshotItem> screenshots = [
+  ];
 
   late final Player _player;
   late final VideoController _videoController;
@@ -52,7 +70,6 @@ class _MainPageLayoutState extends State<MainPageLayout> {
 
     _prepareAndPlay(widget.videoPath);
   }
-
 
   Future<void> _prepareAndPlay(String inputPath) async {
     setState(() {
@@ -87,7 +104,6 @@ class _MainPageLayoutState extends State<MainPageLayout> {
     final tempDir = await getTemporaryDirectory();
     final outputPath = '${tempDir.path}/${DateTime.now().millisecondsSinceEpoch}.mp4';
 
-    // ✅ Re-encode video (libx264) & audio (aac) to ensure compatibility
     final command = '-i "${inputFile.path}" -c copy "$outputPath"';
 
     print('Running FFmpeg command: $command');
@@ -104,7 +120,6 @@ class _MainPageLayoutState extends State<MainPageLayout> {
       return null;
     }
   }
-
 
   void _showError(String message) {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
@@ -123,6 +138,30 @@ class _MainPageLayoutState extends State<MainPageLayout> {
     final minutes = int.parse(parts[0]);
     final seconds = int.parse(parts[1]);
     return Duration(minutes: minutes, seconds: seconds);
+  }
+
+  // Метод для получения текущего тайм-кода
+  String _getCurrentTimeCode() {
+    final position = _player.state.position;
+    final minutes = position.inMinutes;
+    final seconds = position.inSeconds % 60;
+    return "${minutes.toString()}:${seconds.toString().padLeft(2, '0')}";
+  }
+
+  // Метод для добавления нового скриншота
+  Future<void> _addScreenshot(Uint8List imageBytes) async {
+    final currentTimeCode = _getCurrentTimeCode();
+
+    setState(() {
+      screenshots.add(ScreenshotItem(
+        timeCode: currentTimeCode,
+        imageBytes: imageBytes,
+      ));
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Screenshot added at $currentTimeCode')),
+    );
   }
 
   void exportText() {}
@@ -156,7 +195,7 @@ class _MainPageLayoutState extends State<MainPageLayout> {
           : Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Sidebar List
+          // Sidebar List - обновленная панель скриншотов
           Container(
             height: screenSize.height,
             width: 200,
@@ -166,11 +205,11 @@ class _MainPageLayoutState extends State<MainPageLayout> {
               borderRadius: BorderRadius.circular(20),
             ),
             child: ListView.builder(
-              itemCount: items.length,
+              itemCount: screenshots.length,
               itemBuilder: (context, index) {
-                final timeString = items[index];
+                final screenshot = screenshots[index];
                 return GestureDetector(
-                  onTap: () => _seekToTimecode(timeString),
+                  onTap: () => _seekToTimecode(screenshot.timeCode),
                   child: Container(
                     height: 100,
                     width: 50,
@@ -189,14 +228,28 @@ class _MainPageLayoutState extends State<MainPageLayout> {
                             color: Colors.white,
                             borderRadius: BorderRadius.circular(10),
                           ),
+                          child: screenshot.imageBytes != null
+                              ? ClipRRect(
+                            borderRadius: BorderRadius.circular(10),
+                            child: Image.memory(
+                              screenshot.imageBytes!,
+                              fit: BoxFit.cover,
+                            ),
+                          )
+                              : const Icon(
+                            Icons.image,
+                            color: Colors.grey,
+                            size: 40,
+                          ),
                         ),
-                        Center(
-                          child: Container(
+                        Expanded(
+                          child: Center(
                             child: Text(
-                              timeString,
+                              screenshot.timeCode,
                               style: const TextStyle(
                                 fontSize: 24,
                                 fontFamily: 'Nunito',
+                                color: Colors.white,
                               ),
                             ),
                           ),
@@ -237,7 +290,10 @@ class _MainPageLayoutState extends State<MainPageLayout> {
             ),
             child: Column(
               children: [
-                ScreenshotButton(screenshotKey: _screenshotKey),
+                ScreenshotButton(
+                  screenshotKey: _screenshotKey,
+                  onScreenshotTaken: _addScreenshot, // Передаем колбэк
+                ),
                 IconButton(
                   onPressed: exportText,
                   icon: const Icon(
