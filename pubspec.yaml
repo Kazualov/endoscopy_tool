@@ -27,6 +27,7 @@ dependencies:
   camera: ^0.11.1
   ffmpeg_kit_flutter_new: ^2.0.0
   flutter_webrtc: ^0.14.1
+  shared_preferences: ^2.2.2
 
 
   cupertino_icons: ^1.0.8
