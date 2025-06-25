@@ -22,7 +22,6 @@ Future<void> launchMyExe() async {
 void main(){
   WidgetsFlutterBinding.ensureInitialized();
   MediaKit.ensureInitialized();
-  //
   //launchMyExe();
   runApp(MyApp());
 }
