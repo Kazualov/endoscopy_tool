@@ -9,4 +9,4 @@ class Screenshot(Base):
     exam_id = Column(String, ForeignKey("examinations.id"), nullable=False)  # изменено
     filename = Column(String, nullable=False)
     file_path = Column(String, nullable=False)
-    timestamp_in_video = Column(Float, nullable=False)
+    timestamp_in_video = Column(String, nullable=False)

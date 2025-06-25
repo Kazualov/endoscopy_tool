@@ -30,7 +30,7 @@ os.makedirs(SCREENSHOT_DIR, exist_ok=True)
 @router.post("/exams/{exam_id}/upload_screenshot/")
 async def upload_screenshot(
     exam_id: str,
-    timestamp_in_video: float = Form(...),
+    timestamp_in_video: str = Form(...),
     file: UploadFile = File(...),
     db: Session = Depends(get_db)
 ):
