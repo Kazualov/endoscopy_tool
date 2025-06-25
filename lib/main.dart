@@ -41,8 +41,6 @@ class MyApp extends StatelessWidget{
           child: CameraStreamWidget(
             width: 1280,
             height: 720,
-            showHeader: true,
-            showDeviceInfo: true,
             aspectRatio: 16 / 9,
           )
         ),
