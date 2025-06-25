@@ -9,7 +9,7 @@ import 'package:vector_math/vector_math_64.dart' hide Colors;
 
 
 // ──────────────────────────────────────────────────────────────────────
-//  Screenshot Editor – v3 with Zoom & Pan
+//  Screenshot Editor – v3 with Zoom & Pan - MINIMAL FIXES
 //  • Rectangle, Pen, Eraser
 //  • Color palette
 //  • Undo / Redo
@@ -208,7 +208,7 @@ class ScreenshotEditorState extends State<ScreenshotEditor> with TickerProviderS
       ..addAll(_redoStack.removeLast()));
   }
 
-  // Convert screen coordinates to image coordinates
+  // ИСПРАВЛЕНИЕ: Упрощенное преобразование координат с учетом трансформации
   Offset _screenToImageCoords(Offset screenPoint, Size canvasSize) {
     final matrix = _transformController.value;
     final invertedMatrix = Matrix4.inverted(matrix);
@@ -331,6 +331,7 @@ class ScreenshotEditorState extends State<ScreenshotEditor> with TickerProviderS
               child: _ToolBtn(
                 icon: icons[i],
                 active: _tool.index == i,
+                // ИСПРАВЛЕНИЕ: Убираем дублирование onTap, оставляем только один
                 onTap: () => setState(() => _tool = Tool.values[i]),
                 subtitle: i == 1 && _tool == Tool.eraser
                     ? (_eraserMode == EraserMode.shape ? 'Shape' : 'Pixel')
