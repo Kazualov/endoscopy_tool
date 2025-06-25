@@ -81,7 +81,7 @@ def get_screenshots(exam_id: str, db: Session = Depends(get_db)):
                 "exam_id": shot.exam_id,
                 "filename": shot.filename,
                 "file_path": shot.file_path,
-                "time": shot.timestamp_in_video
+                "timestamp_in_video": shot.timestamp_in_video
             })
 
     return result
