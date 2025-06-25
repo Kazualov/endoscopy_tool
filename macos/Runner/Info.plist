@@ -30,5 +30,11 @@
 	<string>NSApplication</string>
 	<key>NSCameraUsageDescription</key>
     <string>This app requires access to the camera for video capture.</string>
+    <key>NSCameraUsageDescription</key>
+    <string>This app needs camera access to record videos</string>
+    <key>NSMicrophoneUsageDescription</key>
+    <string>This app needs microphone access to record audio</string>
+    <key>NSCameraUseContinuityCameraDeviceType</key>
+    <true/>
 </dict>
 </plist>
