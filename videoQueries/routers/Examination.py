@@ -23,7 +23,7 @@ def create_examination(
     if not patient:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Пациент с id={data.patient_id} не найден"
+            detail=f"Patient with id={data.patient_id} was not found"
         )
     exam = Examination(
         id=str(uuid.uuid4()),
@@ -46,7 +46,7 @@ def get_examinations(db: Session = Depends(get_db)):
 def get_examination(exam_id, db: Session = Depends(get_db)):
     exam = db.query(Examination).filter(Examination.id == exam_id).first()
     if not exam:
-        raise HTTPException(status_code=404, detail="Осмотр не найден")
+        raise HTTPException(status_code=404, detail="Examination not found")
     return exam
 
 @router.post("/examinations/{examination_id}/video/")
@@ -57,10 +57,10 @@ async def upload_video_to_examination(
 ):
     exam = db.query(Examination).filter(Examination.id == examination_id).first()
     if not exam:
-        raise HTTPException(status_code=404, detail="Осмотр не найден")
+        raise HTTPException(status_code=404, detail="Examination not found")
 
     if exam.video_id:
-        raise HTTPException(status_code=400, detail="У этого осмотра уже есть видео")
+        raise HTTPException(status_code=400, detail="This examination already has a video")
 
     video_id = str(uuid.uuid4())
     save_path = Path(__file__).resolve().parent.parent / "data" / "videos" / f"{video_id}_{file.filename}"
@@ -82,7 +82,7 @@ async def upload_video_to_examination(
     db.commit()
     db.refresh(exam)
 
-    return {"video_id": video_id, "message": "Видео добавлено к осмотру"}
+    return {"video_id": video_id, "message": "Video uploaded successfully"}
 
 
 @router.delete("/examinations/{examination_id}")
@@ -90,8 +90,8 @@ def delete_examination(examination_id: str, db: Session = Depends(get_db)):
     examination = db.query(Examination).filter(Examination.id == examination_id).first()
 
     if not examination:
-        raise HTTPException(status_code=404, detail="Осмотр не найден")
+        raise HTTPException(status_code=404, detail="Examination not found")
 
     db.delete(examination)
     db.commit()
-    return {"message": "Осмотр удалён"}
+    return {"message": "Examination deleted successfully"}
