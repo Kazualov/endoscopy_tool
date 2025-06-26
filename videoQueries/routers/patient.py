@@ -79,7 +79,7 @@ def get_patient_videos(patient_id: str, db: Session = Depends(get_db)):
     patient_exists = db.query(Patient).filter(Patient.id == patient_id).first()
     if not patient_exists:
         db.close()
-        raise HTTPException(status_code=404, detail="Пациент не найден")
+        raise HTTPException(status_code=404, detail="Patient not found")
     videos = db.query(Video).filter(Video.patient_id == patient_id).all()
     db.close()
 
@@ -93,8 +93,8 @@ def delete_patient(patient_id: str, db: Session = Depends(get_db)):
     patient = db.query(Patient).filter(Patient.id == patient_id).first()
     if not patient:
         db.close()
-        raise HTTPException(status_code=404, detail="Пациент не найден")
+        raise HTTPException(status_code=404, detail="Patient not found")
 
     db.delete(patient)
     db.commit()
-    return {"message": "Пациент удалён"}
+    return {"message": "Patient deleted"}

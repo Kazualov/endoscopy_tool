@@ -3,6 +3,7 @@
 from sqlalchemy import Column, String, ForeignKey, DateTime, func
 from sqlalchemy.orm import relationship
 from videoQueries.database import Base  # Импорт единого Base
+from . import Detection
 
 
 class Examination(Base):

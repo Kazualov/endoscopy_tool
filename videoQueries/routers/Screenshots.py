@@ -50,7 +50,7 @@ async def upload_screenshot(
     # Получаем осмотр из БД
     exam = db.query(Examination).filter(Examination.id == exam_id).first()
     if not exam:
-        raise HTTPException(status_code=404, detail="Осмотр не найден")
+        raise HTTPException(status_code=404, detail="Examination not found")
 
     # Создаем запись для скриншота в БД (без пути пока)
     screenshot = Screenshot(
