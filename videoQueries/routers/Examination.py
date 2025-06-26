@@ -5,6 +5,7 @@ from videoQueries.models.patient import Patient
 from sqlalchemy.orm import Session
 import shutil
 import uuid
+import json
 from videoQueries.models.video import Video
 from videoQueries.models.Examination import Examination
 from videoQueries.database import get_db
@@ -33,6 +34,22 @@ def create_examination(
     db.add(exam)
     db.commit()
     db.refresh(exam)
+    try:
+        base_path = Path("examinations") / str(exam.id)
+        screenshots_path = base_path / "screenshots"
+        base_path.mkdir(parents=True, exist_ok=True)
+        screenshots_path.mkdir(parents=True, exist_ok=True)
+        patient_data = {
+            "id": patient.id,
+            "name": patient.name
+        }
+        with open(base_path / "patient.json", "w", encoding="utf-8") as f:
+            json.dump(patient_data, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error Error when creating a folder for inspection: {e}"
+        )
     return exam
 
 
@@ -63,9 +80,13 @@ async def upload_video_to_examination(
         raise HTTPException(status_code=400, detail="У этого осмотра уже есть видео")
 
     video_id = str(uuid.uuid4())
-    save_path = Path(__file__).resolve().parent.parent / "data" / "videos" / f"{video_id}_{file.filename}"
-    #save_path = f"./data/videos/{video_id}_{file.filename}"
 
+    base_path = Path("examinations") / examination_id
+    base_path.mkdir(parents=True, exist_ok=True)
+
+    file_ext = Path(file.filename).suffix  # .mp4
+    video_filename = f"video{file_ext}"
+    save_path = base_path / video_filename
     with open(save_path, "wb") as f:
         shutil.copyfileobj(file.file, f)
 
