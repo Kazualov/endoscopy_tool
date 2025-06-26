@@ -1,6 +1,6 @@
 from videoQueries.schemas.examination import ExaminationCreate, ExaminationResponse
 from typing import List
-from fastapi import APIRouter, UploadFile, File, Depends, HTTPException, status
+from fastapi import APIRouter, UploadFile, File, Depends, HTTPException, status, Form
 from videoQueries.models.patient import Patient
 from sqlalchemy.orm import Session
 import shutil
@@ -45,6 +45,10 @@ def create_examination(
         }
         with open(base_path / "patient.json", "w", encoding="utf-8") as f:
             json.dump(patient_data, f, ensure_ascii=False, indent=2)
+        if data.description:
+            with open(base_path / "description.txt", "w", encoding="utf-8") as f:
+                f.write(data.description)
+
     except Exception as e:
         raise HTTPException(
             status_code=500,
@@ -70,6 +74,7 @@ def get_examination(exam_id, db: Session = Depends(get_db)):
 async def upload_video_to_examination(
     examination_id: str,
     file: UploadFile = File(...),
+    notes: str = Form(""),
     db: Session = Depends(get_db)
 ):
     exam = db.query(Examination).filter(Examination.id == examination_id).first()
@@ -89,6 +94,10 @@ async def upload_video_to_examination(
     save_path = base_path / video_filename
     with open(save_path, "wb") as f:
         shutil.copyfileobj(file.file, f)
+    notes_path = base_path / "notes.json"
+    with open(notes_path, "w", encoding="utf-8") as f:
+        import json
+        json.dump({"notes": notes}, f, ensure_ascii=False, indent=2)
 
     video = Video(
         id=video_id,
