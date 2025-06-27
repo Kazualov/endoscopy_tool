@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:media_kit/media_kit.dart';
 
 import 'package:endoscopy_tool/pages/patient_library.dart';
-// import 'package:endoscopy_tool/widgets/VoiceCommandService.dart';
+import 'package:endoscopy_tool/widgets/VoiceCommandService.dart';
 
 Future<void> launchMyExe() async {
   final exePath = 'endoscopy_tool/windows/runner/assets/backend_launcher/main.exe'; // relative to your app executable
