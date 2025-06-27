@@ -460,7 +460,7 @@ class Provider(BaseProvider):
         "Misyoner",
         "Mobilyacı",
         "Modacı",
-        "Model",
+        "Detection_model",
         "Modelci",
         "Modelist",
         "Montajcı",

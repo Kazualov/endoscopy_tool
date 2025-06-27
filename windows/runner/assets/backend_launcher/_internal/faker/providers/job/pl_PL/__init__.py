@@ -122,7 +122,7 @@ class Provider(BaseProvider):
         "Menedżer kultury",
         "Meteorolog",
         "Mim",
-        "Model",
+        "Detection_model",
         "Modelka dużych rozmiarów",
         "Motorniczy",
         "Nadleśniczy",

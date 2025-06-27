@@ -220,7 +220,7 @@ class Provider(BaseProvider):
         "Lufthavnsoperatør",
         "Assistent til salgssupport",
         "Frisør",
-        "Model",
+        "Detection_model",
         "Demonstratør",
         "Call centermedarbejder",
         "Viceskoleleder",
