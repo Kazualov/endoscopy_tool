@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'dart:ui' as ui;
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
@@ -7,8 +8,13 @@ import 'package:file_picker/file_picker.dart';
 
 class ScreenshotButton extends StatefulWidget {
   final GlobalKey screenshotKey;
+  final Function(Uint8List)? onScreenshotTaken; // Новый колбэк
 
-  const ScreenshotButton({super.key, required this.screenshotKey});
+  const ScreenshotButton({
+    super.key,
+    required this.screenshotKey,
+    this.onScreenshotTaken, // Опциональный параметр
+  });
 
   @override
   State<ScreenshotButton> createState() => _ScreenshotButtonState();
@@ -25,6 +31,11 @@ class _ScreenshotButtonState extends State<ScreenshotButton> {
       final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
       final pngBytes = byteData!.buffer.asUint8List();
 
+      // Вызываем колбэк для добавления в панель (если он предоставлен)
+      if (widget.onScreenshotTaken != null) {
+        widget.onScreenshotTaken!(pngBytes);
+      }
+
       // Ask for folder only once
       if (_savedFolderPath == null) {
         final folderPath = await FilePicker.platform.getDirectoryPath(
@@ -33,9 +44,9 @@ class _ScreenshotButtonState extends State<ScreenshotButton> {
 
         if (folderPath == null) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Screenshot cancelled')),
+            const SnackBar(content: Text('Screenshot added to timeline')),
           );
-          return;
+          return; // Не отменяем операцию, просто не сохраняем в файл
         }
 
         setState(() {
@@ -43,20 +54,22 @@ class _ScreenshotButtonState extends State<ScreenshotButton> {
         });
       }
 
-      // Save the file
-      final now = DateTime.now();
-      final timestamp = "${now.year}${now.month}${now.day}_${now.hour}${now.minute}${now.second}";
-      final filePath = '$_savedFolderPath/screenshot_$timestamp.png';
+      // Save the file (опционально)
+      if (_savedFolderPath != null) {
+        final now = DateTime.now();
+        final timestamp = "${now.year}${now.month}${now.day}_${now.hour}${now.minute}${now.second}";
+        final filePath = '$_savedFolderPath/screenshot_$timestamp.png';
 
-      final file = File(filePath);
-      await file.writeAsBytes(pngBytes);
+        final file = File(filePath);
+        await file.writeAsBytes(pngBytes);
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Saved to: $filePath')),
-      );
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Screenshot added to timeline and saved to: $filePath')),
+        );
+      }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to save screenshot: $e')),
+        SnackBar(content: Text('Failed to take screenshot: $e')),
       );
     }
   }

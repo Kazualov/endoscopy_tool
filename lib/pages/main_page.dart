@@ -1,6 +1,10 @@
 import 'dart:io';
+import 'dart:typed_data';
+import 'dart:ui' as ui;
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
 import 'package:ffmpeg_kit_flutter_new/ffmpeg_kit.dart';
@@ -10,26 +14,66 @@ import 'package:path_provider/path_provider.dart';
 import 'package:endoscopy_tool/pages/patient_library.dart';
 import 'package:endoscopy_tool/widgets/video_player_widget.dart'; // New media_kit-based version
 import 'package:endoscopy_tool/widgets/screenshot_button_widget.dart';
-import 'package:endoscopy_tool/widgets/ScreenShotsEditorDialog.dart';
+import 'package:http/http.dart' as http;
 
+// Модель для хранения данных скриншота
+class ScreenshotItem {
+  final String screenshotId; // ID скриншота из базы данных
+  final String filename;
+  final String filePath;
+  final String timestampInVideo;
+  final Uint8List? imageBytes;
+
+  ScreenshotItem({
+    required this.screenshotId,
+    required this.filename,
+    required this.filePath,
+    required this.timestampInVideo,
+    this.imageBytes,
+  });
+
+  // Фабричный метод для создания из JSON
+  factory ScreenshotItem.fromJson(Map<String, dynamic> json) {
+    return ScreenshotItem(
+      screenshotId: json['screenshot_id'].toString(),
+      filename: json['filename'] ?? '',
+      filePath: json['file_path'] ?? '',
+      timestampInVideo: json['timestamp_in_video'] ?? '0:00',
+    );
+  }
+}
 
 class MainPage extends StatelessWidget {
   final String videoPath;
-  const MainPage({super.key, required this.videoPath});
+  final String examinationId; // Добавляем ID осмотра
+
+  const MainPage({
+    super.key,
+    required this.videoPath,
+    required this.examinationId,
+  });
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      home: MainPageLayout(videoPath: videoPath),
+      home: MainPageLayout(
+        videoPath: videoPath,
+        examinationId: examinationId,
+      ),
     );
   }
 }
 
 class MainPageLayout extends StatefulWidget {
   final String videoPath;
+  final String examinationId;
 
-  const MainPageLayout({super.key, required this.videoPath});
+  const MainPageLayout({
+    super.key,
+    required this.videoPath,
+    required this.examinationId,
+  });
 
   @override
   _MainPageLayoutState createState() => _MainPageLayoutState();
@@ -41,7 +85,10 @@ class _MainPageLayoutState extends State<MainPageLayout> {
   bool _isLoading = true;
   String? _loadingMessage;
 
-  List<String> items = ["0:06", "0:12", "0:00"];
+  // Константы для API
+  static const String BASE_URL = 'http://127.0.0.1:8000';
+
+  List<ScreenshotItem> screenshots = [];
 
   late final Player _player;
   late final VideoController _videoController;
@@ -53,8 +100,122 @@ class _MainPageLayoutState extends State<MainPageLayout> {
     _videoController = VideoController(_player);
 
     _prepareAndPlay(widget.videoPath);
+    _loadExistingScreenshots(); // Загружаем существующие скриншоты
   }
 
+  // Метод для загрузки существующих скриншотов
+  Future<void> _loadExistingScreenshots() async {
+    try {
+      final response = await http.get(
+        Uri.parse('$BASE_URL/exams/${widget.examinationId}/screenshots'),
+        headers: {
+          'Content-Type': 'application/json',
+          // Добавьте заголовки авторизации если нужно
+          // 'Authorization': 'Bearer YOUR_TOKEN',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final List<dynamic> screenshotsJson = json.decode(response.body);
+        final List<ScreenshotItem> loadedScreenshots = [];
+
+        for (var screenshotData in screenshotsJson) {
+          final screenshotItem = ScreenshotItem.fromJson(screenshotData);
+
+          // Загружаем изображение для каждого скриншота
+          final imageBytes = await _loadScreenshotImage(screenshotItem.screenshotId);
+
+          loadedScreenshots.add(ScreenshotItem(
+            screenshotId: screenshotItem.screenshotId,
+            filename: screenshotItem.filename,
+            filePath: screenshotItem.filePath,
+            timestampInVideo: screenshotItem.timestampInVideo,
+            imageBytes: imageBytes,
+          ));
+        }
+
+        setState(() {
+          screenshots = loadedScreenshots;
+        });
+      } else {
+        print('Failed to load screenshots: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('Error loading screenshots: $e');
+    }
+  }
+
+  // Метод для загрузки изображения скриншота (возвращает binary data)
+  Future<Uint8List?> _loadScreenshotImage(String screenshotId) async {
+    try {
+      final response = await http.get(
+        Uri.parse('$BASE_URL/screenshots/$screenshotId/file'),
+        headers: {
+          // Добавьте заголовки авторизации если нужно
+          // 'Authorization': 'Bearer YOUR_TOKEN',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        return response.bodyBytes; // Сразу возвращаем binary данные
+      } else {
+        print('Failed to load screenshot image: ${response.statusCode}');
+        return null;
+      }
+    } catch (e) {
+      print('Error loading screenshot image: $e');
+      return null;
+    }
+  }
+
+  // Метод для загрузки скриншота на сервер
+  Future<String?> _uploadScreenshot(Uint8List imageBytes, String timestampInVideo) async {
+    try {
+      final url = '$BASE_URL/exams/${widget.examinationId}/upload_screenshot/';
+      print('Uploading screenshot to: $url'); // Отладочная информация
+
+      var request = http.MultipartRequest('POST', Uri.parse(url));
+
+      // Добавляем заголовки авторизации если нужно
+      // request.headers['Authorization'] = 'Bearer YOUR_TOKEN';
+
+      // Добавляем файл
+      request.files.add(
+        http.MultipartFile.fromBytes(
+          'file', // название поля для файла
+          imageBytes,
+          filename: 'screenshot_${DateTime.now().millisecondsSinceEpoch}.png',
+        ),
+      );
+
+      // Добавляем обязательные поля
+      request.fields['exam_id'] = widget.examinationId;
+      request.fields['timestamp_in_video'] = timestampInVideo;
+
+      print('Sending request with exam_id: ${widget.examinationId}, timestamp_in_video: $timestampInVideo'); // Отладочная информация
+
+      final response = await request.send();
+
+      print('Response status: ${response.statusCode}'); // Отладочная информация
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final responseBody = await response.stream.bytesToString();
+        print('Response body: $responseBody'); // Отладочная информация
+        final responseData = json.decode(responseBody);
+
+        // Возвращаем ID созданного скриншота
+        return responseData['screenshot_id']?.toString() ?? responseData['id']?.toString();
+      } else {
+        print('Failed to upload screenshot: ${response.statusCode}');
+        final responseBody = await response.stream.bytesToString();
+        print('Error response: $responseBody'); // Отладочная информация
+        return null;
+      }
+    } catch (e) {
+      print('Error uploading screenshot: $e');
+      return null;
+    }
+  }
 
   Future<void> _prepareAndPlay(String inputPath) async {
     setState(() {
@@ -107,7 +268,6 @@ class _MainPageLayoutState extends State<MainPageLayout> {
     }
   }
 
-
   void _showError(String message) {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
     setState(() {
@@ -115,8 +275,8 @@ class _MainPageLayoutState extends State<MainPageLayout> {
     });
   }
 
-  void _seekToTimecode(String timeString) {
-    final duration = _parseDuration(timeString);
+  void _seekToTimecode(String timestampInVideo) {
+    final duration = _parseDuration(timestampInVideo);
     _player.seek(duration);
   }
 
@@ -125,6 +285,45 @@ class _MainPageLayoutState extends State<MainPageLayout> {
     final minutes = int.parse(parts[0]);
     final seconds = int.parse(parts[1]);
     return Duration(minutes: minutes, seconds: seconds);
+  }
+
+  String _getCurrentTimeCode() {
+    final position = _player.state.position;
+    final minutes = position.inMinutes;
+    final seconds = position.inSeconds % 60;
+    return "${minutes.toString()}:${seconds.toString().padLeft(2, '0')}";
+  }
+
+  // Обновленный метод для добавления скриншота с сохранением на сервер
+  Future<void> _addScreenshot(Uint8List imageBytes) async {
+    final currentTimestamp = _getCurrentTimeCode();
+
+    // Сначала добавляем скриншот в локальный список (как было изначально)
+    setState(() {
+      screenshots.add(ScreenshotItem(
+        screenshotId: DateTime.now().millisecondsSinceEpoch.toString(), // временный ID
+        filename: 'screenshot_${DateTime.now().millisecondsSinceEpoch}.png',
+        filePath: '', // временно пустой
+        timestampInVideo: currentTimestamp,
+        imageBytes: imageBytes,
+      ));
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Screenshot added at $currentTimestamp')),
+    );
+
+    // Параллельно отправляем на сервер (без блокировки UI)
+    _uploadScreenshot(imageBytes, currentTimestamp).then((screenshotId) {
+      if (screenshotId != null) {
+        print('Screenshot successfully uploaded with ID: $screenshotId');
+        // Можете обновить ID в локальном списке если нужно
+        // _updateScreenshotId(currentTimestamp, screenshotId);
+      } else {
+        print('Failed to upload screenshot to server');
+        // Можете показать уведомление об ошибке, но скриншот остается в списке
+      }
+    });
   }
 
   void exportText() {}
@@ -158,7 +357,7 @@ class _MainPageLayoutState extends State<MainPageLayout> {
           : Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Sidebar List
+          // Sidebar List - панель скриншотов
           Container(
             height: screenSize.height,
             width: 200,
@@ -168,11 +367,11 @@ class _MainPageLayoutState extends State<MainPageLayout> {
               borderRadius: BorderRadius.circular(20),
             ),
             child: ListView.builder(
-              itemCount: items.length,
+              itemCount: screenshots.length,
               itemBuilder: (context, index) {
-                final timeString = items[index];
+                final screenshot = screenshots[index];
                 return GestureDetector(
-                  onTap: () => _seekToTimecode(timeString),
+                  onTap: () => _seekToTimecode(screenshot.timestampInVideo),
                   child: Container(
                     height: 100,
                     width: 50,
@@ -191,14 +390,28 @@ class _MainPageLayoutState extends State<MainPageLayout> {
                             color: Colors.white,
                             borderRadius: BorderRadius.circular(10),
                           ),
+                          child: screenshot.imageBytes != null
+                              ? ClipRRect(
+                            borderRadius: BorderRadius.circular(10),
+                            child: Image.memory(
+                              screenshot.imageBytes!,
+                              fit: BoxFit.cover,
+                            ),
+                          )
+                              : const Icon(
+                            Icons.image,
+                            color: Colors.grey,
+                            size: 40,
+                          ),
                         ),
-                        Center(
-                          child: Container(
+                        Expanded(
+                          child: Center(
                             child: Text(
-                              timeString,
+                              screenshot.timestampInVideo,
                               style: const TextStyle(
                                 fontSize: 24,
                                 fontFamily: 'Nunito',
+                                color: Colors.white,
                               ),
                             ),
                           ),
@@ -239,7 +452,10 @@ class _MainPageLayoutState extends State<MainPageLayout> {
             ),
             child: Column(
               children: [
-                ScreenshotButton(screenshotKey: _screenshotKey),
+                ScreenshotButton(
+                  screenshotKey: _screenshotKey,
+                  onScreenshotTaken: _addScreenshot,
+                ),
                 IconButton(
                   onPressed: () {
                     showDialog(
@@ -253,7 +469,6 @@ class _MainPageLayoutState extends State<MainPageLayout> {
                     color: Color(0xFF00ACAB),
                   ),
                 ),
-
                 IconButton(
                   onPressed: exportText,
                   icon: const Icon(

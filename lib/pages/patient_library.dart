@@ -432,7 +432,7 @@ class _ExaminationGridScreenState extends State<ExaminationGridScreen> {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => MainPage(videoPath: filePath),
+                  builder: (context) => MainPage(videoPath: filePath, examinationId: examination.id),
                 ),
               );
               print("mainPage open");
@@ -500,7 +500,7 @@ class _ExaminationGridScreenState extends State<ExaminationGridScreen> {
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => MainPage(videoPath: "null"),
+                builder: (context) => MainPage(videoPath: "null",  examinationId: examination.id),
               ),
             );
           } else {
@@ -652,7 +652,7 @@ class _ExaminationGridScreenState extends State<ExaminationGridScreen> {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (context) => MainPage(videoPath: videoPath!),
+                            builder: (context) => MainPage(videoPath: videoPath!, examinationId: examination.id),
                           ),
                         );
                       },
