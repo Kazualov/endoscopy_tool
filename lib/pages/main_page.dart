@@ -1,6 +1,9 @@
+import 'dart:async';
 import 'dart:io';
-
 import 'package:flutter/material.dart';
+import 'package:endoscopy_tool/widgets/screenshot_button_widget.dart';
+
+
 import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
 import 'package:ffmpeg_kit_flutter_new/ffmpeg_kit.dart';
@@ -9,7 +12,9 @@ import 'package:path_provider/path_provider.dart';
 
 import 'package:endoscopy_tool/pages/patient_library.dart';
 import 'package:endoscopy_tool/widgets/video_player_widget.dart'; // New media_kit-based version
-import 'package:endoscopy_tool/widgets/screenshot_button_widget.dart';
+
+import '../main.dart';
+import '../widgets/VoiceCommandService.dart';
 
 class MainPage extends StatelessWidget {
   final String videoPath;
@@ -35,6 +40,8 @@ class MainPageLayout extends StatefulWidget {
 
 class _MainPageLayoutState extends State<MainPageLayout> {
   final GlobalKey _screenshotKey = GlobalKey();
+  final GlobalKey<ScreenshotButtonState> screenshotButtonKey = GlobalKey();
+
   File? _convertedFile;
   bool _isLoading = true;
   String? _loadingMessage;
@@ -44,15 +51,34 @@ class _MainPageLayoutState extends State<MainPageLayout> {
   late final Player _player;
   late final VideoController _videoController;
 
+  StreamSubscription<String>? _voiceSubscription; // 👈 Добавляем подписку
+
   @override
   void initState() {
     super.initState();
     _player = Player();
     _videoController = VideoController(_player);
 
+    // 👇 Используем ГЛОБАЛЬНЫЙ экземпляр VoiceService
+    _voiceSubscription = voiceService.commandStream.listen((command) {
+      print('[MainPageLayout] 🎤 Получена команда: $command');
+
+      if (command.toLowerCase().contains('скриншот') ||
+          command.toLowerCase().contains('screenshot')) {
+        print('[MainPageLayout] 🎤 Выполняем скриншот...');
+        screenshotButtonKey.currentState?.captureAndSaveScreenshot(context);
+      }
+    });
+
     _prepareAndPlay(widget.videoPath);
   }
 
+  @override
+  void dispose() {
+    _player.dispose();
+    _voiceSubscription?.cancel(); // 👈 Отменяем подписку
+    super.dispose();
+  }
 
   Future<void> _prepareAndPlay(String inputPath) async {
     setState(() {
@@ -126,12 +152,6 @@ class _MainPageLayoutState extends State<MainPageLayout> {
   }
 
   void exportText() {}
-
-  @override
-  void dispose() {
-    _player.dispose();
-    super.dispose();
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -237,7 +257,10 @@ class _MainPageLayoutState extends State<MainPageLayout> {
             ),
             child: Column(
               children: [
-                ScreenshotButton(screenshotKey: _screenshotKey),
+              ScreenshotButton(
+                  key: screenshotButtonKey,
+                  screenshotKey: _screenshotKey,
+                ),
                 IconButton(
                   onPressed: exportText,
                   icon: const Icon(
@@ -271,3 +294,4 @@ class _MainPageLayoutState extends State<MainPageLayout> {
     );
   }
 }
+
