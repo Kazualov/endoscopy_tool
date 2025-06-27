@@ -66,7 +66,21 @@ class Patient {
 
 // Сервис для работы с API
 class ApiService {
-  static const String baseUrl = 'http://127.0.0.1:8000'; 
+  static const String baseUrl = 'http://127.0.0.1:8000';
+
+  static void setSaveDirectory(String directoryPath) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/config/set-storage-path/'),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({
+          'path': directoryPath,
+        }),
+      );
+    } catch (e) {
+      print("error to update save directory: $e");
+    }
+  }
 
 
   static Future<List<Examination>> getExamination() async {
@@ -134,7 +148,8 @@ class ApiService {
   }
   
   // Создать новое обследование
-  static Future<Examination?> createExamination(String patientId, String description) async {
+  static Future<Examination?> createExamination(String patientId, String description) async
+  {
     try {
       final response = await http.post(
         Uri.parse('$baseUrl/examinations/'),
@@ -627,6 +642,7 @@ class _ExaminationGridScreenState extends State<ExaminationGridScreen> {
               if (result != null) {
                 print('Настройки обновлены: ${result.resolution}, ${result.path}, ${result.theme}');
                 // Если нужно — обнови UI, состояние и т.п.
+                ApiService.setSaveDirectory(result.path);
               }
             },
           ),
