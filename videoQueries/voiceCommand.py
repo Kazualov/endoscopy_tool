@@ -4,13 +4,26 @@ import sounddevice as sd
 from vosk import Model, KaldiRecognizer
 import queue
 import json
+import os
+import sys
+
 
 router = APIRouter()
 SAMPLE_RATE = 16000
 CHANNELS = 1
 AUDIO_QUEUE = queue.Queue()
-model = Model("_internal/videoQueries/vosk-model-small-ru-0.22")
 
+
+def get_model_path():
+    if getattr(sys, 'frozen', False):
+        base = os.path.dirname(sys.executable)
+        return os.path.join(base, "_internal", "videoQueries", "vosk-model-small-ru-0.22")
+    else:
+        base = os.path.dirname(__file__)
+        return os.path.join(base, "vosk-model-small-ru-0.22")
+
+
+model = Model(get_model_path())
 recognizer = KaldiRecognizer(model, SAMPLE_RATE)
 
 
