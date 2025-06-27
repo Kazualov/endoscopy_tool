@@ -550,7 +550,7 @@ class ScreenshotEditorState extends State<ScreenshotEditor> with TickerProviderS
     );
   }
 
-  // ───────────────── Left sidebar ─────────────────
+// ───────────────── Left sidebar ─────────────────
   Widget _buildLeft(ThemeData t) {
     const icons = [Icons.crop_square, Icons.edit, Icons.auto_fix_off, Icons.near_me];
     return Container(
@@ -566,7 +566,7 @@ class ScreenshotEditorState extends State<ScreenshotEditor> with TickerProviderS
           const SizedBox(height: 48),
           for (int i = 0; i < icons.length; ++i)
             GestureDetector(
-              onDoubleTap: i == 2 ? _toggleEraserMode : null, // Double tap on eraser to toggle mode
+              onDoubleTap: i == 2 ? _toggleEraserMode : null,
               child: _ToolBtn(
                 icon: icons[i],
                 active: _tool.index == i,
@@ -576,23 +576,30 @@ class ScreenshotEditorState extends State<ScreenshotEditor> with TickerProviderS
                     : null,
               ),
             ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 12),
 
-          // Stroke width slider
-          Container(
-            padding: const EdgeInsets.all(8),
+          // Укороченный слайдер ширины
+          SizedBox(
+             // ограничение по высоте
             child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Text('Width', style: TextStyle(fontSize: 10, color: t.textTheme.bodySmall?.color)),
-                const SizedBox(height: 4),
                 RotatedBox(
                   quarterTurns: 3,
-                  child: Slider(
-                    value: _strokeWidth,
-                    min: 1.0,
-                    max: 10.0,
-                    divisions: 9,
-                    onChanged: (value) => setState(() => _strokeWidth = value),
+                  child: SliderTheme(
+                    data: SliderTheme.of(context).copyWith(
+                      trackHeight: 1.5,
+                      thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 5),
+                      overlayShape: const RoundSliderOverlayShape(overlayRadius: 10),
+                    ),
+                    child: Slider(
+                      value: _strokeWidth,
+                      min: 1.0,
+                      max: 4.0,
+                      divisions: 4,
+                      onChanged: (value) => setState(() => _strokeWidth = value),
+                    ),
                   ),
                 ),
                 Text('${_strokeWidth.round()}', style: const TextStyle(fontSize: 10)),
@@ -602,34 +609,44 @@ class ScreenshotEditorState extends State<ScreenshotEditor> with TickerProviderS
 
           const SizedBox(height: 12),
 
-          // Palette
-          ...List.generate(_colors.length, (i) => GestureDetector(
-            onTap: () => setState(() => _colorIx = i),
-            child: Container(
-              margin: const EdgeInsets.symmetric(vertical: 4),
-              width: 34,
-              height: 34,
-              decoration: BoxDecoration(
-                color: _colors[i],
-                shape: BoxShape.circle,
-                border: Border.all(color: i == _colorIx ? Colors.white : Colors.transparent, width: 3),
+          // Палитра — выбранный цвет больше
+          ...List.generate(_colors.length, (i) {
+            final isSelected = i == _colorIx;
+            return GestureDetector(
+              onTap: () => setState(() => _colorIx = i),
+              child: Container(
+                margin: const EdgeInsets.symmetric(vertical: 3),
+                width: isSelected ? 32 : 20,
+                height: isSelected ? 32 :20,
+                decoration: BoxDecoration(
+                  color: _colors[i],
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: isSelected ? Colors.white : Colors.transparent,
+                    width: 3,
+                  ),
+                ),
               ),
-            ),
-          )),
+            );
+          }),
+
           const Spacer(),
-          // Zoom reset button
+
           _ToolBtn(
             icon: Icons.zoom_out_map,
             onTap: _resetZoom,
             subtitle: 'Reset',
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
+
+          // Undo и Redo снова друг под другом
           _ToolBtn(icon: Icons.undo, onTap: _onUndo),
           _ToolBtn(icon: Icons.redo, onTap: _onRedo),
         ],
       ),
     );
   }
+
 
   // ───────────────── Stage ─────────────────
   Widget _buildStage() {
