@@ -29,6 +29,7 @@ recognizer = KaldiRecognizer(model, SAMPLE_RATE)
 # Счетчик подключений
 connection_count = 0
 
+
 def audio_callback(indata, frames, time, status):
     AUDIO_QUEUE.put(bytes(indata))
 
@@ -125,6 +126,7 @@ def voice_command_generator():
         print(f"[ERROR] Клиент #{client_id}: Ошибка микрофона: {e}")
     finally:
         print(f"[SSE] Клиент #{client_id}: Подключение закрыто")
+
 
 @router.get("/voiceCommand")
 def voice_command():
