@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'package:endoscopy_tool/pages/start_page.dart';
 import 'package:flutter/material.dart';
 import 'package:media_kit/media_kit.dart';
 
