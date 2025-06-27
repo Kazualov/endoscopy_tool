@@ -18,7 +18,6 @@ async def lifespan(app: FastAPI):
     # Shutdown (optional): clean up resources here if needed
 
 app = FastAPI(lifespan=lifespan)
-
 # Routers
 app.include_router(video.router)
 app.include_router(patient.router)
