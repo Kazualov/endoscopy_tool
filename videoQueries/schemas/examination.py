@@ -6,6 +6,7 @@ from datetime import datetime
 class ExaminationCreate(BaseModel):
     patient_id: str
     description: Optional[str] = ""
+    custom_path: Optional[str] = None
 
 
 class ExaminationResponse(BaseModel):
