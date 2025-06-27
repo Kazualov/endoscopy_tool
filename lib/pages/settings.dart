@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:file_picker/file_picker.dart';
+import '../widgets/SettingsStorage.dart';
+
 
 class SettingsDialog extends StatefulWidget {
   const SettingsDialog({
@@ -87,7 +90,12 @@ class _SettingsDialogState extends State<SettingsDialog> {
                   tooltip: 'Выбрать папку',
                   icon: const Icon(Icons.folder_open),
                   onPressed: () async {
-                    // TODO: Integrate a folder‑picker such as `file_picker`.
+                    final selectedDirectory = await FilePicker.platform.getDirectoryPath();
+                    if (selectedDirectory != null) {
+                      setState(() {
+                        _pathCtl.text = selectedDirectory;
+                      });
+                    }
                   },
                 ),
               ),
@@ -148,25 +156,33 @@ class _SettingsDialogState extends State<SettingsDialog> {
   }
 }
 
-/// Convenience helper that shows the dialog and returns the updated values
-/// via a `Future`, in case you prefer using `await` instead of a callback.
-Future<({String resolution, String path, ThemeMode theme})?> showSettingsDialog(
-    BuildContext context, {
-      String initialResolution = '1920x1080',
-      String initialPath = '',
-      ThemeMode initialTheme = ThemeMode.system,
-    }) async {
+
+Future<({String resolution, String path, ThemeMode theme})?> showSettingsDialog(BuildContext context) async {
+  // Загружаем настройки из файла
+  final saved = await SettingsStorage.loadSettings();
+
+  // Значения по умолчанию, если файл отсутствует
+  final resolution = saved?.resolution ?? '1920x1080';
+  final path = saved?.path ?? '';
+  final theme = saved?.theme ?? ThemeMode.system;
+
+  // Сюда вернём результат
   ({String resolution, String path, ThemeMode theme})? result;
+
+  // Показываем диалог с загруженными значениями
   await showDialog(
     context: context,
     builder: (ctx) => SettingsDialog(
-      initialResolution: initialResolution,
-      initialPath: initialPath,
-      initialTheme: initialTheme,
+      initialResolution: resolution,
+      initialPath: path,
+      initialTheme: theme,
       onSave: (res, p, t) {
         result = (resolution: res, path: p, theme: t);
+        // Обязательно сохраняем новые настройки
+        SettingsStorage.saveSettings(resolution: res, path: p, theme: t);
       },
     ),
   );
+
   return result;
 }
