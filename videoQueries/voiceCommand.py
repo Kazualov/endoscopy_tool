@@ -22,7 +22,7 @@ def get_model_path():
         base = os.path.dirname(__file__)
         return os.path.join(base, "vosk-model-small-ru-0.22")
 
-
+print(get_model_path())
 model = Model(get_model_path())
 recognizer = KaldiRecognizer(model, SAMPLE_RATE)
 
