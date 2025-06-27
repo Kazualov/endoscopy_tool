@@ -13,6 +13,9 @@ from pathlib import Path
 
 router = APIRouter()
 
+
+DEFAULT_STORAGE_PATH = Path("./examinations_storage")  # путь по умолчанию
+
 @router.post("/examinations/", response_model=ExaminationResponse)
 def create_examination(
     data: ExaminationCreate,
@@ -24,27 +27,25 @@ def create_examination(
     if not patient:
         raise HTTPException(status_code=404, detail="Пациент не найден")
 
-    # 2. Создание уникального ID и пути
+    # 2. Создание уникального ID
     exam_id = str(uuid.uuid4())
-    base_path = Path(request.app.state.base_storage_path)
+
+    # 3. Получение базового пути
+    base_path = getattr(request.app.state, "base_storage_path", None)
+    print(base_path)
+    if not base_path:
+        base_path = DEFAULT_STORAGE_PATH
+
+    base_path = Path(base_path)
     exam_folder = base_path / exam_id
     screenshots_path = exam_folder / "screenshots"
 
+    folder_path = str(exam_folder)  # сохраняется в БД
+
     try:
-        # 3. Создание директорий
+        # 4. Создание директорий
         exam_folder.mkdir(parents=True, exist_ok=True)
         screenshots_path.mkdir(parents=True, exist_ok=True)
-
-        # 4. Создание объекта осмотра
-        exam = Examination(
-            id=exam_id,
-            patient_id=data.patient_id,
-            description=data.description,
-            folder_path=str(exam_folder)  # сохраняем путь в БД
-        )
-        db.add(exam)
-        db.commit()
-        db.refresh(exam)
 
         # 5. Сохраняем patient.json
         with open(exam_folder / "patient.json", "w", encoding="utf-8") as f:
@@ -56,9 +57,21 @@ def create_examination(
                 f.write(data.description)
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Ошибка создания папки: {e}")
+        raise HTTPException(status_code=500, detail=f"Ошибка при создании файлов: {e}")
+
+    # 7. Создание объекта осмотра
+    exam = Examination(
+        id=exam_id,
+        patient_id=data.patient_id,
+        description=data.description,
+        folder_path=folder_path
+    )
+    db.add(exam)
+    db.commit()
+    db.refresh(exam)
 
     return exam
+
 
 @router.get("/examinations/", response_model=List[ExaminationResponse])
 def get_examinations(db: Session = Depends(get_db)):
