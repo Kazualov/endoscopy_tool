@@ -22,7 +22,7 @@ def get_model_path():
         base = os.path.dirname(__file__)
         return os.path.join(base, "vosk-model-small-ru-0.22")
 
-print(get_model_path())
+
 model = Model(get_model_path())
 recognizer = KaldiRecognizer(model, SAMPLE_RATE)
 
@@ -99,10 +99,6 @@ def voice_command_generator():
                                     message = json.dumps({'command': command, 'text': text})
                                     print(f"[SSE] Клиент #{client_id}: Отправляем команду: {message}")
                                     yield f"data: {message}\n\n"
-
-                                    if command == "stop":
-                                        print(f"[SSE] Клиент #{client_id}: Получена команда остановки")
-                                        break
                                 else:
                                     print(f"[SSE] Клиент #{client_id}: Текст не содержит команд")
                             else:
