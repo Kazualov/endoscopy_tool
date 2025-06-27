@@ -6,7 +6,6 @@ import 'package:media_kit/media_kit.dart';
 import 'package:endoscopy_tool/pages/patient_library.dart';
 import 'package:endoscopy_tool/widgets/VoiceCommandService.dart';
 
-final voiceService = VoiceCommandService(); // глобальный экземпляр
 
 
 void main(){
