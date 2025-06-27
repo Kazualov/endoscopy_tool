@@ -17,3 +17,5 @@ class Examination(Base):
     patient = relationship("Patient", back_populates="examinations")
     # связь с видео
     video = relationship("Video", back_populates="examination", uselist=False)
+    #связь с детекцией
+    detections = relationship("Detection", back_populates="examination", cascade="all, delete")
