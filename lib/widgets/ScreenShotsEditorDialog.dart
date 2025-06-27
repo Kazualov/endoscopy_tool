@@ -2,7 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:endoscopy_tool/pages/screenShotsEditor.dart';
 
 class ScreenShotsEditorDialog extends StatelessWidget {
-  const ScreenShotsEditorDialog({super.key});
+  final ImageProvider screenshot;
+  final List<ImageProvider> otherScreenshots;
+  const ScreenShotsEditorDialog({
+    super.key,
+    required this.screenshot,
+    required this.otherScreenshots,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -14,7 +20,7 @@ class ScreenShotsEditorDialog extends StatelessWidget {
           color: Colors.transparent,
           child: Stack(
             children: [
-              const ScreenshotEditor(screenshot: AssetImage('assets/img/demo0.png'), otherScreenshots: [],),
+              ScreenshotEditor(screenshot: screenshot, otherScreenshots: otherScreenshots,),
 
               // Кнопка "назад"
               Positioned(

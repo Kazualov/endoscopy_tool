@@ -16,6 +16,8 @@ import 'package:endoscopy_tool/widgets/video_player_widget.dart'; // New media_k
 import 'package:endoscopy_tool/widgets/screenshot_button_widget.dart';
 import 'package:http/http.dart' as http;
 
+import '../widgets/ScreenShotsEditorDialog.dart';
+
 // Модель для хранения данных скриншота
 class ScreenshotItem {
   final String screenshotId; // ID скриншота из базы данных
@@ -102,6 +104,8 @@ class _MainPageLayoutState extends State<MainPageLayout> {
     _prepareAndPlay(widget.videoPath);
     _loadExistingScreenshots(); // Загружаем существующие скриншоты
   }
+
+
 
   // Метод для загрузки существующих скриншотов
   Future<void> _loadExistingScreenshots() async {
@@ -334,6 +338,8 @@ class _MainPageLayoutState extends State<MainPageLayout> {
     super.dispose();
   }
 
+
+
   @override
   Widget build(BuildContext context) {
     Size screenSize = MediaQuery.of(context).size;
@@ -458,11 +464,24 @@ class _MainPageLayoutState extends State<MainPageLayout> {
                 ),
                 IconButton(
                   onPressed: () {
-                    showDialog(
-                      context: context,
-                      barrierDismissible: false,
-                      builder: (_) => const ScreenShotsEditorDialog(),
-                    );
+                    if (screenshots.isNotEmpty && screenshots.first.imageBytes != null) {
+                      showDialog(
+                        context: context,
+                        barrierDismissible: false,
+                        builder: (_) => ScreenShotsEditorDialog(
+                          screenshot: MemoryImage(screenshots.first.imageBytes!), // ✅ Правильно
+                          otherScreenshots: screenshots
+                              .skip(1) // Пропускаем первый скриншот
+                              .where((s) => s.imageBytes != null)
+                              .map((s) => MemoryImage(s.imageBytes!))
+                              .toList(),
+                        ),
+                      );
+                    } else {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Нет доступных скриншотов для редактирования')),
+                      );
+                    }
                   },
                   icon: const Icon(
                     Icons.image,
