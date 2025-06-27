@@ -23,6 +23,7 @@ void main(){
   WidgetsFlutterBinding.ensureInitialized();
   MediaKit.ensureInitialized();
   // voiceService.startListening(); // запуск прослушивания при старте
+  voiceService.startListening(); // запуск прослушивания при старте
   runApp(MyApp());
 }
 

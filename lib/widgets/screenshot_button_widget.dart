@@ -17,16 +17,16 @@ class ScreenshotButton extends StatefulWidget {
   });
 
   @override
-  State<ScreenshotButton> createState() => _ScreenshotButtonState();
+  ScreenshotButtonState createState() => ScreenshotButtonState();
 }
 
-class _ScreenshotButtonState extends State<ScreenshotButton> {
+class ScreenshotButtonState extends State<ScreenshotButton> {
   String? _savedFolderPath;
 
-  Future<void> _captureAndSaveScreenshot(BuildContext context) async {
+  Future<void> captureAndSaveScreenshot(BuildContext context) async {
     try {
-      // Capture screenshot
-      final boundary = widget.screenshotKey.currentContext!.findRenderObject() as RenderRepaintBoundary;
+      final boundary = widget.screenshotKey.currentContext!.findRenderObject()
+      as RenderRepaintBoundary;
       final image = await boundary.toImage(pixelRatio: 3.0);
       final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
       final pngBytes = byteData!.buffer.asUint8List();
@@ -41,14 +41,12 @@ class _ScreenshotButtonState extends State<ScreenshotButton> {
         final folderPath = await FilePicker.platform.getDirectoryPath(
           dialogTitle: 'Select folder to save screenshots',
         );
-
         if (folderPath == null) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Screenshot added to timeline')),
           );
           return; // Не отменяем операцию, просто не сохраняем в файл
         }
-
         setState(() {
           _savedFolderPath = folderPath;
         });
@@ -77,10 +75,10 @@ class _ScreenshotButtonState extends State<ScreenshotButton> {
   @override
   Widget build(BuildContext context) {
     return IconButton(
-      color: Color(0xFF00ACAB),
+      color: const Color(0xFF00ACAB),
       icon: const Icon(Icons.camera_alt),
       tooltip: 'Take Screenshot',
-      onPressed: () => _captureAndSaveScreenshot(context),
+      onPressed: () => captureAndSaveScreenshot(context),
     );
   }
 }
