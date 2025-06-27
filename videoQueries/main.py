@@ -15,6 +15,7 @@ import uvicorn
 async def lifespan(app: FastAPI):
     # Startup
     init_db()
+    app.state.base_storage_path = "/default/path/until/set"
     yield
     # Shutdown (optional): clean up resources here if needed
 
