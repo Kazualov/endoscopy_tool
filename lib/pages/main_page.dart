@@ -10,6 +10,8 @@ import 'package:path_provider/path_provider.dart';
 import 'package:endoscopy_tool/pages/patient_library.dart';
 import 'package:endoscopy_tool/widgets/video_player_widget.dart'; // New media_kit-based version
 import 'package:endoscopy_tool/widgets/screenshot_button_widget.dart';
+import 'package:endoscopy_tool/widgets/ScreenShotsEditorDialog.dart';
+
 
 class MainPage extends StatelessWidget {
   final String videoPath;
@@ -238,6 +240,20 @@ class _MainPageLayoutState extends State<MainPageLayout> {
             child: Column(
               children: [
                 ScreenshotButton(screenshotKey: _screenshotKey),
+                IconButton(
+                  onPressed: () {
+                    showDialog(
+                      context: context,
+                      barrierDismissible: false,
+                      builder: (_) => const ScreenShotsEditorDialog(),
+                    );
+                  },
+                  icon: const Icon(
+                    Icons.image,
+                    color: Color(0xFF00ACAB),
+                  ),
+                ),
+
                 IconButton(
                   onPressed: exportText,
                   icon: const Icon(
