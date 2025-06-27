@@ -5,20 +5,34 @@ from vosk import Model, KaldiRecognizer
 import queue
 import json
 import time
+import os
+import sys
 
 router = APIRouter()
 SAMPLE_RATE = 16000
 CHANNELS = 1
 AUDIO_QUEUE = queue.Queue()
-model = Model("vosk-model-small-ru-0.22")
 
+
+def get_model_path():
+    if getattr(sys, 'frozen', False):
+        base = os.path.dirname(sys.executable)
+        return os.path.join(base, "_internal", "videoQueries", "vosk-model-small-ru-0.22")
+    else:
+        base = os.path.dirname(__file__)
+        return os.path.join(base, "vosk-model-small-ru-0.22")
+
+
+model = Model(get_model_path())
 recognizer = KaldiRecognizer(model, SAMPLE_RATE)
 
 # Счетчик подключений
 connection_count = 0
 
+
 def audio_callback(indata, frames, time, status):
     AUDIO_QUEUE.put(bytes(indata))
+
 
 def process_command(text):
     print(f"[COMMAND] Обрабатываем текст: '{text}'")
@@ -112,6 +126,7 @@ def voice_command_generator():
         print(f"[ERROR] Клиент #{client_id}: Ошибка микрофона: {e}")
     finally:
         print(f"[SSE] Клиент #{client_id}: Подключение закрыто")
+
 
 @router.get("/voiceCommand")
 def voice_command():

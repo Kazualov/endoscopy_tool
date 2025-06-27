@@ -20,7 +20,6 @@ async def lifespan(app: FastAPI):
     # Shutdown (optional): clean up resources here if needed
 
 app = FastAPI(lifespan=lifespan)
-
 # Routers
 app.include_router(video.router)
 app.include_router(patient.router)
@@ -39,5 +38,4 @@ app.add_middleware(
 )
 
 if __name__ == "__main__":
-    uvicorn.run("main:app", host="127.0.0.1", port=8000, reload=True)
-
+    uvicorn.run(app, host="127.0.0.1", port=8000, reload=False)
