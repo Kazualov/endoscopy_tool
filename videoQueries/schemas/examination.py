@@ -6,7 +6,7 @@ from datetime import datetime
 class ExaminationCreate(BaseModel):
     patient_id: str
     description: Optional[str] = ""
-    custom_path: Optional[str] = None
+    custom_path: Optional[str] = ""
 
 
 class ExaminationResponse(BaseModel):
@@ -15,6 +15,7 @@ class ExaminationResponse(BaseModel):
     description: Optional[str]
     date: datetime
     video_id: Optional[str]
+    folder_path: Optional[str]
 
     class Config:
         from_attributes = True
