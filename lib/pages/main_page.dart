@@ -480,6 +480,7 @@ class _MainPageLayoutState extends State<MainPageLayout> {
             child: Column(
               children: [
                 ScreenshotButton(
+                  key: screenshotButtonKey,
                   screenshotKey: _screenshotKey,
                   onScreenshotTaken: _addScreenshot,
                 ),
