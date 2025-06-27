@@ -6,7 +6,7 @@ from typing import List
 from fastapi import APIRouter, UploadFile, File, Depends, HTTPException, Form
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
-
+import json
 from videoQueries.database import SessionLocal
 from videoQueries.models.Examination import Examination
 from videoQueries.models.Screenshot import Screenshot
@@ -47,8 +47,11 @@ async def upload_screenshot(
     db.add(screenshot)
     db.flush()
 
-    filename = f"{exam_id}_screenshot_{screenshot.id:05d}.png"
-    filepath = SCREENSHOT_DIR / filename
+    screenshots_dir = Path("examinations") / exam_id / "screenshots"
+    screenshots_dir.mkdir(parents=True, exist_ok=True)
+
+    filename = f"{exam_id}_screenshot_{screenshot.id:05d}.jpg"
+    filepath = screenshots_dir / filename
 
     with open(filepath, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
