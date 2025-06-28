@@ -109,16 +109,14 @@ class _ExaminationGridScreenState extends State<ExaminationGridScreen> {
     // 👇 Используем ГЛОБАЛЬНЫЙ экземпляр VoiceService
     _voiceSubscription = voiceService.commandStream.listen((command) {
       print('[MainPageLayout] 🎤 Получена команда: $command');
-
-      if (command.toLowerCase().contains('начать обследование') ||
-          command.toLowerCase().contains('новое обследование') ||
-          command.toLowerCase().contains('exemination') ||
-          command.toLowerCase().contains('создать обследование')) {
+      if (command.toLowerCase().contains('exemination')){
         print('[MainPageLayout] создаем обследование...');
         _showAddExaminationDialog(context);
       } else if(command.toLowerCase().contains('choose camera')){
+        Navigator.of(_dialogContext!).pop();
         addExaminationWithCamera();
       } else if(command.toLowerCase().contains('choose file')) {
+        Navigator.of(_dialogContext!).pop();
         addExaminationWithVideo();
       }
     });
@@ -383,10 +381,13 @@ class _ExaminationGridScreenState extends State<ExaminationGridScreen> {
     );
   }
 
+
+  BuildContext? _dialogContext;
   void _showAddExaminationDialog(BuildContext context) {
     showDialog(
       context: context,
       builder: (BuildContext context) {
+        _dialogContext = context; // сохраняем контекст
         return AlertDialog(
           title: Text("Добавить обследование"),
           content: Column(
@@ -450,7 +451,7 @@ class _ExaminationGridScreenState extends State<ExaminationGridScreen> {
               final result = await showSettingsDialog(context);
               if (result != null) {
                 print('Настройки обновлены: ${result.resolution}, ${result.path}, ${result.theme}');
-                // Если нужно — обнови UI, состояние и т.п.
+                ApiService.setSaveDirectory(result.path);
               }
             },
           ),
