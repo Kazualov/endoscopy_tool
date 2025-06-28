@@ -8,6 +8,24 @@ import '../pages/patient_library.dart';
 class ApiService {
   static const String baseUrl = 'http://127.0.0.1:8000';
 
+  static Future<void> setSaveDirectory(String path) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/config/set-storage-path/'),
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: {
+          'path': path,
+        },
+      );
+      if (response.statusCode != 200) {
+        throw Exception(response.statusCode);
+      }
+    } catch (e) {
+      print('Error setting the save directory: $e');
+    }
+  }
   // Создать нового пациента
   static Future<String?> createPatient(String id) async {
     try {
