@@ -99,26 +99,30 @@ class _ExaminationGridScreenState extends State<ExaminationGridScreen> {
   bool isLoading = true;
   String searchQuery = '';
 
+  StreamSubscription<String>? _voiceSubscription; // 👈 Добавляем подписку
+
   @override
   void initState() {
     super.initState();
-    loadPatients();
     loadExamination();
+
+    // 👇 Используем ГЛОБАЛЬНЫЙ экземпляр VoiceService
+    _voiceSubscription = voiceService.commandStream.listen((command) {
+      print('[MainPageLayout] 🎤 Получена команда: $command');
+      if (command.toLowerCase().contains('exemination')){
+        print('[MainPageLayout] создаем обследование...');
+        _showAddExaminationDialog(context);
+      } else if(command.toLowerCase().contains('choose camera')){
+        Navigator.of(_dialogContext!).pop();
+        addExaminationWithCamera();
+      } else if(command.toLowerCase().contains('choose file')) {
+        Navigator.of(_dialogContext!).pop();
+        addExaminationWithVideo();
+      }
+    });
   }
 
-  Future<void> loadPatients() async {
-    setState(() {
-      isLoading = true;
-    });
-    
-    final loadedPatients = await ApiService.getPatients();
-    
-    setState(() {
-      patients = loadedPatients;
-      isLoading = false;
-    });
-  }
-
+  // загрузка осмотров
   Future<void> loadExamination() async {
     setState(() {
       isLoading = true;
@@ -132,6 +136,7 @@ class _ExaminationGridScreenState extends State<ExaminationGridScreen> {
     });
   }
 
+  // получить путь к видео по обследованию
   Future<String?> getVideoPath(Examination examination) async {
     if (examination.video_id != null) {
       return await ApiService.loadVideoPath(examination.video_id!);
@@ -139,30 +144,33 @@ class _ExaminationGridScreenState extends State<ExaminationGridScreen> {
     return null;
   }
 
+  //отсортировать осмотры по ID
   List<Examination> get filteredExamination {
     if (searchQuery.isEmpty) {
       return examinations;
     }
-    return examinations.where((examination) => 
-      examination.id.toLowerCase().contains(searchQuery.toLowerCase())
+    return examinations.where((examination) =>
+        examination.id.toLowerCase().contains(searchQuery.toLowerCase())
     ).toList();
   }
 
   // Получить имя пациента по ID
   String getPatientName(String patientId) {
     final patient = patients.firstWhere(
-      (p) => p.id == patientId,
+          (p) => p.id == patientId,
       orElse: () => Patient(id: '', name: 'Неизвестный пациент'),
     );
     return patient.name;
   }
 
+
+
   Future<void> addExaminationWithVideo() async {
     final result = await FilePicker.platform.pickFiles(type: FileType.video);
-    
+
     if (result != null && result.files.single.path != null) {
       final filePath = result.files.single.path!;
-      
+
       // Показать диалог для ввода данных пациента и обследования
       final registrationData = await showPatientRegistrationDialog();
       if (registrationData != null) {
@@ -180,19 +188,19 @@ class _ExaminationGridScreenState extends State<ExaminationGridScreen> {
             ),
           ),
         );
-        
+
         try {
           // 1. Создать пациента
           final patient_id = await ApiService.createPatient(
             registrationData["patient_id"]!,
           );
-          
+
           if (patient_id != null) {
-                        
+
             // 2. Создать обследование
             final examination = await ApiService.createExamination(
-              patient_id,
-              registrationData["serviceType"] ?? "Обследование"
+                patient_id,
+                registrationData["serviceType"] ?? "Обследование"
             );
 
             print("Обследование создано");
@@ -202,14 +210,13 @@ class _ExaminationGridScreenState extends State<ExaminationGridScreen> {
             examination.video_id = video_id;
 
             Navigator.of(context).pop(); // Закрыть индикатор загрузки
-            
+
             await loadExamination(); // Обновить список обследований
-            await loadPatients(); // Обновить список пациентов
-            
+
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(content: Text('Обследование создано успешно')),
             );
-            
+
             // Открыть MainPage с видео
             if (video_id != null) {
               Navigator.of(context, rootNavigator: true).pop();
@@ -256,31 +263,30 @@ class _ExaminationGridScreenState extends State<ExaminationGridScreen> {
           ),
         ),
       );
-      
+
       try {
         // 1. Создать пациента
         final patient_id = await ApiService.createPatient(
           registrationData["patient_id"]!,
         );
-        
+
         if (patient_id != null) {
           // 2. Создать обследование без видео
           final examination = await ApiService.createExamination(
             patient_id,
             registrationData["serviceType"] ?? "Обследование",
           );
-          
-          
+
+
           Navigator.of(context).pop(); // Закрыть индикатор загрузки
-          
+
           if (examination != null) {
             await loadExamination(); // Обновить список обследований
-            await loadPatients(); // Обновить список пациентов
-            
+
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(content: Text('Обследование создано успешно')),
             );
-            
+
             // Открыть MainPage без видео
             Navigator.push(
               context,
@@ -312,7 +318,7 @@ class _ExaminationGridScreenState extends State<ExaminationGridScreen> {
   Future<Map<String, String>?> showPatientRegistrationDialog() async {
     String? patient_id;
     String? serviceType;
-    
+
     return showDialog<Map<String, String>>(
       context: context,
       builder: (context) {
@@ -437,7 +443,6 @@ class _ExaminationGridScreenState extends State<ExaminationGridScreen> {
             icon: Icon(Icons.refresh, color: Colors.black),
             onPressed: () {
               loadExamination();
-              loadPatients();
             },
           ),
           IconButton(
@@ -457,88 +462,88 @@ class _ExaminationGridScreenState extends State<ExaminationGridScreen> {
         child: isLoading
             ? Center(child: CircularProgressIndicator())
             : GridView.builder(
-                itemCount: filteredExamination.length + 1, // +1 for add button
-                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 5,
-                  crossAxisSpacing: 16,
-                  mainAxisSpacing: 16,
-                ),
-                itemBuilder: (context, index) {
-                  if (index < filteredExamination.length) {
-                    final examination = filteredExamination[index];
-                    return GestureDetector(
-                      onTap: () async {
-                        final videoPath = await getVideoPath(examination);
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => MainPage(videoPath: videoPath!, examinationId: examination.id),
-                          ),
-                        );
-                      },
-                      child: Container(
-                        decoration: BoxDecoration(
-                          border: Border.all(color: Color(0xFF00ACAB), width: 3),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Container(
-                                width: 50,
-                                height: 50,
-                                decoration: BoxDecoration(
-                                  border: Border.all(color: Colors.black, width: 2),
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: examination.video_id != null
-                                    ? Icon(Icons.video_library, size: 30, color: Colors.blue)
-                                    : Icon(Icons.medical_services, size: 30, color: Colors.grey),
-                              ),
-                              SizedBox(height: 8),
-                              Text(
-                                examination.id,
-                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
-                                textAlign: TextAlign.center,
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                              SizedBox(height: 4),
-                              Text(
-                                getPatientName(examination.patientId),
-                                style: TextStyle(fontSize: 10, color: Colors.grey[600]),
-                                textAlign: TextAlign.center,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                              Text(
-                                'Exam ID: ${examination.id}',
-                                style: TextStyle(fontSize: 8, color: Colors.grey),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    );
-                  } else {
-                    return GestureDetector(
-                      onTap: () {
-                        _showAddExaminationDialog(context);
-                      },
-                      child: Container(
-                        decoration: BoxDecoration(
-                          border: Border.all(color: Color(0xFF00ACAB), width: 3),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Center(
-                          child: Icon(Icons.add, size: 40),
-                        ),
-                      ),
-                    );
-                  }
+          itemCount: filteredExamination.length + 1, // +1 for add button
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 5,
+            crossAxisSpacing: 16,
+            mainAxisSpacing: 16,
+          ),
+          itemBuilder: (context, index) {
+            if (index < filteredExamination.length) {
+              final examination = filteredExamination[index];
+              return GestureDetector(
+                onTap: () async {
+                  final videoPath = await getVideoPath(examination);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => MainPage(videoPath: videoPath!, examinationId: examination.id),
+                    ),
+                  );
                 },
-              ),
+                child: Container(
+                  decoration: BoxDecoration(
+                    border: Border.all(color: Color(0xFF00ACAB), width: 3),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Container(
+                          width: 50,
+                          height: 50,
+                          decoration: BoxDecoration(
+                            border: Border.all(color: Colors.black, width: 2),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: examination.video_id != null
+                              ? Icon(Icons.video_library, size: 30, color: Colors.blue)
+                              : Icon(Icons.medical_services, size: 30, color: Colors.grey),
+                        ),
+                        SizedBox(height: 8),
+                        Text(
+                          examination.id,
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                          textAlign: TextAlign.center,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        SizedBox(height: 4),
+                        Text(
+                          getPatientName(examination.patientId),
+                          style: TextStyle(fontSize: 10, color: Colors.grey[600]),
+                          textAlign: TextAlign.center,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        Text(
+                          'Exam ID: ${examination.id}',
+                          style: TextStyle(fontSize: 8, color: Colors.grey),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            } else {
+              return GestureDetector(
+                onTap: () {
+                  _showAddExaminationDialog(context);
+                },
+                child: Container(
+                  decoration: BoxDecoration(
+                    border: Border.all(color: Color(0xFF00ACAB), width: 3),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Center(
+                    child: Icon(Icons.add, size: 40),
+                  ),
+                ),
+              );
+            }
+          },
+        ),
       ),
     );
   }
