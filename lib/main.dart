@@ -11,7 +11,6 @@ import 'package:endoscopy_tool/widgets/VoiceCommandService.dart';
 final voiceService = VoiceCommandService(); // глобальный экземпляр
 late Process backendProcess;
 
-
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   MediaKit.ensureInitialized();
