@@ -35,20 +35,28 @@ def audio_callback(indata, frames, time, status):
 
 
 def process_command(text):
-    print(f"[COMMAND] Обрабатываем текст: '{text}'")
+    #print(f"[COMMAND] Обрабатываем текст: '{text}'")
 
     if "старт" in text:
-        print("[COMMAND] Команда: START")
+        #print("[COMMAND] Команда: START")
         return "start"
     elif "стоп" in text:
-        print("[COMMAND] Команда: STOP")
+        #print("[COMMAND] Команда: STOP")
         return "stop"
     elif "сохранить" in text:
-        print("[COMMAND] Команда: SAVE")
+        #print("[COMMAND] Команда: SAVE")
         return "save"
     elif "скриншот" in text:
-        print("[COMMAND] Команда: SCREENSHOT")
+        #print("[COMMAND] Команда: SCREENSHOT")
         return "screenshot"
+    elif "создать обследование" in text:
+        #print("[COMMAND] Команда: EXEMINATION")
+        return "exemination"
+    elif "выбрать камеру" in text:
+        # print("[COMMAND] Команда: C")
+        return "choose camera"
+    elif "выбрать файл" in text:
+        return "choose file"
 
     print(f"[COMMAND] Неизвестная команда: '{text}'")
     return None
