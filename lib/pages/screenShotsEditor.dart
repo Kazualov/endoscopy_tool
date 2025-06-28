@@ -328,6 +328,8 @@ class _PathMark extends _Mark {
 class ScreenshotEditor extends StatefulWidget {
   final ImageProvider screenshot;
   final List<ImageProvider> otherScreenshots;
+
+
   const ScreenshotEditor({
     super.key,
     required this.screenshot,
@@ -339,6 +341,8 @@ class ScreenshotEditor extends StatefulWidget {
 }
 
 class ScreenshotEditorState extends State<ScreenshotEditor> with TickerProviderStateMixin {
+  late ImageProvider _activeScreenshot;
+  late List<ImageProvider> _otherScreenshots;
   // Tools & palette
   Tool _tool = Tool.rect;
   EraserMode _eraserMode = EraserMode.shape;
@@ -376,13 +380,25 @@ class ScreenshotEditorState extends State<ScreenshotEditor> with TickerProviderS
   void initState() {
     super.initState();
     _transformController = TransformationController();
+    _activeScreenshot = widget.screenshot;
+    _otherScreenshots = List.from(widget.otherScreenshots);
   }
+
 
   @override
   void dispose() {
     _transformController.dispose();
     super.dispose();
   }
+
+  void _switchToScreenshot(int index) {
+    setState(() {
+      final newActive = _otherScreenshots.removeAt(index);
+      _otherScreenshots.add(_activeScreenshot);
+      _activeScreenshot = newActive;
+    });
+  }
+
 
   void _pushUndo() {
     _undoStack.add(List.of(_marks));
@@ -760,7 +776,7 @@ class ScreenshotEditorState extends State<ScreenshotEditor> with TickerProviderS
                     child: CustomPaint(
                       size: constraints.biggest,
                       painter: _StagePainter(
-                        widget.screenshot,
+                        _activeScreenshot,
                         _marks,
                         draftRect: _draftRect,
                         draftPath: _draftPath,
@@ -792,16 +808,19 @@ class ScreenshotEditorState extends State<ScreenshotEditor> with TickerProviderS
       boxShadow: const [BoxShadow(blurRadius: 8, offset: Offset(0, 2), color: Colors.black26)],
     ),
     child: ListView.builder(
-      itemCount: widget.otherScreenshots.length,
-      itemBuilder: (c, i) => Container(
-        margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
-        height: 72,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.grey.shade400, width: 2),
+      itemCount: _otherScreenshots.length,
+      itemBuilder: (c, i) => GestureDetector(
+        onTap: () => _switchToScreenshot(i),
+        child: Container(
+          margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+          height: 72,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.grey.shade400, width: 2),
+          ),
+          clipBehavior: Clip.hardEdge,
+          child: Image(image: _otherScreenshots[i], fit: BoxFit.cover),
         ),
-        clipBehavior: Clip.hardEdge,
-        child: Image(image: widget.otherScreenshots[i], fit: BoxFit.cover),
       ),
     ),
   );
