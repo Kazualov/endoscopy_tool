@@ -7,7 +7,7 @@ import 'package:path_provider/path_provider.dart';
 class SettingsStorage {
   static const _fileName = 'settings.json';
 
-  static Future<File> _getSettingsFile() async {
+  static Future<File> getSettingsFile() async {
     final dir = await getApplicationDocumentsDirectory();
     return File('${dir.path}/$_fileName');
   }
@@ -17,7 +17,7 @@ class SettingsStorage {
     required String path,
     required ThemeMode theme,
   }) async {
-    final file = await _getSettingsFile();
+    final file = await getSettingsFile();
     final data = {
       'resolution': resolution,
       'path': path,

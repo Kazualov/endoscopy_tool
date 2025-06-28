@@ -476,6 +476,7 @@ class _MainPageLayoutState extends State<MainPageLayout> {
                 ScreenshotButton(
                   key: screenshotButtonKey,
                   screenshotKey: _screenshotKey,
+                  examId: widget.examinationId,
                   onScreenshotTaken: _addScreenshot,
                 ),
                 IconButton(
