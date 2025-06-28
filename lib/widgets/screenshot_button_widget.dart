@@ -5,15 +5,19 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:endoscopy_tool/widgets/SettingsStorage.dart';
 
 class ScreenshotButton extends StatefulWidget {
   final GlobalKey screenshotKey;
-  final Function(Uint8List)? onScreenshotTaken; // Новый колбэк
+  final Function(Uint8List)? onScreenshotTaken;
+  final examId;
 
   const ScreenshotButton({
     super.key,
     required this.screenshotKey,
+    required this.examId,
     this.onScreenshotTaken, // Опциональный параметр
+
   });
 
   @override
@@ -35,6 +39,11 @@ class ScreenshotButtonState extends State<ScreenshotButton> {
       if (widget.onScreenshotTaken != null) {
         widget.onScreenshotTaken!(pngBytes);
       }
+
+      final result = await SettingsStorage.loadSettings();
+      String? path = result?.path;
+      String examId = widget.examId;
+      _savedFolderPath = "$path/$examId/screenshots";
 
       // Ask for folder only once
       if (_savedFolderPath == null) {
