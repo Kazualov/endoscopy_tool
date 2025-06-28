@@ -6,7 +6,7 @@ from videoQueries.routers import patient
 from videoQueries.routers import Screenshots
 from videoQueries.routers import Examination
 from contextlib import asynccontextmanager
-from videoQueries.routers import frames_sender
+from videoQueries.routers import freeze_detector
 import uvicorn
 #import voiceCommand
 
@@ -25,7 +25,7 @@ app.include_router(video.router)
 app.include_router(patient.router)
 app.include_router(Examination.router)
 app.include_router(Screenshots.router)
-app.include_router(frames_sender.router)
+app.include_router(freeze_detector.router)
 
 # CORS
 app.add_middleware(
