@@ -18,9 +18,9 @@ DEFAULT_STORAGE_PATH = Path("./examinations_storage")  # путь по умол�
 
 @router.post("/examinations/", response_model=ExaminationResponse)
 def create_examination(
-    data: ExaminationCreate,
-    request: Request,
-    db: Session = Depends(get_db)
+        data: ExaminationCreate,
+        request: Request,
+        db: Session = Depends(get_db)
 ):
     # 1. Проверка пациента
     patient = db.query(Patient).filter(Patient.id == data.patient_id).first()
@@ -87,10 +87,10 @@ def get_examination(exam_id, db: Session = Depends(get_db)):
 
 @router.post("/examinations/{examination_id}/video/")
 async def upload_video_to_examination(
-    examination_id: str,
-    file: UploadFile = File(...),
-    notes: str = Form(""),
-    db: Session = Depends(get_db)
+        examination_id: str,
+        file: UploadFile = File(...),
+        notes: str = Form(""),
+        db: Session = Depends(get_db)
 ):
     exam = db.query(Examination).filter(Examination.id == examination_id).first()
     if not exam:
