@@ -7,36 +7,83 @@ import 'package:flutter/rendering.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:vector_math/vector_math_64.dart' hide Colors;
 
-
 // ──────────────────────────────────────────────────────────────────────
-//  Screenshot Editor – v3 with Zoom & Pan - MINIMAL FIXES
+//  Enhanced Screenshot Editor – with drag, resize, and stroke width
 //  • Rectangle, Pen, Eraser
+//  • Drag and resize shapes
+//  • Stroke width adjustment
 //  • Color palette
 //  • Undo / Redo
 //  • Zoom & Pan support
-//  • Save annotated image  → call  `await editorKey.currentState!.save()`
 // ──────────────────────────────────────────────────────────────────────
-enum Tool { rect, pen, eraser }
+
+enum Tool { rect, pen, eraser, select }
 enum EraserMode { pixel, shape }
+
+// Handle types for rectangle resizing
+enum HandleType {
+  topLeft, topRight, bottomLeft, bottomRight,
+  top, bottom, left, right
+}
+
+class ResizeHandle {
+  final Rect rect;
+  final HandleType type;
+
+  ResizeHandle(this.rect, this.type);
+
+  bool contains(Offset point) => rect.contains(point);
+}
 
 abstract class _Mark {
   final Paint paint;
-  _Mark(Color color) : paint = Paint()
+  bool selected = false;
+
+  _Mark(Color color, double strokeWidth) : paint = Paint()
     ..color = color
-    ..strokeWidth = 3
+    ..strokeWidth = strokeWidth
     ..style = PaintingStyle.stroke
     ..strokeCap = StrokeCap.round;
+
   void draw(Canvas canvas);
-  bool hit(Offset point); // for shape eraser
+  void drawSelection(Canvas canvas); // Draw selection indicators
+  bool hit(Offset point); // for shape eraser and selection
   _Mark? erasePixel(Offset point, double radius); // for pixel eraser
+  void move(Offset delta); // Move the shape
+  Rect getBounds(); // Get bounding rectangle
+  List<ResizeHandle> getResizeHandles(); // Get resize handles (for rectangles)
+  void resize(HandleType handle, Offset newPosition); // Resize shape
 }
 
 class _RectMark extends _Mark {
   Rect rect;
-  _RectMark(this.rect, Color c) : super(c);
+
+  _RectMark(this.rect, Color c, double strokeWidth) : super(c, strokeWidth);
 
   @override
   void draw(Canvas canvas) => canvas.drawRect(rect, paint);
+
+  @override
+  void drawSelection(Canvas canvas) {
+    if (!selected) return;
+
+    // Draw selection border
+    final selectionPaint = Paint()
+      ..color = Colors.blue
+      ..strokeWidth = 2
+      ..style = PaintingStyle.stroke;
+    canvas.drawRect(rect.inflate(5), selectionPaint);
+
+    // Draw resize handles
+    final handles = getResizeHandles();
+    final handlePaint = Paint()
+      ..color = Colors.blue
+      ..style = PaintingStyle.fill;
+
+    for (final handle in handles) {
+      canvas.drawRect(handle.rect, handlePaint);
+    }
+  }
 
   @override
   bool hit(Offset p) {
@@ -52,16 +99,111 @@ class _RectMark extends _Mark {
     // For rectangles, we don't support pixel erasing - only shape erasing
     return hit(point) ? null : this;
   }
+
+  @override
+  void move(Offset delta) {
+    rect = rect.translate(delta.dx, delta.dy);
+  }
+
+  @override
+  Rect getBounds() => rect;
+
+  @override
+  List<ResizeHandle> getResizeHandles() {
+    const handleSize = 8.0;
+    final handles = <ResizeHandle>[];
+
+    // Corner handles
+    handles.add(ResizeHandle(
+        Rect.fromCenter(center: rect.topLeft, width: handleSize, height: handleSize),
+        HandleType.topLeft
+    ));
+    handles.add(ResizeHandle(
+        Rect.fromCenter(center: rect.topRight, width: handleSize, height: handleSize),
+        HandleType.topRight
+    ));
+    handles.add(ResizeHandle(
+        Rect.fromCenter(center: rect.bottomLeft, width: handleSize, height: handleSize),
+        HandleType.bottomLeft
+    ));
+    handles.add(ResizeHandle(
+        Rect.fromCenter(center: rect.bottomRight, width: handleSize, height: handleSize),
+        HandleType.bottomRight
+    ));
+
+    // Edge handles
+    handles.add(ResizeHandle(
+        Rect.fromCenter(center: Offset(rect.center.dx, rect.top), width: handleSize, height: handleSize),
+        HandleType.top
+    ));
+    handles.add(ResizeHandle(
+        Rect.fromCenter(center: Offset(rect.center.dx, rect.bottom), width: handleSize, height: handleSize),
+        HandleType.bottom
+    ));
+    handles.add(ResizeHandle(
+        Rect.fromCenter(center: Offset(rect.left, rect.center.dy), width: handleSize, height: handleSize),
+        HandleType.left
+    ));
+    handles.add(ResizeHandle(
+        Rect.fromCenter(center: Offset(rect.right, rect.center.dy), width: handleSize, height: handleSize),
+        HandleType.right
+    ));
+
+    return handles;
+  }
+
+  @override
+  void resize(HandleType handle, Offset newPosition) {
+    switch (handle) {
+      case HandleType.topLeft:
+        rect = Rect.fromLTRB(newPosition.dx, newPosition.dy, rect.right, rect.bottom);
+        break;
+      case HandleType.topRight:
+        rect = Rect.fromLTRB(rect.left, newPosition.dy, newPosition.dx, rect.bottom);
+        break;
+      case HandleType.bottomLeft:
+        rect = Rect.fromLTRB(newPosition.dx, rect.top, rect.right, newPosition.dy);
+        break;
+      case HandleType.bottomRight:
+        rect = Rect.fromLTRB(rect.left, rect.top, newPosition.dx, newPosition.dy);
+        break;
+      case HandleType.top:
+        rect = Rect.fromLTRB(rect.left, newPosition.dy, rect.right, rect.bottom);
+        break;
+      case HandleType.bottom:
+        rect = Rect.fromLTRB(rect.left, rect.top, rect.right, newPosition.dy);
+        break;
+      case HandleType.left:
+        rect = Rect.fromLTRB(newPosition.dx, rect.top, rect.right, rect.bottom);
+        break;
+      case HandleType.right:
+        rect = Rect.fromLTRB(rect.left, rect.top, newPosition.dx, rect.bottom);
+        break;
+    }
+  }
 }
 
 class _PathMark extends _Mark {
   final Path path;
   final List<Offset> points; // Store original points for pixel erasing
 
-  _PathMark(this.path, Color c, this.points) : super(c);
+  _PathMark(this.path, Color c, double strokeWidth, this.points) : super(c, strokeWidth);
 
   @override
   void draw(Canvas canvas) => canvas.drawPath(path, paint);
+
+  @override
+  void drawSelection(Canvas canvas) {
+    if (!selected) return;
+
+    // Draw selection border around path bounds
+    final bounds = getBounds();
+    final selectionPaint = Paint()
+      ..color = Colors.blue
+      ..strokeWidth = 2
+      ..style = PaintingStyle.stroke;
+    canvas.drawRect(bounds.inflate(5), selectionPaint);
+  }
 
   @override
   bool hit(Offset p) {
@@ -107,7 +249,54 @@ class _PathMark extends _Mark {
       }
     }
 
-    return _PathMark(newPath, paint.color, newPoints);
+    return _PathMark(newPath, paint.color, paint.strokeWidth, newPoints);
+  }
+
+  @override
+  void move(Offset delta) {
+    // Move all points
+    for (int i = 0; i < points.length; i++) {
+      points[i] = points[i] + delta;
+    }
+
+    // Recreate path
+    path.reset();
+    if (points.isNotEmpty) {
+      path.moveTo(points.first.dx, points.first.dy);
+      for (int i = 1; i < points.length; i++) {
+        path.lineTo(points[i].dx, points[i].dy);
+      }
+    }
+  }
+
+  @override
+  Rect getBounds() {
+    if (points.isEmpty) return Rect.zero;
+
+    double minX = points.first.dx;
+    double maxX = points.first.dx;
+    double minY = points.first.dy;
+    double maxY = points.first.dy;
+
+    for (final point in points) {
+      minX = minX < point.dx ? minX : point.dx;
+      maxX = maxX > point.dx ? maxX : point.dx;
+      minY = minY < point.dy ? minY : point.dy;
+      maxY = maxY > point.dy ? maxY : point.dy;
+    }
+
+    return Rect.fromLTRB(minX, minY, maxX, maxY);
+  }
+
+  @override
+  List<ResizeHandle> getResizeHandles() {
+    // Paths don't support resizing, only moving
+    return [];
+  }
+
+  @override
+  void resize(HandleType handle, Offset newPosition) {
+    // Paths don't support resizing
   }
 
   double _distanceToLineSegment(Offset point, Offset start, Offset end) {
@@ -139,6 +328,8 @@ class _PathMark extends _Mark {
 class ScreenshotEditor extends StatefulWidget {
   final ImageProvider screenshot;
   final List<ImageProvider> otherScreenshots;
+
+
   const ScreenshotEditor({
     super.key,
     required this.screenshot,
@@ -150,11 +341,14 @@ class ScreenshotEditor extends StatefulWidget {
 }
 
 class ScreenshotEditorState extends State<ScreenshotEditor> with TickerProviderStateMixin {
+  late ImageProvider _activeScreenshot;
+  late List<ImageProvider> _otherScreenshots;
   // Tools & palette
   Tool _tool = Tool.rect;
   EraserMode _eraserMode = EraserMode.shape;
   int _colorIx = 0;
-  final _colors = [Colors.red, Colors.green, Colors.blue, Colors.orange, Colors.purple];
+  double _strokeWidth = 3.0;
+  final _colors = [Colors.red, Colors.green, Colors.blue];
 
   // Marks & history
   final List<_Mark> _marks = [];
@@ -166,6 +360,13 @@ class ScreenshotEditorState extends State<ScreenshotEditor> with TickerProviderS
   Path? _draftPath;
   List<Offset> _draftPoints = []; // For storing path points
   Offset? _rectStart;
+
+  // Selection and dragging
+  _Mark? _selectedMark;
+  bool _isDragging = false;
+  bool _isResizing = false;
+  HandleType? _resizeHandle;
+  Offset? _dragStart;
 
   // Transform controls
   late TransformationController _transformController;
@@ -179,13 +380,25 @@ class ScreenshotEditorState extends State<ScreenshotEditor> with TickerProviderS
   void initState() {
     super.initState();
     _transformController = TransformationController();
+    _activeScreenshot = widget.screenshot;
+    _otherScreenshots = List.from(widget.otherScreenshots);
   }
+
 
   @override
   void dispose() {
     _transformController.dispose();
     super.dispose();
   }
+
+  void _switchToScreenshot(int index) {
+    setState(() {
+      final newActive = _otherScreenshots.removeAt(index);
+      _otherScreenshots.add(_activeScreenshot);
+      _activeScreenshot = newActive;
+    });
+  }
+
 
   void _pushUndo() {
     _undoStack.add(List.of(_marks));
@@ -195,26 +408,68 @@ class ScreenshotEditorState extends State<ScreenshotEditor> with TickerProviderS
   void _onUndo() {
     if (_undoStack.isEmpty) return;
     _redoStack.add(List.of(_marks));
-    setState(() => _marks
-      ..clear()
-      ..addAll(_undoStack.removeLast()));
+    setState(() {
+      _marks.clear();
+      _marks.addAll(_undoStack.removeLast());
+      _selectedMark = null;
+    });
   }
 
   void _onRedo() {
     if (_redoStack.isEmpty) return;
     _undoStack.add(List.of(_marks));
-    setState(() => _marks
-      ..clear()
-      ..addAll(_redoStack.removeLast()));
+    setState(() {
+      _marks.clear();
+      _marks.addAll(_redoStack.removeLast());
+      _selectedMark = null;
+    });
   }
 
-  // ИСПРАВЛЕНИЕ: Упрощенное преобразование координат с учетом трансформации
+  // Coordinate transformation
   Offset _screenToImageCoords(Offset screenPoint, Size canvasSize) {
     final matrix = _transformController.value;
     final invertedMatrix = Matrix4.inverted(matrix);
     final vector = Vector4(screenPoint.dx, screenPoint.dy, 0, 1);
     final transformed = invertedMatrix.transform(vector);
     return Offset(transformed.x, transformed.y);
+  }
+
+  // Selection logic
+  _Mark? _findMarkAt(Offset point) {
+    // Search from top to bottom (reverse order)
+    for (int i = _marks.length - 1; i >= 0; i--) {
+      if (_marks[i].hit(point)) {
+        return _marks[i];
+      }
+    }
+    return null;
+  }
+
+  ResizeHandle? _findResizeHandle(Offset point) {
+    if (_selectedMark == null) return null;
+
+    final handles = _selectedMark!.getResizeHandles();
+    for (final handle in handles) {
+      if (handle.contains(point)) {
+        return handle;
+      }
+    }
+    return null;
+  }
+
+  void _selectMark(_Mark? mark) {
+    setState(() {
+      // Deselect all marks
+      for (final m in _marks) {
+        m.selected = false;
+      }
+
+      // Select new mark
+      _selectedMark = mark;
+      if (mark != null) {
+        mark.selected = true;
+      }
+    });
   }
 
   // Erase based on current eraser mode
@@ -311,9 +566,9 @@ class ScreenshotEditorState extends State<ScreenshotEditor> with TickerProviderS
     );
   }
 
-  // ───────────────── Left sidebar ─────────────────
+// ───────────────── Left sidebar ─────────────────
   Widget _buildLeft(ThemeData t) {
-    const icons = [Icons.crop_square, Icons.auto_fix_off, Icons.edit];
+    const icons = [Icons.crop_square, Icons.edit, Icons.auto_fix_off, Icons.near_me];
     return Container(
       width: 72,
       padding: const EdgeInsets.symmetric(vertical: 12),
@@ -327,46 +582,87 @@ class ScreenshotEditorState extends State<ScreenshotEditor> with TickerProviderS
           const SizedBox(height: 48),
           for (int i = 0; i < icons.length; ++i)
             GestureDetector(
-              onDoubleTap: i == 1 ? _toggleEraserMode : null, // Double tap on eraser to toggle mode
+              onDoubleTap: i == 2 ? _toggleEraserMode : null,
               child: _ToolBtn(
                 icon: icons[i],
                 active: _tool.index == i,
-                // ИСПРАВЛЕНИЕ: Убираем дублирование onTap, оставляем только один
                 onTap: () => setState(() => _tool = Tool.values[i]),
-                subtitle: i == 1 && _tool == Tool.eraser
+                subtitle: i == 2 && _tool == Tool.eraser
                     ? (_eraserMode == EraserMode.shape ? 'Shape' : 'Pixel')
                     : null,
               ),
             ),
-          const SizedBox(height: 24),
-          // Palette
-          ...List.generate(_colors.length, (i) => GestureDetector(
-            onTap: () => setState(() => _colorIx = i),
-            child: Container(
-              margin: const EdgeInsets.symmetric(vertical: 4),
-              width: 34,
-              height: 34,
-              decoration: BoxDecoration(
-                color: _colors[i],
-                shape: BoxShape.circle,
-                border: Border.all(color: i == _colorIx ? Colors.white : Colors.transparent, width: 3),
-              ),
+          const SizedBox(height: 12),
+
+          // Укороченный слайдер ширины
+          SizedBox(
+             // ограничение по высоте
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text('Width', style: TextStyle(fontSize: 10, color: t.textTheme.bodySmall?.color)),
+                RotatedBox(
+                  quarterTurns: 3,
+                  child: SliderTheme(
+                    data: SliderTheme.of(context).copyWith(
+                      trackHeight: 1.5,
+                      thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 5),
+                      overlayShape: const RoundSliderOverlayShape(overlayRadius: 10),
+                    ),
+                    child: Slider(
+                      value: _strokeWidth,
+                      min: 1.0,
+                      max: 4.0,
+                      divisions: 4,
+                      onChanged: (value) => setState(() => _strokeWidth = value),
+                    ),
+                  ),
+                ),
+                Text('${_strokeWidth.round()}', style: const TextStyle(fontSize: 10)),
+              ],
             ),
-          )),
+          ),
+
+          const SizedBox(height: 12),
+
+          // Палитра — выбранный цвет больше
+          ...List.generate(_colors.length, (i) {
+            final isSelected = i == _colorIx;
+            return GestureDetector(
+              onTap: () => setState(() => _colorIx = i),
+              child: Container(
+                margin: const EdgeInsets.symmetric(vertical: 3),
+                width: isSelected ? 32 : 20,
+                height: isSelected ? 32 :20,
+                decoration: BoxDecoration(
+                  color: _colors[i],
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: isSelected ? Colors.white : Colors.transparent,
+                    width: 3,
+                  ),
+                ),
+              ),
+            );
+          }),
+
           const Spacer(),
-          // Zoom reset button
+
           _ToolBtn(
             icon: Icons.zoom_out_map,
             onTap: _resetZoom,
             subtitle: 'Reset',
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
+
+          // Undo и Redo снова друг под другом
           _ToolBtn(icon: Icons.undo, onTap: _onUndo),
           _ToolBtn(icon: Icons.redo, onTap: _onRedo),
         ],
       ),
     );
   }
+
 
   // ───────────────── Stage ─────────────────
   Widget _buildStage() {
@@ -387,6 +683,7 @@ class ScreenshotEditorState extends State<ScreenshotEditor> with TickerProviderS
                     behavior: HitTestBehavior.translucent,
                     onPanStart: (d) {
                       final imagePoint = _screenToImageCoords(d.localPosition, constraints.biggest);
+
                       switch (_tool) {
                         case Tool.rect:
                           _rectStart = imagePoint;
@@ -398,6 +695,32 @@ class ScreenshotEditorState extends State<ScreenshotEditor> with TickerProviderS
                           break;
                         case Tool.eraser:
                           _eraseAt(imagePoint);
+                          break;
+                        case Tool.select:
+                        // Check for resize handle first
+                          final handle = _findResizeHandle(imagePoint);
+                          if (handle != null) {
+                            _isResizing = true;
+                            _resizeHandle = handle.type;
+                            _pushUndo();
+                          } else {
+                            // Check for mark selection
+                            final mark = _findMarkAt(imagePoint);
+                            if (mark != null && mark == _selectedMark) {
+                              // Start dragging selected mark
+                              _isDragging = true;
+                              _dragStart = imagePoint;
+                              _pushUndo();
+                            } else {
+                              // Select new mark or deselect
+                              _selectMark(mark);
+                              if (mark != null) {
+                                _isDragging = true;
+                                _dragStart = imagePoint;
+                                _pushUndo();
+                              }
+                            }
+                          }
                           break;
                       }
                     },
@@ -417,6 +740,15 @@ class ScreenshotEditorState extends State<ScreenshotEditor> with TickerProviderS
                           case Tool.eraser:
                             _eraseAt(imagePoint);
                             break;
+                          case Tool.select:
+                            if (_isResizing && _selectedMark != null && _resizeHandle != null) {
+                              _selectedMark!.resize(_resizeHandle!, imagePoint);
+                            } else if (_isDragging && _selectedMark != null && _dragStart != null) {
+                              final delta = imagePoint - _dragStart!;
+                              _selectedMark!.move(delta);
+                              _dragStart = imagePoint;
+                            }
+                            break;
                         }
                       });
                     },
@@ -424,27 +756,33 @@ class ScreenshotEditorState extends State<ScreenshotEditor> with TickerProviderS
                       if (_draftRect != null || _draftPath != null) {
                         _pushUndo();
                         if (_draftRect != null) {
-                          _marks.add(_RectMark(_draftRect!, _currentColor));
+                          _marks.add(_RectMark(_draftRect!, _currentColor, _strokeWidth));
                         }
                         if (_draftPath != null && _draftPoints.length > 1) {
-                          _marks.add(_PathMark(_draftPath!, _currentColor, List.of(_draftPoints)));
+                          _marks.add(_PathMark(_draftPath!, _currentColor, _strokeWidth, List.of(_draftPoints)));
                         }
                       }
+
+                      // Reset all interaction states
                       _draftRect = null;
                       _draftPath = null;
                       _draftPoints.clear();
                       _rectStart = null;
+                      _isDragging = false;
+                      _isResizing = false;
+                      _resizeHandle = null;
+                      _dragStart = null;
                     },
                     child: CustomPaint(
                       size: constraints.biggest,
                       painter: _StagePainter(
-                        widget.screenshot,
+                        _activeScreenshot,
                         _marks,
                         draftRect: _draftRect,
                         draftPath: _draftPath,
                         draftPaint: Paint()
                           ..color = _currentColor
-                          ..strokeWidth = 3
+                          ..strokeWidth = _strokeWidth
                           ..style = PaintingStyle.stroke
                           ..strokeCap = StrokeCap.round,
                         eraserMode: _tool == Tool.eraser ? _eraserMode : null,
@@ -470,16 +808,19 @@ class ScreenshotEditorState extends State<ScreenshotEditor> with TickerProviderS
       boxShadow: const [BoxShadow(blurRadius: 8, offset: Offset(0, 2), color: Colors.black26)],
     ),
     child: ListView.builder(
-      itemCount: widget.otherScreenshots.length,
-      itemBuilder: (c, i) => Container(
-        margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
-        height: 72,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.grey.shade400, width: 2),
+      itemCount: _otherScreenshots.length,
+      itemBuilder: (c, i) => GestureDetector(
+        onTap: () => _switchToScreenshot(i),
+        child: Container(
+          margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+          height: 72,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.grey.shade400, width: 2),
+          ),
+          clipBehavior: Clip.hardEdge,
+          child: Image(image: _otherScreenshots[i], fit: BoxFit.cover),
         ),
-        clipBehavior: Clip.hardEdge,
-        child: Image(image: widget.otherScreenshots[i], fit: BoxFit.cover),
       ),
     ),
   );
@@ -516,8 +857,13 @@ class _StagePainter extends CustomPainter {
       paintBackground(canvas, size);
     }
 
-    // Draw all marks and drafts in image coordinate space
-    for (final m in marks) m.draw(canvas);
+    // Draw all marks and their selection indicators
+    for (final m in marks) {
+      m.draw(canvas);
+      m.drawSelection(canvas);
+    }
+
+    // Draw drafts
     if (draftRect != null) canvas.drawRect(draftRect!, draftPaint);
     if (draftPath != null) canvas.drawPath(draftPath!, draftPaint);
   }

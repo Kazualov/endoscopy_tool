@@ -11,7 +11,6 @@ from videoQueries.routers import Set_path
 from contextlib import asynccontextmanager
 from videoQueries.routers import Detection
 import uvicorn
-#import voiceCommand
 
 
 @asynccontextmanager
@@ -44,5 +43,5 @@ app.add_middleware(
 )
 
 if __name__ == "__main__":
-    uvicorn.run("main:app", host="127.0.0.1", port=8000, reload=False)
+    uvicorn.run(app, host="127.0.0.1", port=8000, reload=False)
 
