@@ -9,6 +9,7 @@ import 'package:endoscopy_tool/widgets/screenshot_button_widget.dart';
 
 
 import 'package:flutter/rendering.dart';
+import 'package:http/http.dart' as http;
 import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
 import 'package:ffmpeg_kit_flutter_new/ffmpeg_kit.dart';
@@ -21,7 +22,6 @@ import 'package:endoscopy_tool/widgets/video_player_widget.dart'; // New media_k
 import '../main.dart';
 import '../widgets/VoiceCommandService.dart';
 import 'package:endoscopy_tool/widgets/screenshot_button_widget.dart';
-import 'package:http/http.dart' as http;
 
 import '../widgets/ScreenShotsEditorDialog.dart';
 
@@ -160,12 +160,6 @@ class _MainPageLayoutState extends State<MainPageLayout> {
           ));
         }
 
-  @override
-  void dispose() {
-    _player.dispose();
-    _voiceSubscription?.cancel(); // 👈 Отменяем подписку
-    super.dispose();
-  }
         setState(() {
           screenshots = loadedScreenshots;
         });

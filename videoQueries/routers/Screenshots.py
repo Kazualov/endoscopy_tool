@@ -3,7 +3,7 @@ import shutil
 from pathlib import Path
 from typing import List
 
-from fastapi import APIRouter, UploadFile, File, Depends, HTTPException
+from fastapi import APIRouter, UploadFile, File, Depends, HTTPException, Form
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 import json
@@ -60,9 +60,9 @@ async def upload_screenshot(
         with open(filepath, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
 
-    screenshot.file_path = str(filepath)
-    screenshot.filename = filename
-    db.commit()
+        screenshot.file_path = str(filepath)
+        screenshot.filename = filename
+        db.commit()
 
         return {
             "screenshot_id": screenshot.id,
