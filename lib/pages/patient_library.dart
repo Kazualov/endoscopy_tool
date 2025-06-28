@@ -99,30 +99,26 @@ class _ExaminationGridScreenState extends State<ExaminationGridScreen> {
   bool isLoading = true;
   String searchQuery = '';
 
-  StreamSubscription<String>? _voiceSubscription; // 👈 Добавляем подписку
-
   @override
   void initState() {
     super.initState();
+    loadPatients();
     loadExamination();
+  }
 
-    // 👇 Используем ГЛОБАЛЬНЫЙ экземпляр VoiceService
-    _voiceSubscription = voiceService.commandStream.listen((command) {
-      print('[MainPageLayout] 🎤 Получена команда: $command');
-      if (command.toLowerCase().contains('exemination')){
-        print('[MainPageLayout] создаем обследование...');
-        _showAddExaminationDialog(context);
-      } else if(command.toLowerCase().contains('choose camera')){
-        Navigator.of(_dialogContext!).pop();
-        addExaminationWithCamera();
-      } else if(command.toLowerCase().contains('choose file')) {
-        Navigator.of(_dialogContext!).pop();
-        addExaminationWithVideo();
-      }
+  Future<void> loadPatients() async {
+    setState(() {
+      isLoading = true;
+    });
+    
+    final loadedPatients = await ApiService.getPatients();
+    
+    setState(() {
+      patients = loadedPatients;
+      isLoading = false;
     });
   }
 
-  // загрузка осмотров
   Future<void> loadExamination() async {
     setState(() {
       isLoading = true;
@@ -136,7 +132,6 @@ class _ExaminationGridScreenState extends State<ExaminationGridScreen> {
     });
   }
 
-  // получить путь к видео по обследованию
   Future<String?> getVideoPath(Examination examination) async {
     if (examination.video_id != null) {
       return await ApiService.loadVideoPath(examination.video_id!);
@@ -144,7 +139,6 @@ class _ExaminationGridScreenState extends State<ExaminationGridScreen> {
     return null;
   }
 
-  //отсортировать осмотры по ID
   List<Examination> get filteredExamination {
     if (searchQuery.isEmpty) {
       return examinations;
@@ -162,8 +156,6 @@ class _ExaminationGridScreenState extends State<ExaminationGridScreen> {
     );
     return patient.name;
   }
-
-
 
   Future<void> addExaminationWithVideo() async {
     final result = await FilePicker.platform.pickFiles(type: FileType.video);
@@ -212,6 +204,7 @@ class _ExaminationGridScreenState extends State<ExaminationGridScreen> {
             Navigator.of(context).pop(); // Закрыть индикатор загрузки
             
             await loadExamination(); // Обновить список обследований
+            await loadPatients(); // Обновить список пациентов
             
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(content: Text('Обследование создано успешно')),
@@ -282,6 +275,7 @@ class _ExaminationGridScreenState extends State<ExaminationGridScreen> {
           
           if (examination != null) {
             await loadExamination(); // Обновить список обследований
+            await loadPatients(); // Обновить список пациентов
             
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(content: Text('Обследование создано успешно')),
@@ -443,6 +437,7 @@ class _ExaminationGridScreenState extends State<ExaminationGridScreen> {
             icon: Icon(Icons.refresh, color: Colors.black),
             onPressed: () {
               loadExamination();
+              loadPatients();
             },
           ),
           IconButton(
