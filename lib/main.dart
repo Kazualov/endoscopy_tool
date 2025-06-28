@@ -40,8 +40,8 @@ class MyApp extends StatelessWidget{
       debugShowCheckedModeBanner: false,
 
       //home: MainPage(videoPath: '/Users/ivan/Documents/Videos for project/videos/Bad Piggies Soundtrack | Building Contraptions | ABFT.mp4')
-      //home: EndoscopistApp(),
-      home:ScreenshotEditor(screenshot: FileImage(File(path)), otherScreenshots: [FileImage(File(path)), FileImage(File(path)), FileImage(File(path))],)
+      home: EndoscopistApp(),
+      //home:ScreenshotEditor(screenshot: FileImage(File(path)), otherScreenshots: [FileImage(File(path)), FileImage(File(path)), FileImage(File(path))],)
       //
       //home: StartPage()
     );
