@@ -451,7 +451,7 @@ class _ExaminationGridScreenState extends State<ExaminationGridScreen> {
               final result = await showSettingsDialog(context);
               if (result != null) {
                 print('Настройки обновлены: ${result.resolution}, ${result.path}, ${result.theme}');
-                ApiService.setSaveDirectory(result.path);
+                //ApiService.setSaveDirectory(result.path);
               }
             },
           ),
