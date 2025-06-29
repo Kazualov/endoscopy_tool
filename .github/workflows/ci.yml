@@ -39,17 +39,19 @@ jobs:
           path: flutter-lint.txt
 
   build-flutter:
-    runs-on: ubuntu-latest
-    name: Build Flutter App
+    runs-on: windows-latest
+    name: Build Flutter App (Windows)
     steps:
       - uses: actions/checkout@v3
       - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.32.4'
       - run: flutter pub get
       - run: flutter build windows
       - uses: actions/upload-artifact@v4
         with:
-          name: flutter-apk
-          path: build/app/outputs/flutter-apk/app-release.apk
+          name: flutter-windows-build
+          path: build/windows/runner/Release
 
   test-python:
     runs-on: ubuntu-latest
