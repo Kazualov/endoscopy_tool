@@ -100,11 +100,15 @@ jobs:
       - uses: actions/checkout@v3
       - uses: subosito/flutter-action@v2
       - run: flutter pub get
-      - run: flutter test > flutter-tests.txt
+      - run: sudo apt-get install lcov  # Install lcov for genhtml
+      - run: | 
+          flutter test --coverage  # Generates `lcov.info`
+          # Optional: Convert to HTML for easier viewing
+          genhtml coverage/lcov.info -o coverage/html
       - uses: actions/upload-artifact@v4
         with:
-          name: flutter-tests
-          path: flutter-tests.txt
+          name: flutter-coverage
+          path: coverage/  # Uploads both LCOV and HTML (if generated)
 
   security-check:
     runs-on: ubuntu-latest
