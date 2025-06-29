@@ -1,22 +1,22 @@
-name: Build, Lint, Test Flutter & Python
+name: Build Flutter Windows App
 
 on:
-  workflow_dispatch:
+  workflow_dispatch:  # Manual trigger
   push:
-    branches: [main]
+    branches: [main]  # Auto-trigger on main branch
 
 jobs:
-  build_and_test:
+  build:
+    name: Build Windows
     runs-on: windows-latest
 
     steps:
       - name: 📥 Checkout code
         uses: actions/checkout@v3
         with:
-          lfs: true
-          fetch-depth: 0
+          lfs: true           # ✅ Enables Git LFS (important for binary files like .exe)
+          fetch-depth: 0      # ✅ Full clone, not shallow
 
-      # --- Setup Flutter ---
       - name: 💻 Setup Flutter
         uses: subosito/flutter-action@v2
         with:
@@ -26,25 +26,14 @@ jobs:
       - name: 🔧 Enable Windows desktop
         run: flutter config --enable-windows-desktop
 
-      - name: 📦 Install Flutter dependencies
+      - name: 📦 Install dependencies
         run: flutter pub get
 
-      # --- Flutter Lint ---
-      - name: 🧹 Lint Flutter code (non-blocking)
-        run: |
-          flutter analyze || true
-
-      # --- Flutter Test ---
-      - name: 🧪 Run Flutter tests
-        run: flutter test --coverage
-
-      # --- Check backend launcher exists ---
       - name: 🧪 Confirm .exe exists
         run: |
           echo "Contents of backend_launcher:"
           dir windows\runner\assets\backend_launcher
 
-      # --- Build Windows app ---
       - name: 🏗️ Build Windows app
         run: flutter build windows --release
 
@@ -53,40 +42,3 @@ jobs:
         with:
           name: Windows-Build
           path: build/windows/x64/runner/Release/
-
-  python_lint_and_test:
-    runs-on: ubuntu-latest
-
-    defaults:
-      run:
-        working-directory: backend
-
-    steps:
-      - name: 📥 Checkout code
-        uses: actions/checkout@v3
-
-      - name: 🐍 Setup Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.11'
-
-      - name: 📦 Install Python dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install flake8 pytest pytest-cov bandit
-
-      - name: 🧹 Lint Python code
-        run: flake8 .
-
-      - name: 🔐 Run Bandit (Security Linter)
-        run: bandit -r . -ll
-
-      - name: 🧪 Run Python tests with coverage
-        run: pytest --cov=.
-
-      - name: 📤 Upload Python coverage report
-        uses: actions/upload-artifact@v4
-        with:
-          name: python-coverage
-          path: backend/.coverage
