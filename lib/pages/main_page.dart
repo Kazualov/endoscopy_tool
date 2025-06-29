@@ -243,6 +243,7 @@ class _MainPageLayoutState extends State<MainPageLayout> {
     }
   }
 
+
   Future<void> _prepareAndPlay(String inputPath) async {
     setState(() {
       _isLoading = true;
@@ -294,7 +295,6 @@ class _MainPageLayoutState extends State<MainPageLayout> {
     }
   }
 
-
   void _showError(String message) {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
     setState(() {
@@ -325,7 +325,7 @@ class _MainPageLayoutState extends State<MainPageLayout> {
   Future<void> _addScreenshot(Uint8List imageBytes) async {
     final currentTimestamp = _getCurrentTimeCode();
 
-    // Сначала добавляем скриншот в локальный список (как было изначально)
+    // Сначала добавляем скриншот в локальный список
     setState(() {
       screenshots.add(ScreenshotItem(
         screenshotId: DateTime.now().millisecondsSinceEpoch.toString(), // временный ID

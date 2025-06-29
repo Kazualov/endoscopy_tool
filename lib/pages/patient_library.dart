@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:endoscopy_tool/pages/main_page.dart';
 import 'package:endoscopy_tool/pages/settings.dart';
+import 'package:endoscopy_tool/widgets/SettingsStorage.dart';
 import 'package:endoscopy_tool/widgets/VoiceCommandService.dart';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
@@ -139,7 +140,10 @@ class _ExaminationGridScreenState extends State<ExaminationGridScreen> {
   // получить путь к видео по обследованию
   Future<String?> getVideoPath(Examination examination) async {
     if (examination.video_id != null) {
-      return await ApiService.loadVideoPath(examination.video_id!);
+
+      final settings = await SettingsStorage.loadSettings();
+      final path = ApiService.loadVideoPath(examination.video_id!);
+      return "${settings?.path}/$path";
     }
     return null;
   }
@@ -451,7 +455,7 @@ class _ExaminationGridScreenState extends State<ExaminationGridScreen> {
               final result = await showSettingsDialog(context);
               if (result != null) {
                 print('Настройки обновлены: ${result.resolution}, ${result.path}, ${result.theme}');
-                //ApiService.setSaveDirectory(result.path);
+                ApiService.setSaveDirectory(result.path);
               }
             },
           ),
@@ -474,6 +478,7 @@ class _ExaminationGridScreenState extends State<ExaminationGridScreen> {
               return GestureDetector(
                 onTap: () async {
                   final videoPath = await getVideoPath(examination);
+                  print(videoPath);
                   Navigator.push(
                     context,
                     MaterialPageRoute(
