@@ -6,3 +6,4 @@ SQLAlchemy==2.0.41
 uvicorn==0.34.3
 vosk==0.3.45
 httpx==0.24.1
+python-multipart==0.0.9
