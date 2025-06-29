@@ -63,7 +63,7 @@ jobs:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
           POSTGRES_DB: testdb
-        ports: [5432:5432]
+        ports: [ 5432:5432 ]
         options: >-
           --health-cmd pg_isready
           --health-interval 10s
@@ -77,7 +77,12 @@ jobs:
       - run: |
           pip install -r requirements.txt
           pip install pytest pytest-cov
+        env:
+          PYTHONPATH: ${{ github.workspace }}
+      - run: |
           pytest --cov=videoQueries --junitxml=results.xml --cov-report=xml
+        env:
+          PYTHONPATH: ${{ github.workspace }}
       - uses: actions/upload-artifact@v4
         with:
           name: python-coverage
@@ -86,6 +91,7 @@ jobs:
         with:
           name: test-results
           path: results.xml
+
 
   test-flutter:
     runs-on: ubuntu-latest
