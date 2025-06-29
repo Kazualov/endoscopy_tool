@@ -27,6 +27,8 @@ dependencies:
   camera: ^0.11.1
   ffmpeg_kit_flutter_new: ^2.0.0
   vector_math: ^2.1.4
+  flutter_webrtc: ^0.14.1
+  shared_preferences: ^2.2.2
 
 
   cupertino_icons: ^1.0.8
@@ -39,8 +41,6 @@ dev_dependencies:
   flutter_lints: ^6.0.0
 
 flutter:
-  assets:
-    - assets/img/demo0.jpg
 
   uses-material-design: true
 
