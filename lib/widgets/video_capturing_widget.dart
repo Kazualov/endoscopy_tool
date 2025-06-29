@@ -16,6 +16,7 @@ class CameraStreamWidget extends StatefulWidget {
   final int videoWidth;
   final int videoHeight;
   final int frameRate;
+  final Function(String)? onVideoCaptured; // Add callback for captured video
 
   const CameraStreamWidget({
     super.key,
@@ -25,6 +26,7 @@ class CameraStreamWidget extends StatefulWidget {
     this.videoWidth = 1280,
     this.videoHeight = 720,
     this.frameRate = 30,
+    this.onVideoCaptured, // Add callback parameter
   });
 
   @override
@@ -83,12 +85,10 @@ class _CameraStreamWidgetState extends State<CameraStreamWidget> {
         }
       });
 
-      // Delay camera initialization to ensure devices are ready
       await Future.delayed(const Duration(milliseconds: 300));
       await _initializeCamera();
     } catch (e) {
       print('Error listing devices: $e');
-      // Fallback to default devices
       setState(() {
         _selectedVideoDeviceId = null;
         _selectedAudioDeviceId = null;
@@ -97,12 +97,9 @@ class _CameraStreamWidgetState extends State<CameraStreamWidget> {
     }
   }
 
-  // In your _initializeCamera() method, replace the constraints with this:
-
   Future<void> _initializeCamera() async {
     await _renderer.initialize();
 
-    // Simplified constraints that work reliably on macOS
     final constraints = {
       'audio': _selectedAudioDeviceId != null,
       'video': {
@@ -120,7 +117,6 @@ class _CameraStreamWidgetState extends State<CameraStreamWidget> {
       setState(() => _mediaStream = stream);
     } catch (e) {
       print('Error accessing camera: $e');
-      // Fallback to default devices if specific ones fail
       if (_selectedVideoDeviceId != null) {
         setState(() => _selectedVideoDeviceId = null);
         await _initializeCamera();
@@ -134,22 +130,25 @@ class _CameraStreamWidgetState extends State<CameraStreamWidget> {
     return '${dir.path}/recording_$timestamp.mp4';
   }
 
-  String _getSelectedVideoDeviceName() {
-    if (_selectedVideoDeviceId == null) return 'Default';
+  String? _getFFmpegVideoInput() {
+    if (_selectedVideoDeviceId == null) return null;
+
     final device = _videoDevices.firstWhere(
           (d) => d.deviceId == _selectedVideoDeviceId,
       orElse: () => MediaDeviceInfo(deviceId: '', label: '', kind: '', groupId: ''),
     );
-    return device.label.isNotEmpty ? device.label : 'Camera';
-  }
 
-  String _getSelectedAudioDeviceName() {
-    if (_selectedAudioDeviceId == null) return 'Default';
-    final device = _audioDevices.firstWhere(
-          (d) => d.deviceId == _selectedAudioDeviceId,
-      orElse: () => MediaDeviceInfo(deviceId: '', label: '', kind: '', groupId: ''),
-    );
-    return device.label.isNotEmpty ? device.label : 'Microphone';
+    if (Platform.isWindows) {
+      return device.label;
+    } else if (Platform.isMacOS) {
+      for (int i = 0; i < _videoDevices.length; i++) {
+        if (_videoDevices[i].deviceId == _selectedVideoDeviceId) {
+          return i.toString();
+        }
+      }
+    }
+
+    return null;
   }
 
   Future<void> _startRecording() async {
@@ -157,22 +156,26 @@ class _CameraStreamWidgetState extends State<CameraStreamWidget> {
 
     final tempPath = await _getTempOutputFilePath();
     _outputPath = tempPath;
-    setState(() => _isRecording = true);
+
+    final videoInput = _getFFmpegVideoInput();
+
+    if (videoInput == null) {
+      print("No valid FFmpeg-compatible camera input.");
+      return;
+    }
 
     final command = Platform.isMacOS
-        ? '-f avfoundation -i "${_selectedVideoDeviceId ?? 'default'}:${_selectedAudioDeviceId ?? 'none'}" '
+        ? '-f avfoundation -framerate ${widget.frameRate} '
         '-video_size ${widget.videoWidth}x${widget.videoHeight} '
-        '-framerate ${widget.frameRate} '
-        '-c:v libx264 -preset ultrafast -crf 23 '
-        '-c:a aac -b:a 128k '
+        '-i "$videoInput" -c:v libx264 -preset ultrafast -crf 23 '
         '-pix_fmt yuv420p "$tempPath"'
-        : '-f dshow -i video="${_getSelectedVideoDeviceName()}"'
-        ':audio="${_getSelectedAudioDeviceName()}" '
+        : '-f dshow -i video="$videoInput" '
         '-c:v libx264 -preset ultrafast -crf 23 '
-        '-c:a aac -b:a 128k '
         '-r ${widget.frameRate} "$tempPath"';
 
     print('Running FFmpeg command:\n$command');
+
+    setState(() => _isRecording = true);
 
     _ffmpegSession = await FFmpegKit.executeAsync(command, (session) async {
       final returnCode = await session.getReturnCode();
@@ -182,12 +185,25 @@ class _CameraStreamWidgetState extends State<CameraStreamWidget> {
         _isRecording = false;
         _ffmpegSession = null;
       });
-
-      if (returnCode != null && ReturnCode.isSuccess(returnCode)) {
-        await _saveRecordedFile(tempPath);
+      if (!File(tempPath).existsSync()) {
+        print("⚠️ FFmpeg did not produce a file at: $tempPath");
+      } else {
+        print("✅ File created: $tempPath");
+      }
+      if (returnCode != null && (ReturnCode.isSuccess(returnCode) || returnCode.getValue() == 255)) {
+        if (File(tempPath).existsSync()) {
+          print('Saving captured recording...');
+          await _saveRecordedFile(tempPath);
+        } else {
+          print('Temp file not found after capture.');
+        }
       } else {
         print('Recording failed with code: $returnCode');
-        try { await File(tempPath).delete(); } catch (e) { print(e); }
+        try {
+          if (File(tempPath).existsSync()) await File(tempPath).delete();
+        } catch (e) {
+          print('Delete failed: $e');
+        }
       }
     });
   }
@@ -200,6 +216,13 @@ class _CameraStreamWidgetState extends State<CameraStreamWidget> {
 
   Future<void> _saveRecordedFile(String tempFilePath) async {
     String? saveDir = _defaultSaveFolder;
+
+    print('Trying to save: $tempFilePath');
+
+    if (!File(tempFilePath).existsSync()) {
+      print('❌ File does not exist: $tempFilePath');
+      return;
+    }
 
     if (saveDir == null || saveDir.isEmpty) {
       saveDir = await FilePicker.platform.getDirectoryPath();
@@ -216,10 +239,18 @@ class _CameraStreamWidgetState extends State<CameraStreamWidget> {
 
     try {
       await File(tempFilePath).copy(destination);
+      print('✅ Copied to: $destination');
+
+      // Call the callback to open the captured video immediately
+      if (widget.onVideoCaptured != null) {
+        widget.onVideoCaptured!(destination);
+      }
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Saved to: $destination'),
+            content: Text('Video captured and opened: ${fileName}'),
+            backgroundColor: const Color(0xFF00ACAB),
             action: SnackBarAction(
               label: 'Open Folder',
               onPressed: () => _openFolder(saveDir!),
@@ -228,7 +259,7 @@ class _CameraStreamWidgetState extends State<CameraStreamWidget> {
         );
       }
     } catch (e) {
-      print('Failed to save recording: $e');
+      print('❌ Failed to save recording: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Failed to save recording: $e')),
@@ -259,7 +290,6 @@ class _CameraStreamWidgetState extends State<CameraStreamWidget> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Video Device Selection
               const Text('Video Device:', style: TextStyle(fontWeight: FontWeight.bold)),
               const SizedBox(height: 8),
               DropdownButton<String>(
@@ -275,9 +305,8 @@ class _CameraStreamWidgetState extends State<CameraStreamWidget> {
                   setState(() => _selectedVideoDeviceId = value);
                 },
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 10),
 
-              // Audio Device Selection
               const Text('Audio Device:', style: TextStyle(fontWeight: FontWeight.bold)),
               const SizedBox(height: 8),
               DropdownButton<String>(
@@ -373,7 +402,7 @@ class _CameraStreamWidgetState extends State<CameraStreamWidget> {
               ),
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 1),
           // Recording controls
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -382,7 +411,7 @@ class _CameraStreamWidgetState extends State<CameraStreamWidget> {
                 icon: Icon(_isRecording ? Icons.radio_button_checked : Icons.fiber_manual_record),
                 label: Text(_isRecording ? "Recording..." : "Start Recording"),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: _isRecording ? Colors.orange : Colors.red,
+                  backgroundColor: _isRecording ? Color(0xFFD9D9D9) : Color(0xFF00ACAB),
                   foregroundColor: Colors.white,
                 ),
                 onPressed: _isRecording ? null : _startRecording,
@@ -399,23 +428,13 @@ class _CameraStreamWidgetState extends State<CameraStreamWidget> {
               ),
               const SizedBox(width: 16),
               IconButton(
+                color: Color(0xFF00ACAB),
                 icon: const Icon(Icons.settings),
                 onPressed: _showSettingsDialog,
                 tooltip: 'Settings',
               ),
             ],
           ),
-          if (_isRecording)
-            Padding(
-              padding: const EdgeInsets.only(top: 8.0),
-              child: Text(
-                'Recording in progress...',
-                style: TextStyle(
-                  color: Colors.orange.shade700,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ),
         ],
       ),
     );
