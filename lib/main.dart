@@ -9,7 +9,6 @@ import 'package:endoscopy_tool/widgets/VoiceCommandService.dart';
 Future<void> launchMyExe() async {
   final exePath = 'endoscopy_tool/windows/runner/assets/backend_launcher/main.exe'; // relative to your app executable
 
-
   try {
     final process = await Process.start(exePath, []);
     // Optional: capture output
@@ -28,8 +27,6 @@ void main(){
   runApp(MyApp());
 }
 
-String path = "assets/img/demo0.jpg";
-
 class MyApp extends StatelessWidget{
   MyApp({super.key});
 
@@ -38,11 +35,9 @@ class MyApp extends StatelessWidget{
 
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-
       //home: MainPage(videoPath: '/Users/ivan/Documents/Videos for project/videos/Bad Piggies Soundtrack | Building Contraptions | ABFT.mp4')
       home: EndoscopistApp(),
       //home:ScreenshotEditor(screenshot: FileImage(File(path)), otherScreenshots: [FileImage(File(path)), FileImage(File(path)), FileImage(File(path))],)
-      //
       //home: StartPage()
     );
   }
