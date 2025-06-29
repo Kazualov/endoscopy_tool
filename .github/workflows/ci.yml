@@ -2,9 +2,9 @@ name: Flutter & FastAPI CI
 
 on:
   push:
-    branches: [ Tests ]
+    branches: [ Temp ]
   pull_request:
-    branches: [ Tests ]
+    branches: [ Temp ]
 
 jobs:
   lint-python:
@@ -77,25 +77,20 @@ jobs:
       - run: |
           pip install -r requirements.txt
           pip install pytest pytest-cov
+        env:
+          PYTHONPATH: ${{ github.workspace }}
       - run: |
-          pytest --cov=videoQueries \
-                 --junitxml=results.xml \
-                 --cov-report=xml \
-                 --cov-report=html
+          pytest --cov=videoQueries --junitxml=results.xml --cov-report=xml
+        env:
+          PYTHONPATH: ${{ github.workspace }}
       - uses: actions/upload-artifact@v4
         with:
-          name: python-coverage-xml
+          name: python-coverage
           path: coverage.xml
-      - uses: actions/upload-artifact@v4
-        with:
-          name: python-coverage-html
-          path: htmlcov/
       - uses: actions/upload-artifact@v4
         with:
           name: test-results
           path: results.xml
-
-
 
   test-flutter:
     runs-on: ubuntu-latest
