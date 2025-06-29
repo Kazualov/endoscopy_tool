@@ -1,4 +1,4 @@
-name: Flutter & FastAPI CI
+name: Flutter & FastAPI CI/CD (TEMP)
 
 on:
   push:
