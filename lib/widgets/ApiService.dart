@@ -50,7 +50,6 @@ class ApiService {
     }
   }
 
-
   // Создать новое обследование
   static Future<Examination?> createExamination(String patientId, String description) async {
     try {
