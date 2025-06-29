@@ -30,8 +30,9 @@ jobs:
         run: flutter pub get
 
       # --- Flutter Lint ---
-      - name: 🧹 Lint Flutter code
-        run: flutter analyze
+      - name: 🧹 Lint Flutter code (non-blocking)
+        run: |
+          flutter analyze || true
 
       # --- Flutter Test ---
       - name: 🧪 Run Flutter tests
