@@ -133,13 +133,14 @@ class _ExaminationGridScreenState extends State<ExaminationGridScreen> {
 
   // получить путь к видео по обследованию
   Future<String?> getVideoPath(Examination examination) async {
-    if (examination.video_id != null) {
+    ApiService.getExamination();
+     if (examination.video_id != null) {
 
       final settings = await SettingsStorage.loadSettings();
       final path = ApiService.loadVideoPath(examination.video_id!);
       return "${settings?.path}/$path";
     }
-    return null;
+    return "";
   }
 
   //отсортировать осмотры по ID
