@@ -1,0 +1,116 @@
+name: Flutter & FastAPI CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  lint-python:
+    runs-on: ubuntu-latest
+    name: Lint Python
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      - run: |
+          pip install flake8
+          flake8 videoQueries > flake8-report.txt || true
+      - uses: actions/upload-artifact@v4
+        with:
+          name: flake8-report
+          path: flake8-report.txt
+
+  lint-flutter:
+    runs-on: ubuntu-latest
+    name: Lint Flutter
+    steps:
+      - uses: actions/checkout@v3
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.19.0'  # Change to your version
+      - run: flutter pub get
+      - run: flutter analyze > flutter-lint.txt || true
+      - uses: actions/upload-artifact@v4
+        with:
+          name: flutter-lint
+          path: flutter-lint.txt
+
+  build-flutter:
+    runs-on: ubuntu-latest
+    name: Build Flutter App
+    steps:
+      - uses: actions/checkout@v3
+      - uses: subosito/flutter-action@v2
+      - run: flutter pub get
+      - run: flutter build apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: flutter-apk
+          path: build/app/outputs/flutter-apk/app-release.apk
+
+  test-python:
+    runs-on: ubuntu-latest
+    name: Python Tests
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: testdb
+        ports: [5432:5432]
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      - run: |
+          pip install -r requirements.txt
+          pip install pytest pytest-cov
+          pytest --cov=videoQueries --junitxml=results.xml --cov-report=xml
+      - uses: actions/upload-artifact@v4
+        with:
+          name: python-coverage
+          path: coverage.xml
+      - uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: results.xml
+
+  test-flutter:
+    runs-on: ubuntu-latest
+    name: Flutter Tests
+    steps:
+      - uses: actions/checkout@v3
+      - uses: subosito/flutter-action@v2
+      - run: flutter pub get
+      - run: flutter test > flutter-tests.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: flutter-tests
+          path: flutter-tests.txt
+
+  security-check:
+    runs-on: ubuntu-latest
+    name: Python Security Check (safety)
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      - run: |
+          pip install -r requirements.txt
+          pip install safety
+          safety check --full-report > safety.txt || true
+      - uses: actions/upload-artifact@v4
+        with:
+          name: safety-report
+          path: safety.txt
