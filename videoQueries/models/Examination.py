@@ -19,4 +19,4 @@ class Examination(Base):
     # связь с видео
     video = relationship("Video", back_populates="examination", uselist=False)
     #связь с детекцией
-    detections = relationship("Detection", back_populates="examination", cascade="all, delete")
+    #detections = relationship("Detection", back_populates="examination", cascade="all, delete")
