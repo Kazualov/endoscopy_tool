@@ -9,6 +9,8 @@ import 'package:file_picker/file_picker.dart';
 import 'package:path/path.dart' as path;
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'ApiService.dart';
+
 class CameraStreamWidget extends StatefulWidget {
   final double? width;
   final double? height;
@@ -16,7 +18,9 @@ class CameraStreamWidget extends StatefulWidget {
   final int videoWidth;
   final int videoHeight;
   final int frameRate;
-  final Function(String)? onVideoCaptured; // Add callback for captured video
+  final Function(String)? onVideoCaptured;
+  final Function()? startCaptured;
+  final String? examinationId; // Добавляем параметр для examination ID
 
   const CameraStreamWidget({
     super.key,
@@ -26,7 +30,9 @@ class CameraStreamWidget extends StatefulWidget {
     this.videoWidth = 1280,
     this.videoHeight = 720,
     this.frameRate = 30,
-    this.onVideoCaptured, // Add callback parameter
+    this.onVideoCaptured,
+    this.startCaptured,
+    this.examinationId, // Добавляем в конструктор
   });
 
   @override
@@ -153,7 +159,9 @@ class _CameraStreamWidgetState extends State<CameraStreamWidget> {
 
   Future<void> _startRecording() async {
     if (_isRecording) return;
-
+    if (widget.startCaptured != null){
+      widget.startCaptured!();
+    }
     final tempPath = await _getTempOutputFilePath();
     _outputPath = tempPath;
 
@@ -214,6 +222,7 @@ class _CameraStreamWidgetState extends State<CameraStreamWidget> {
     print('Recording manually stopped.');
   }
 
+// Обновляем метод _saveRecordedFile
   Future<void> _saveRecordedFile(String tempFilePath) async {
     String? saveDir = _defaultSaveFolder;
 
@@ -238,26 +247,96 @@ class _CameraStreamWidgetState extends State<CameraStreamWidget> {
     final destination = path.join(saveDir, fileName);
 
     try {
+      // Сохраняем файл локально
       await File(tempFilePath).copy(destination);
       print('✅ Copied to: $destination');
 
-      // Call the callback to open the captured video immediately
+      // Загружаем видео в базу данных, если есть examination ID
+      if (widget.examinationId != null) {
+        print('📤 Uploading video to database...');
+
+        if (mounted) {
+          // Показываем индикатор загрузки
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Row(
+                children: [
+                  SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                    ),
+                  ),
+                  SizedBox(width: 10),
+                  Text('Uploading video to database...'),
+                ],
+              ),
+              backgroundColor: Colors.orange,
+              duration: Duration(seconds: 30), // Долгое время для загрузки
+            ),
+          );
+        }
+
+        try {
+          final videoId = await ApiService.uploadVideoToExamination(
+            widget.examinationId!,
+            destination,
+          );
+
+          if (videoId != null) {
+            print('✅ Video uploaded successfully with ID: $videoId');
+
+            if (mounted) {
+              // Убираем индикатор загрузки и показываем успех
+              ScaffoldMessenger.of(context).clearSnackBars();
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Video captured and uploaded successfully!'),
+                  backgroundColor: const Color(0xFF00ACAB),
+                  action: SnackBarAction(
+                    label: 'Open Folder',
+                    onPressed: () => _openFolder(saveDir!),
+                  ),
+                ),
+              );
+            }
+          } else {
+            print('❌ Failed to upload video to database');
+
+            if (mounted) {
+              ScaffoldMessenger.of(context).clearSnackBars();
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Video saved locally but failed to upload to database'),
+                  backgroundColor: Colors.orange,
+                ),
+              );
+            }
+          }
+        } catch (e) {
+          print('❌ Error uploading video: $e');
+
+          if (mounted) {
+            ScaffoldMessenger.of(context).clearSnackBars();
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Video saved locally but upload failed: $e'),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+        }
+      } else {
+        print("no ExamId");
+      }
+
+      // Вызываем callback для открытия видео проигрывателя
       if (widget.onVideoCaptured != null) {
         widget.onVideoCaptured!(destination);
       }
 
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Video captured and opened: ${fileName}'),
-            backgroundColor: const Color(0xFF00ACAB),
-            action: SnackBarAction(
-              label: 'Open Folder',
-              onPressed: () => _openFolder(saveDir!),
-            ),
-          ),
-        );
-      }
     } catch (e) {
       print('❌ Failed to save recording: $e');
       if (mounted) {

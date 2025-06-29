@@ -86,37 +86,40 @@ def voice_command_generator():
                     # Проверяем heartbeat
                     current_time = time.time()
                     if current_time - last_heartbeat > 5:
-                        print(f"[SSE] Клиент #{client_id}: Отправляем heartbeat")
+                        # print(f"[SSE] Клиент #{client_id}: Отправляем heartbeat")
                         yield f"data: {json.dumps({'type': 'heartbeat', 'timestamp': current_time})}\n\n"
                         last_heartbeat = current_time
 
                     # Проверяем очередь аудио (с таймаутом)
                     try:
                         data = AUDIO_QUEUE.get(timeout=0.1)
-                        print(f"[AUDIO] Клиент #{client_id}: Получены аудио данные ({len(data)} байт)")
+                        # print(f"[AUDIO] Клиент #{client_id}: Получены аудио данные ({len(data)} байт)")
 
                         if recognizer.AcceptWaveform(data):
                             result = json.loads(recognizer.Result())
                             text = result.get("text", "").lower()
 
                             if text:
-                                print(f"[SPEECH] Клиент #{client_id}: Распознан текст: '{text}'")
+                                # print(f"[SPEECH] Клиент #{client_id}: Распознан текст: '{text}'")
                                 command = process_command(text)
 
                                 if command:
                                     message = json.dumps({'command': command, 'text': text})
-                                    print(f"[SSE] Клиент #{client_id}: Отправляем команду: {message}")
+                                    # print(f"[SSE] Клиент #{client_id}: Отправляем команду: {message}")
                                     yield f"data: {message}\n\n"
                                 else:
-                                    print(f"[SSE] Клиент #{client_id}: Текст не содержит команд")
+                                    pass
+                                    # print(f"[SSE] Клиент #{client_id}: Текст не содержит команд")
                             else:
-                                print(f"[SPEECH] Клиент #{client_id}: Пустой результат распознавания")
+                                pass
+                                # print(f"[SPEECH] Клиент #{client_id}: Пустой результат распознавания")
                         else:
                             # Промежуточный результат
                             partial = json.loads(recognizer.PartialResult())
                             partial_text = partial.get("partial", "")
                             if partial_text:
-                                print(f"[SPEECH] Клиент #{client_id}: Промежуточный текст: '{partial_text}'")
+                                pass
+                                # print(f"[SPEECH] Клиент #{client_id}: Промежуточный текст: '{partial_text}'")
 
                     except queue.Empty:
                         # Нет новых аудио данных, продолжаем

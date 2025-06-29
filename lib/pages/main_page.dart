@@ -118,13 +118,17 @@ class _MainPageLayoutState extends State<MainPageLayout> {
   Player? _player;
   VideoController? _videoController;
 
+  // Camera timer for live streaming
+  Timer? _cameraTimer;
+  DateTime? _cameraStartTime;
+  Duration _currentCameraDuration = Duration.zero;
+
   // Voice command subscription
   StreamSubscription<String>? _voiceSubscription;
 
   @override
   void initState() {
     super.initState();
-
     // Set initial mode from constructor
     _currentMode = widget.initialMode;
     _currentVideoPath = widget.videoPath;
@@ -139,12 +143,10 @@ class _MainPageLayoutState extends State<MainPageLayout> {
         screenshotButtonKey.currentState?.captureAndSaveScreenshot(context);
       }
     });
-
     // Initialize based on the initial mode
     if (_currentMode == VideoMode.uploaded && _currentVideoPath != null) {
       _initializeVideoPlayer();
     }
-
     // Load existing screenshots if examination ID is provided
     if (widget.examinationId != null) {
       _loadExistingScreenshots();
@@ -157,8 +159,37 @@ class _MainPageLayoutState extends State<MainPageLayout> {
     _prepareAndPlay(_currentVideoPath!);
   }
 
+  // Методы для работы с таймером камеры
+  void _startCameraTimer() {
+    _cameraStartTime = DateTime.now();
+    _currentCameraDuration = Duration.zero;
+
+    _cameraTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (_currentMode == VideoMode.camera) {
+        setState(() {
+          _currentCameraDuration = DateTime.now().difference(_cameraStartTime!);
+        });
+      }
+    });
+  }
+
+  void _stopCameraTimer() {
+    _cameraTimer?.cancel();
+    _cameraTimer = null;
+    _cameraStartTime = null;
+    _currentCameraDuration = Duration.zero;
+  }
+
+  void _resetCameraTimer() {
+    _stopCameraTimer();
+    _startCameraTimer();
+  }
+
   // Method to switch to upload video mode
   Future<void> _switchToUploadMode() async {
+    // Stop camera timer when switching to upload mode
+    _stopCameraTimer();
+
     // Pick a video file
     FilePickerResult? result = await FilePicker.platform.pickFiles(
       type: FileType.video,
@@ -192,6 +223,11 @@ class _MainPageLayoutState extends State<MainPageLayout> {
 
   // Method to handle captured video file - opens it immediately
   void _onVideoCaptured(String capturedVideoPath) {
+    print('Video captured and saved: $capturedVideoPath');
+
+    // Stop camera timer since we're switching to uploaded mode
+    _stopCameraTimer();
+
     setState(() {
       _currentMode = VideoMode.uploaded;
       _currentVideoPath = capturedVideoPath;
@@ -376,10 +412,11 @@ class _MainPageLayoutState extends State<MainPageLayout> {
   }
 
   void _seekToTimecode(String timeString) {
-    if (_player != null) {
+    if (_currentMode == VideoMode.uploaded && _player != null) {
       final duration = _parseDuration(timeString);
       _player!.seek(duration);
     }
+    // В режиме камеры переход по таймкоду не имеет смысла, так как это live stream
   }
 
   Duration _parseDuration(String timeString) {
@@ -389,11 +426,18 @@ class _MainPageLayoutState extends State<MainPageLayout> {
     return Duration(minutes: minutes, seconds: seconds);
   }
 
+  // Обновленный метод получения текущего таймкода
   String _getCurrentTimeCode() {
-    if (_player != null) {
+    if (_currentMode == VideoMode.uploaded && _player != null) {
+      // Для загруженного видео используем позицию плеера
       final position = _player!.state.position;
       final minutes = position.inMinutes;
       final seconds = position.inSeconds % 60;
+      return "${minutes.toString()}:${seconds.toString().padLeft(2, '0')}";
+    } else if (_currentMode == VideoMode.camera) {
+      // Для камеры используем таймер
+      final minutes = _currentCameraDuration.inMinutes;
+      final seconds = _currentCameraDuration.inSeconds % 60;
       return "${minutes.toString()}:${seconds.toString().padLeft(2, '0')}";
     }
     return "0:00";
@@ -456,12 +500,38 @@ class _MainPageLayoutState extends State<MainPageLayout> {
             : const Center(child: Text("Video player not initialized"));
 
       case VideoMode.camera:
-        return CameraStreamWidget(
-          aspectRatio: 16 / 9,
-          videoWidth: 1280,
-          videoHeight: 720,
-          frameRate: 30,
-          onVideoCaptured: _onVideoCaptured,
+        return Stack(
+          children: [
+            CameraStreamWidget(
+              aspectRatio: 16 / 9,
+              videoWidth: 1280,
+              videoHeight: 720,
+              frameRate: 30,
+              examinationId: widget.examinationId,
+              onVideoCaptured: _onVideoCaptured,
+              startCaptured: _startCameraTimer,
+            ),
+            // Отображаем текущий таймер в углу для режима камеры
+            Positioned(
+              top: 20,
+              right: 20,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: Colors.black.withOpacity(0.7),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  _getCurrentTimeCode(),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ),
+          ],
         );
     }
   }
@@ -527,6 +597,17 @@ class _MainPageLayoutState extends State<MainPageLayout> {
           tooltip: "Capture Video",
         ),
 
+        // Reset camera timer button (only in camera mode)
+        if (_currentMode == VideoMode.camera)
+          IconButton(
+            onPressed: _resetCameraTimer,
+            icon: const Icon(
+              Icons.refresh,
+              color: Color(0xFF00ACAB),
+            ),
+            tooltip: "Reset Timer",
+          ),
+
         IconButton(
           onPressed: exportText,
           icon: const Icon(
@@ -558,6 +639,7 @@ class _MainPageLayoutState extends State<MainPageLayout> {
   @override
   void dispose() {
     _voiceSubscription?.cancel();
+    _stopCameraTimer(); // Останавливаем таймер при dispose
     _disposeVideoPlayer();
     super.dispose();
   }
