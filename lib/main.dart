@@ -36,8 +36,8 @@ class MyApp extends StatelessWidget{
 
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      home: MainPage(),
-      //home: EndoscopistApp(),
+      //home: MainPage(),
+      home: EndoscopistApp(),
       //home:ScreenshotEditor(screenshot: FileImage(File(path)), otherScreenshots: [FileImage(File(path)), FileImage(File(path)), FileImage(File(path))],)
       //home: StartPage()
     );
