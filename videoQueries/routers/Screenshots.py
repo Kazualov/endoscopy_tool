@@ -29,10 +29,10 @@ os.makedirs(SCREENSHOT_DIR, exist_ok=True)
 
 @router.post("/exams/{exam_id}/upload_screenshot/")
 async def upload_screenshot(
-    exam_id: str,
-    timestamp_in_video: float = Form(...),
-    file: UploadFile = File(...),
-    db: Session = Depends(get_db)
+        exam_id: str,
+        timestamp_in_video: str = Form(...),
+        file: UploadFile = File(...),
+        db: Session = Depends(get_db)
 ):
     exam = db.query(Examination).filter(Examination.id == exam_id).first()
     if not exam:
@@ -47,20 +47,32 @@ async def upload_screenshot(
     db.add(screenshot)
     db.flush()
 
-    screenshots_dir = Path("examinations") / exam_id / "screenshots"
-    screenshots_dir.mkdir(parents=True, exist_ok=True)
+    # Используем путь из БД
+    try:
+        screenshots_dir = Path(exam.folder_path) / "screenshots"
+        screenshots_dir.mkdir(parents=True, exist_ok=True)
 
-    filename = f"{exam_id}_screenshot_{screenshot.id:05d}.jpg"
-    filepath = screenshots_dir / filename
+        # Уникальное имя скриншота
+        filename = f"{exam_id}_screenshot_{screenshot.id:05d}.jpg"
+        filepath = screenshots_dir / filename
 
-    with open(filepath, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
+        # Сохраняем файл
+        with open(filepath, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
 
-    screenshot.file_path = str(filepath)
-    screenshot.filename = filename
-    db.commit()
+        screenshot.file_path = str(filepath)
+        screenshot.filename = filename
+        db.commit()
 
-    return {"screenshot_id": screenshot.id, "time": timestamp_in_video}
+        return {
+            "screenshot_id": screenshot.id,
+            "filename": filename
+        }
+
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Ошибка при сохранении скриншота: {e}")
+
 
 
 @router.get("/exams/{exam_id}/screenshots", response_model=List[ScreenshotResponse])
