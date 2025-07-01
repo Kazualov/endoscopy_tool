@@ -1,9 +1,8 @@
 import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
-import 'dart:ui' as ui;
-import 'dart:convert';
 
+import 'package:endoscopy_tool/widgets/ApiService.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:http/http.dart' as http;
@@ -184,6 +183,12 @@ class _MainPageLayoutState extends State<MainPageLayout> {
     _stopCameraTimer();
     _startCameraTimer();
   }
+  void handleDetection(Map<String, dynamic> detection) {
+    final label = detection['label'];
+    final confidence = detection['confidence'];
+    print(label);
+  }
+
 
   // Method to switch to upload video mode
   Future<void> _switchToUploadMode() async {
@@ -201,6 +206,8 @@ class _MainPageLayoutState extends State<MainPageLayout> {
         _currentMode = VideoMode.uploaded;
         _currentVideoPath = result.files.single.path;
       });
+
+      ApiService.connectToVideoWebSocket(examinationId: widget.examinationId!, videoPath: _currentVideoPath!, onDetection: handleDetection);
 
       // Dispose previous player if exists
       _disposeVideoPlayer();
