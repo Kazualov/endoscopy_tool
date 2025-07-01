@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -449,41 +450,38 @@ class _MainPageLayoutState extends State<MainPageLayout> {
     }
     return "0:00";
   }
+  void exportText() {}
 
-  // Обновленный метод для добавления скриншота с сохранением на сервер
-  Future<void> _addScreenshot(Uint8List imageBytes) async {
-    final currentTimestamp = _getCurrentTimeCode();
 
-    // Сначала добавляем скриншот в локальный список
-    setState(() {
-      screenshots.add(ScreenshotItem(
-        screenshotId: DateTime.now().millisecondsSinceEpoch.toString(),
-        filename: 'screenshot_${DateTime.now().millisecondsSinceEpoch}.png',
-        filePath: '',
-        timestampInVideo: currentTimestamp,
-        imageBytes: imageBytes,
-      ));
-    });
+  //-------------------Time Line--------------------------//
+  // Метод для преобразования скриншотов в пометки для таймлайна
+  List<ScreenshotMarker> _getScreenshotMarkers() {
+    return screenshots.map((screenshot) {
+      return ScreenshotMarker(
+        timestamp: _parseDuration(screenshot.timestampInVideo),
+        screenshotId: screenshot.screenshotId,
+      );
+    }).toList();
+  }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Screenshot added at $currentTimestamp')),
-    );
+// Обработчик клика по пометке на таймлайне
+  void _onMarkerTap(Duration timestamp) {
+    if (_currentMode == VideoMode.uploaded && _player != null) {
+      _player!.seek(timestamp);
 
-    // Параллельно отправляем на сервер (без блокировки UI)
-    if (widget.examinationId != null) {
-      _uploadScreenshot(imageBytes, currentTimestamp).then((screenshotId) {
-        if (screenshotId != null) {
-          print('Screenshot successfully uploaded with ID: $screenshotId');
-        } else {
-          print('Failed to upload screenshot to server');
-        }
-      });
+      // Показываем сообщение о переходе к скриншоту
+      final timeString = "${timestamp.inMinutes}:${(timestamp.inSeconds % 60).toString().padLeft(2, '0')}";
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Переход к скриншоту в $timeString'),
+          duration: const Duration(seconds: 1),
+          backgroundColor: const Color(0xFF00ACAB),
+        ),
+      );
     }
   }
 
-  void exportText() {}
-
-  // Build the video area widget based on current mode
+// Обновленный метод _buildVideoArea()
   Widget _buildVideoArea() {
     switch (_currentMode) {
       case VideoMode.uploaded:
@@ -503,7 +501,11 @@ class _MainPageLayoutState extends State<MainPageLayout> {
           );
         }
         return _player != null
-            ? VideoPlayerWidget(player: _player!)
+            ? VideoPlayerWidget(
+          player: _player!,
+          screenshotMarkers: _getScreenshotMarkers(), // Передаем пометки
+          onMarkerTap: _onMarkerTap, // Передаем обработчик клика
+        )
             : const Center(child: Text("Video player not initialized"));
 
       case VideoMode.camera:
@@ -542,6 +544,57 @@ class _MainPageLayoutState extends State<MainPageLayout> {
         );
     }
   }
+
+// Также обновите метод _addScreenshot для автоматического обновления UI
+  Future<void> _addScreenshot(Uint8List imageBytes) async {
+    final currentTimestamp = _getCurrentTimeCode();
+
+    // Сначала добавляем скриншот в локальный список
+    setState(() {
+      screenshots.add(ScreenshotItem(
+        screenshotId: DateTime.now().millisecondsSinceEpoch.toString(),
+        filename: 'screenshot_${DateTime.now().millisecondsSinceEpoch}.png',
+        filePath: '',
+        timestampInVideo: currentTimestamp,
+        imageBytes: imageBytes,
+      ));
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Screenshot added at $currentTimestamp'),
+        backgroundColor: const Color(0xFF00ACAB),
+      ),
+    );
+
+    // Параллельно отправляем на сервер (без блокировки UI)
+    if (widget.examinationId != null) {
+      _uploadScreenshot(imageBytes, currentTimestamp).then((screenshotId) {
+        if (screenshotId != null) {
+          print('Screenshot successfully uploaded with ID: $screenshotId');
+          // Обновляем ID скриншота после успешной загрузки
+          setState(() {
+            final index = screenshots.length - 1;
+            if (index >= 0) {
+              screenshots[index] = ScreenshotItem(
+                screenshotId: screenshotId,
+                filename: screenshots[index].filename,
+                filePath: screenshots[index].filePath,
+                timestampInVideo: screenshots[index].timestampInVideo,
+                imageBytes: screenshots[index].imageBytes,
+              );
+            }
+          });
+        } else {
+          print('Failed to upload screenshot to server');
+        }
+      });
+    }
+  }
+
+
+//----------------------------------------------------------------------------
+
 
   // Build the control buttons in the sidebar
   Widget _buildControlButtons() {
