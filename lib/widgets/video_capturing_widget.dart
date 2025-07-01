@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:ffmpeg_kit_flutter_new/ffmpeg_kit.dart';
@@ -8,8 +9,122 @@ import 'package:path_provider/path_provider.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:path/path.dart' as path;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:web_socket_channel/web_socket_channel.dart';
 
 import 'ApiService.dart';
+
+// Класс для хранения данных о детекции
+class DetectionBox {
+  final double x1;
+  final double y1;
+  final double x2;
+  final double y2;
+  final String label;
+  final double confidence;
+  final DateTime timestamp;
+
+  DetectionBox({
+    required this.x1,
+    required this.y1,
+    required this.x2,
+    required this.y2,
+    required this.label,
+    required this.confidence,
+    required this.timestamp,
+  });
+
+  factory DetectionBox.fromJson(Map<String, dynamic> json) {
+    return DetectionBox(
+      x1: json['x1']?.toDouble() ?? 0.0,
+      y1: json['y1']?.toDouble() ?? 0.0,
+      x2: json['x2']?.toDouble() ?? 0.0,
+      y2: json['y2']?.toDouble() ?? 0.0,
+      label: json['label'] ?? '',
+      confidence: json['confidence']?.toDouble() ?? 0.0,
+      timestamp: DateTime.now(),
+    );
+  }
+}
+
+// CustomPainter для отрисовки прямоугольников детекции
+class DetectionOverlayPainter extends CustomPainter {
+  final List<DetectionBox> detections;
+  final Size videoSize;
+
+  DetectionOverlayPainter({
+    required this.detections,
+    required this.videoSize,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (detections.isEmpty || videoSize.width == 0 || videoSize.height == 0) return;
+
+    // Вычисляем масштаб для преобразования координат
+    final scaleX = size.width / videoSize.width;
+    final scaleY = size.height / videoSize.height;
+
+    for (var detection in detections) {
+      // Преобразуем координаты
+      final left = detection.x1 * scaleX;
+      final top = detection.y1 * scaleY;
+      final right = detection.x2 * scaleX;
+      final bottom = detection.y2 * scaleY;
+
+      // Рисуем прямоугольник
+      final paint = Paint()
+        ..color = Colors.red
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2.0;
+
+      final rect = Rect.fromLTRB(left, top, right, bottom);
+      canvas.drawRect(rect, paint);
+
+      // Рисуем подпись
+      final textPainter = TextPainter(
+        text: TextSpan(
+          text: '${detection.label} ${(detection.confidence * 100).toStringAsFixed(1)}%',
+          style: const TextStyle(
+            color: Colors.red,
+            fontSize: 12,
+            fontWeight: FontWeight.bold,
+            backgroundColor: Colors.white,
+          ),
+        ),
+        textDirection: TextDirection.ltr,
+      );
+
+      textPainter.layout();
+
+      // Позиция для текста (над прямоугольником)
+      final textOffset = Offset(
+        left,
+        (top - textPainter.height - 2).clamp(0, size.height - textPainter.height),
+      );
+
+      // Рисуем фон для текста
+      final textBackgroundPaint = Paint()..color = Colors.white.withOpacity(0.8);
+      canvas.drawRect(
+        Rect.fromLTWH(
+          textOffset.dx,
+          textOffset.dy,
+          textPainter.width,
+          textPainter.height,
+        ),
+        textBackgroundPaint,
+      );
+
+      textPainter.paint(canvas, textOffset);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) {
+    return oldDelegate is! DetectionOverlayPainter ||
+        oldDelegate.detections != detections ||
+        oldDelegate.videoSize != videoSize;
+  }
+}
 
 class CameraStreamWidget extends StatefulWidget {
   final double? width;
@@ -20,7 +135,7 @@ class CameraStreamWidget extends StatefulWidget {
   final int frameRate;
   final Function(String)? onVideoCaptured;
   final Function()? startCaptured;
-  final String? examinationId; // Добавляем параметр для examination ID
+  final String? examinationId;
 
   const CameraStreamWidget({
     super.key,
@@ -32,7 +147,7 @@ class CameraStreamWidget extends StatefulWidget {
     this.frameRate = 30,
     this.onVideoCaptured,
     this.startCaptured,
-    this.examinationId, // Добавляем в конструктор
+    this.examinationId,
   });
 
   @override
@@ -53,11 +168,80 @@ class _CameraStreamWidgetState extends State<CameraStreamWidget> {
   String? _defaultSaveFolder;
   SharedPreferences? _prefs;
 
+  // Добавляем переменные для детекции
+  WebSocketChannel? _webSocketChannel;
+  List<DetectionBox> _currentDetections = [];
+  bool _isDetectionEnabled = false;
+
   @override
   void initState() {
     super.initState();
     _initializeSettings();
     _listAvailableDevices();
+
+    // Подключаемся к WebSocket если есть examination ID
+    if (widget.examinationId != null) {
+      _connectToCameraStream(widget.examinationId!);
+    }
+  }
+
+  // Обновленная функция подключения к WebSocket
+  void _connectToCameraStream(String examinationId) {
+    try {
+      _webSocketChannel = WebSocketChannel.connect(
+        Uri.parse('ws://127.0.0.1:8000/ws/camera/$examinationId'),
+      );
+
+      _webSocketChannel!.stream.listen(
+            (message) {
+          try {
+            final data = jsonDecode(message);
+            final detections = data['detections'] as List<dynamic>? ?? [];
+
+            setState(() {
+              _currentDetections = detections
+                  .map((det) => DetectionBox.fromJson(det))
+                  .toList();
+            });
+
+            // Логируем детекции
+            for (var detection in _currentDetections) {
+              print('Detected: ${detection.label} with confidence ${detection.confidence}');
+            }
+          } catch (e) {
+            print('Error parsing detection data: $e');
+          }
+        },
+        onDone: () {
+          print('WebSocket closed');
+          setState(() {
+            _currentDetections.clear();
+          });
+        },
+        onError: (error) {
+          print('WebSocket error: $error');
+          setState(() {
+            _currentDetections.clear();
+          });
+        },
+      );
+
+      setState(() {
+        _isDetectionEnabled = true;
+      });
+    } catch (e) {
+      print('Failed to connect to WebSocket: $e');
+    }
+  }
+
+  // Функция для переключения детекции
+  void _toggleDetection() {
+    setState(() {
+      _isDetectionEnabled = !_isDetectionEnabled;
+      if (!_isDetectionEnabled) {
+        _currentDetections.clear();
+      }
+    });
   }
 
   Future<void> _initializeSettings() async {
@@ -82,7 +266,6 @@ class _CameraStreamWidgetState extends State<CameraStreamWidget> {
         _videoDevices = devices.where((device) => device.kind == 'videoinput').toList();
         _audioDevices = devices.where((device) => device.kind == 'audioinput').toList();
 
-        // Set defaults only if not already set
         if (_selectedVideoDeviceId == null && _videoDevices.isNotEmpty) {
           _selectedVideoDeviceId = _videoDevices.first.deviceId;
         }
@@ -222,7 +405,6 @@ class _CameraStreamWidgetState extends State<CameraStreamWidget> {
     print('Recording manually stopped.');
   }
 
-// Обновляем метод _saveRecordedFile
   Future<void> _saveRecordedFile(String tempFilePath) async {
     String? saveDir = _defaultSaveFolder;
 
@@ -247,16 +429,13 @@ class _CameraStreamWidgetState extends State<CameraStreamWidget> {
     final destination = path.join(saveDir, fileName);
 
     try {
-      // Сохраняем файл локально
       await File(tempFilePath).copy(destination);
       print('✅ Copied to: $destination');
 
-      // Загружаем видео в базу данных, если есть examination ID
       if (widget.examinationId != null) {
         print('📤 Uploading video to database...');
 
         if (mounted) {
-          // Показываем индикатор загрузки
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Row(
@@ -274,7 +453,7 @@ class _CameraStreamWidgetState extends State<CameraStreamWidget> {
                 ],
               ),
               backgroundColor: Colors.orange,
-              duration: Duration(seconds: 30), // Долгое время для загрузки
+              duration: Duration(seconds: 30),
             ),
           );
         }
@@ -289,7 +468,6 @@ class _CameraStreamWidgetState extends State<CameraStreamWidget> {
             print('✅ Video uploaded successfully with ID: $videoId');
 
             if (mounted) {
-              // Убираем индикатор загрузки и показываем успех
               ScaffoldMessenger.of(context).clearSnackBars();
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
@@ -332,7 +510,6 @@ class _CameraStreamWidgetState extends State<CameraStreamWidget> {
         print("no ExamId");
       }
 
-      // Вызываем callback для открытия видео проигрывателя
       if (widget.onVideoCaptured != null) {
         widget.onVideoCaptured!(destination);
       }
@@ -403,7 +580,6 @@ class _CameraStreamWidgetState extends State<CameraStreamWidget> {
               ),
               const SizedBox(height: 16),
 
-              // Save Folder Selection
               const Text('Save Folder:', style: TextStyle(fontWeight: FontWeight.bold)),
               const SizedBox(height: 8),
               Row(
@@ -438,7 +614,7 @@ class _CameraStreamWidgetState extends State<CameraStreamWidget> {
           ElevatedButton(
             onPressed: () {
               _saveSettings();
-              _initializeCamera(); // Reinitialize with new devices
+              _initializeCamera();
               Navigator.pop(context);
             },
             child: const Text('Save'),
@@ -452,6 +628,7 @@ class _CameraStreamWidgetState extends State<CameraStreamWidget> {
   void dispose() {
     _mediaStream?.getTracks().forEach((track) => track.stop());
     _renderer.dispose();
+    _webSocketChannel?.sink.close();
     super.dispose();
   }
 
@@ -462,7 +639,7 @@ class _CameraStreamWidgetState extends State<CameraStreamWidget> {
       height: widget.height,
       child: Column(
         children: [
-          // Video preview
+          // Video preview с наложением детекции
           Expanded(
             child: AspectRatio(
               aspectRatio: widget.aspectRatio,
@@ -473,16 +650,66 @@ class _CameraStreamWidgetState extends State<CameraStreamWidget> {
                 ),
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(8),
-                  child: RTCVideoView(
-                    _renderer,
-                    objectFit: RTCVideoViewObjectFit.RTCVideoViewObjectFitCover,
+                  child: Stack(
+                    children: [
+                      // Основное видео
+                      RTCVideoView(
+                        _renderer,
+                        objectFit: RTCVideoViewObjectFit.RTCVideoViewObjectFitCover,
+                      ),
+                      // Наложение детекции
+                      if (_isDetectionEnabled && _currentDetections.isNotEmpty)
+                        Positioned.fill(
+                          child: CustomPaint(
+                            painter: DetectionOverlayPainter(
+                              detections: _currentDetections,
+                              videoSize: Size(
+                                widget.videoWidth.toDouble(),
+                                widget.videoHeight.toDouble(),
+                              ),
+                            ),
+                          ),
+                        ),
+                      // Индикатор статуса детекции
+                      if (widget.examinationId != null)
+                        Positioned(
+                          top: 8,
+                          right: 8,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: _isDetectionEnabled ? Colors.green : Colors.grey,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  _isDetectionEnabled ? Icons.visibility : Icons.visibility_off,
+                                  color: Colors.white,
+                                  size: 16,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  _isDetectionEnabled ? 'AI ON' : 'AI OFF',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                    ],
                   ),
                 ),
               ),
             ),
           ),
           const SizedBox(height: 1),
-          // Recording controls
+          // Элементы управления
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -505,6 +732,18 @@ class _CameraStreamWidgetState extends State<CameraStreamWidget> {
                 ),
                 onPressed: _isRecording ? _stopRecording : null,
               ),
+              const SizedBox(width: 16),
+              // Кнопка переключения детекции
+              if (widget.examinationId != null)
+                ElevatedButton.icon(
+                  icon: Icon(_isDetectionEnabled ? Icons.visibility : Icons.visibility_off),
+                  label: Text(_isDetectionEnabled ? "AI ON" : "AI OFF"),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _isDetectionEnabled ? Colors.green : Colors.grey,
+                    foregroundColor: Colors.white,
+                  ),
+                  onPressed: _toggleDetection,
+                ),
               const SizedBox(width: 16),
               IconButton(
                 color: Color(0xFF00ACAB),

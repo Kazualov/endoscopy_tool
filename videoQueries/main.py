@@ -9,7 +9,7 @@ from videoQueries.routers import Screenshots
 from videoQueries.routers import Examination
 from videoQueries.routers import Set_path
 from contextlib import asynccontextmanager
-#from videoQueries.routers import Detection
+from videoQueries.routers import Detection
 import uvicorn
 
 
@@ -28,7 +28,7 @@ app.include_router(video.router)
 app.include_router(patient.router)
 app.include_router(Examination.router)
 app.include_router(Screenshots.router)
-#app.include_router(Detection.router)
+app.include_router(Detection.router)
 app.include_router(voiceCommand.router) # discarded for simplicity
 
 app.include_router(Set_path.router)
