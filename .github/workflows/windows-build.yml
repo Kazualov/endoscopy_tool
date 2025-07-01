@@ -29,11 +29,6 @@ jobs:
       - name: 📦 Install dependencies
         run: flutter pub get
 
-      - name: 🧪 Confirm .exe exists
-        run: |
-          echo "Contents of backend_launcher:"
-          dir windows\runner\assets\backend_launcher
-
       - name: 🏗️ Build Windows app
         run: flutter build windows --release
 

@@ -26,8 +26,10 @@ dependencies:
   image_picker: ^1.1.2
   camera: ^0.11.1
   ffmpeg_kit_flutter_new: ^2.0.0
-
-
+  vector_math: ^2.1.4
+  flutter_webrtc: ^0.14.1
+  shared_preferences: ^2.2.2
+  web_socket_channel: ^2.4.0
   cupertino_icons: ^1.0.8
 
 
@@ -46,3 +48,4 @@ flutter:
       fonts:
         - asset: assets/fonts/Nunito-Medium.ttf
           weight: 400
+
