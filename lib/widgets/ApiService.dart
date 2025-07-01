@@ -1,9 +1,10 @@
 // Сервис для работы с API
 import 'dart:convert';
-
 import 'package:http/http.dart' as http;
-
 import '../pages/patient_library.dart';
+import 'package:web_socket_channel/web_socket_channel.dart';
+
+
 
 class ApiService {
   static const String baseUrl = 'http://127.0.0.1:8000';
@@ -73,7 +74,6 @@ class ApiService {
     }
   }
 
-
   static Future<List<Examination>> getExamination() async {
     try {
       final response = await http.get(
@@ -92,7 +92,6 @@ class ApiService {
       return [];
     }
   }
-
 
   static Future<String?> uploadVideoToExamination(String examination_id, String filePath) async {
     try {
@@ -127,7 +126,6 @@ class ApiService {
     }
   }
 
-
   static Future<String?> loadVideo(String video_id) async {
     try {
       final response = await http.get(Uri.parse('$baseUrl/videos/$video_id/file'));
@@ -142,7 +140,6 @@ class ApiService {
       return null;
     }
   }
-
   /// Возвращает абсолютный путь к видео либо `null`, если что‑то пошло не так.
   static Future<String?> loadVideoPath(String videoId) async {
     try {
@@ -163,5 +160,73 @@ class ApiService {
       return null;
     }
   }
+
+  Future<void> fetchDetections(String examinationId) async {
+    final response = await http.get(
+      Uri.parse('$baseUrl:<PORT>/examinations/$examinationId/detections'),
+    );
+
+    if (response.statusCode == 200) {
+      final List detections = jsonDecode(response.body);
+      for (var det in detections) {
+        print('Label: ${det['label']} at ${det['timestamp']}');
+      }
+    } else {
+      throw Exception('Failed to load detections');
+    }
+  }
+
+
+  void connectToCameraStream(String examinationId) {
+    final channel = WebSocketChannel.connect(
+      Uri.parse('ws://127.0.0.1:8000/ws/camera/$examinationId'),
+    );
+    channel.stream.listen((message) {
+      final data = jsonDecode(message);
+      final detections = data['detections'];
+
+      for (var det in detections) {
+        print('Detected: ${det['label']} with confidence ${det['confidence']}');
+      }
+    }, onDone: () {
+      print('WebSocket closed');
+    }, onError: (error) {
+      print('WebSocket error: $error');
+    });
+  }
+
+  static void connectToVideoWebSocket({     // например, 8000
+    required String examinationId,      // например, 'abc123'
+    required String videoPath,          // например, '/home/user/video.mp4'
+    required void Function(Map<String, dynamic>) onDetection,
+    void Function()? onDone,
+    void Function(Object error)? onError,
+  }) {
+    final uri = Uri.parse(
+      'ws://127.0.0.1:8000/ws/video/$examinationId?video_path=$videoPath',
+    );
+
+    final channel = WebSocketChannel.connect(uri);
+
+    channel.stream.listen(
+          (message) {
+        try {
+          final data = jsonDecode(message);
+          final detections = data['detections'] as List<dynamic>;
+
+          for (final detection in detections) {
+            onDetection(detection as Map<String, dynamic>);
+          }
+        } catch (e) {
+          print('Ошибка при разборе JSON: $e');
+        }
+      },
+      onDone: onDone,
+      onError: onError,
+      cancelOnError: true,
+    );
+  }
+
+
 }
 
