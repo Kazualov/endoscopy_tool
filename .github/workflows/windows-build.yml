@@ -60,16 +60,46 @@ jobs:
       - name: 🏗️ Build Flutter Windows app
         run: flutter build windows --release
 
-      - name: 📥 Download backend .exe
+      - name: 📤 Upload frontend build
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-build
+          path: build/windows/x64/runner/Release/
+
+  create-launcher:
+    name: 📝 Create Launcher Script
+    runs-on: windows-latest
+    needs: [build-backend, build-frontend]
+
+    steps:
+      - name: 📥 Download backend artifact
         uses: actions/download-artifact@v4
         with:
           name: backend-exe
-          path: build/windows/x64/runner/Release/backend/
+          path: final_build/backend/
 
-      - name: 📝 Create launch script
+      - name: 📥 Download frontend build
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-build
+          path: final_build/
+
+      - name: 📝 Create empty launcher script
+        run: echo. > final_build/start_app.bat
+
+      - name: 🧱 Append to launcher script - start backend
+        run: echo @echo off >> final_build/start_app.bat
+
+      - name: ⏳ Append - wait and start frontend
         run: |
-          echo @echo off > build/windows/x64/runner/Release/start_app.bat
-          echo echo Starting backend... >> build/windows/x64/runner/Release/start_app.bat
-          echo start "" backend\\main.exe >> build/windows/x64/runner/Release/start_app.bat
-          echo timeout /t 1 /nobreak >nul >> build/windows/x64/runner/Release/start_app.bat
-          echo echo Starting frontend... >> build/windows/x64/runner/Release/start_app._
+          echo echo Starting backend... >> final_build/start_app.bat
+          echo start "" backend\main.exe >> final_build/start_app.bat
+          echo timeout /t 1 /nobreak >> final_build/start_app.bat
+          echo echo Starting frontend... >> final_build/start_app.bat
+          echo start "" app.exe >> final_build/start_app.bat
+
+      - name: 📦 Upload Final App Bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: Full-Windows-App
+          path: final_build/
