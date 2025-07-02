@@ -1,21 +1,49 @@
-name: Build Flutter Windows App
+name: Build Flutter App with Python Backend
 
 on:
-  workflow_dispatch:  # Manual trigger
+  workflow_dispatch:
   push:
-    branches: [main]  # Auto-trigger on main branch
+    branches: [Temp]
 
 jobs:
-  build:
-    name: Build Windows
+  build-backend:
+    name: 🐍 Build Python Backend
     runs-on: windows-latest
 
     steps:
       - name: 📥 Checkout code
         uses: actions/checkout@v3
+
+      - name: 🐍 Setup Python
+        uses: actions/setup-python@v5
         with:
-          lfs: true           # ✅ Enables Git LFS (important for binary files like .exe)
-          fetch-depth: 0      # ✅ Full clone, not shallow
+          python-version: '3.12'
+
+      - name: 📦 Install Python dependencies
+        run: |
+          pip install -r backend/requirements.txt pyinstaller
+
+      - name: 🛠️ Build backend .exe
+        run: |
+          pyinstaller backend/main.py --onefile --distpath backend_dist
+
+      - name: 📤 Upload backend artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-exe
+          path: backend_dist/main.exe
+
+  build-frontend:
+    name: 💻 Build Flutter Windows App
+    runs-on: windows-latest
+    needs: build-backend
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v3
+        with:
+          lfs: true
+          fetch-depth: 0
 
       - name: 💻 Setup Flutter
         uses: subosito/flutter-action@v2
@@ -32,8 +60,4 @@ jobs:
       - name: 🏗️ Build Windows app
         run: flutter build windows --release
 
-      - name: 📤 Upload Windows build
-        uses: actions/upload-artifact@v4
-        with:
-          name: Windows-Build
-          path: build/windows/x64/runner/Release/
+      - name: 📥 Download backend .exe
