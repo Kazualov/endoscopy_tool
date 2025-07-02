@@ -21,11 +21,11 @@ jobs:
 
       - name: 📦 Install Python dependencies
         run: |
-          pip install -r backend/requirements.txt pyinstaller
+          pip install -r videoQueries/requirements.txt pyinstaller
 
       - name: 🛠️ Build backend .exe
         run: |
-          pyinstaller backend/main.py --onefile --distpath backend_dist
+          pyinstaller videoQueries/main.py --onefile --distpath backend_dist
 
       - name: 📤 Upload backend artifact
         uses: actions/upload-artifact@v4
@@ -54,10 +54,22 @@ jobs:
       - name: 🔧 Enable Windows desktop
         run: flutter config --enable-windows-desktop
 
-      - name: 📦 Install dependencies
+      - name: 📦 Install Flutter dependencies
         run: flutter pub get
 
-      - name: 🏗️ Build Windows app
+      - name: 🏗️ Build Flutter Windows app
         run: flutter build windows --release
 
       - name: 📥 Download backend .exe
+        uses: actions/download-artifact@v4
+        with:
+          name: backend-exe
+          path: build/windows/x64/runner/Release/backend/
+
+      - name: 📝 Create launch script
+        run: |
+          echo @echo off > build/windows/x64/runner/Release/start_app.bat
+          echo echo Starting backend... >> build/windows/x64/runner/Release/start_app.bat
+          echo start "" backend\\main.exe >> build/windows/x64/runner/Release/start_app.bat
+          echo timeout /t 1 /nobreak >nul >> build/windows/x64/runner/Release/start_app.bat
+          echo echo Starting frontend... >> build/windows/x64/runner/Release/start_app._
