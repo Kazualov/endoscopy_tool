@@ -1,0 +1,45 @@
+name: ⚙️ Technical Task
+description: Document a technical implementation or maintenance task
+title: "[Tech Task] "
+labels: [tech-debt]
+assignees: []
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Please fill out the details of this technical task, including subtasks and any notes.
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: Brief description of what the task is about
+      placeholder: Implement logging middleware for FastAPI requests...
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: subtasks
+    attributes:
+      label: Subtasks
+      description: List specific implementation steps
+      options:
+        - label: Task 1
+        - label: Task 2
+        - label: Task 3
+
+  - type: textarea
+    id: subtask_links
+    attributes:
+      label: Related Issues
+      description: Link to existing subtask issues (if any)
+      placeholder: |
+        - #123
+        - #124
+
+  - type: textarea
+    id: notes
+    attributes:
+      label: Additional Notes
+      description: Any additional context, dependencies, or comments (optional)

@@ -1,0 +1,63 @@
+<component name="libraryTable">
+  <library name="Flutter Plugins" type="FlutterPluginsLibraryType">
+    <CLASSES>
+      <root url="file://$USER_HOME$/.pub-cache/hosted/pub.dev/path_provider_windows-2.3.0" />
+      <root url="file://$USER_HOME$/.pub-cache/hosted/pub.dev/path_provider-2.1.5" />
+      <root url="file://$USER_HOME$/.pub-cache/hosted/pub.dev/path_provider_foundation-2.4.1" />
+      <root url="file://$USER_HOME$/.pub-cache/hosted/pub.dev/window_size-0.1.0" />
+      <root url="file://$USER_HOME$/.pub-cache/hosted/pub.dev/path_provider_linux-2.2.1" />
+      <root url="file://$USER_HOME$/.pub-cache/hosted/pub.dev/path_provider_android-2.2.17" />
+      <root url="file://$USER_HOME$/.pub-cache/hosted/pub.dev/ffmpeg_kit_flutter_new-2.0.0" />
+      <root url="file://$USER_HOME$/.pub-cache/hosted/pub.dev/image_picker_macos-0.2.1+2" />
+      <root url="file://$USER_HOME$/.pub-cache/hosted/pub.dev/camera_web-0.3.5" />
+      <root url="file://$USER_HOME$/.pub-cache/hosted/pub.dev/image_picker_ios-0.8.12+2" />
+      <root url="file://$USER_HOME$/.pub-cache/hosted/pub.dev/file_selector_macos-0.9.4+3" />
+      <root url="file://$USER_HOME$/.pub-cache/hosted/pub.dev/file_selector_windows-0.9.3+4" />
+      <root url="file://$USER_HOME$/.pub-cache/hosted/pub.dev/image_picker_linux-0.2.1+2" />
+      <root url="file://$USER_HOME$/.pub-cache/hosted/pub.dev/image_picker-1.1.2" />
+      <root url="file://$USER_HOME$/.pub-cache/hosted/pub.dev/image_picker_windows-0.2.1+1" />
+      <root url="file://$USER_HOME$/.pub-cache/hosted/pub.dev/file_selector_linux-0.9.3+2" />
+      <root url="file://$USER_HOME$/.pub-cache/hosted/pub.dev/image_picker_for_web-3.0.6" />
+      <root url="file://$USER_HOME$/.pub-cache/hosted/pub.dev/file_picker-10.2.0" />
+      <root url="file://$USER_HOME$/.pub-cache/hosted/pub.dev/camera_android_camerax-0.6.18+3" />
+      <root url="file://$USER_HOME$/.pub-cache/hosted/pub.dev/camera-0.11.1" />
+      <root url="file://$USER_HOME$/.pub-cache/hosted/pub.dev/ffmpeg_kit_flutter_android-1.7.0" />
+      <root url="file://$USER_HOME$/.pub-cache/hosted/pub.dev/image_picker_android-0.8.12+23" />
+      <root url="file://$USER_HOME$/.pub-cache/hosted/pub.dev/camera_avfoundation-0.9.20+1" />
+      <root url="file://$USER_HOME$/.pub-cache/hosted/pub.dev/path_provider_foundation-2.4.1" />
+      <root url="file://$USER_HOME$/.pub-cache/hosted/pub.dev/path_provider_windows-2.3.0" />
+      <root url="file://$USER_HOME$/.pub-cache/hosted/pub.dev/path_provider-2.1.5" />
+      <root url="file://$USER_HOME$/.pub-cache/hosted/pub.dev/file_picker-10.2.0" />
+      <root url="file://$USER_HOME$/.pub-cache/hosted/pub.dev/path_provider_android-2.2.17" />
+      <root url="file://$USER_HOME$/.pub-cache/hosted/pub.dev/ffmpeg_kit_flutter_new-2.0.0" />
+      <root url="file://$USER_HOME$/.pub-cache/hosted/pub.dev/image_picker_macos-0.2.1+2" />
+      <root url="file://$USER_HOME$/.pub-cache/hosted/pub.dev/camera_web-0.3.5" />
+      <root url="file://$USER_HOME$/.pub-cache/hosted/pub.dev/image_picker_ios-0.8.12+2" />
+      <root url="file://$USER_HOME$/.pub-cache/hosted/pub.dev/file_selector_macos-0.9.4+3" />
+      <root url="file://$USER_HOME$/.pub-cache/hosted/pub.dev/file_selector_windows-0.9.3+4" />
+      <root url="file://$USER_HOME$/.pub-cache/hosted/pub.dev/image_picker_linux-0.2.1+2" />
+      <root url="file://$USER_HOME$/.pub-cache/hosted/pub.dev/image_picker-1.1.2" />
+      <root url="file://$USER_HOME$/.pub-cache/hosted/pub.dev/image_picker_windows-0.2.1+1" />
+      <root url="file://$USER_HOME$/.pub-cache/hosted/pub.dev/file_selector_linux-0.9.3+2" />
+      <root url="file://$USER_HOME$/.pub-cache/hosted/pub.dev/image_picker_for_web-3.0.6" />
+      <root url="file://$USER_HOME$/.pub-cache/hosted/pub.dev/camera_android_camerax-0.6.18+3" />
+      <root url="file://$USER_HOME$/.pub-cache/hosted/pub.dev/camera-0.11.1" />
+      <root url="file://$USER_HOME$/.pub-cache/hosted/pub.dev/ffmpeg_kit_flutter_android-1.7.0" />
+      <root url="file://$USER_HOME$/.pub-cache/hosted/pub.dev/image_picker_android-0.8.12+23" />
+      <root url="file://$USER_HOME$/.pub-cache/hosted/pub.dev/camera_avfoundation-0.9.20+1" />
+      <root url="file://$USER_HOME$/.pub-cache/hosted/pub.dev/wakelock_plus-1.3.2" />
+      <root url="file://$USER_HOME$/.pub-cache/hosted/pub.dev/package_info_plus-8.3.0" />
+      <root url="file://$USER_HOME$/.pub-cache/hosted/pub.dev/media_kit_video-1.3.0" />
+      <root url="file://$USER_HOME$/.pub-cache/hosted/pub.dev/volume_controller-3.4.0" />
+      <root url="file://$USER_HOME$/.pub-cache/hosted/pub.dev/flutter_webrtc-0.14.1" />
+      <root url="file://$USER_HOME$/.pub-cache/hosted/pub.dev/shared_preferences_web-2.4.3" />
+      <root url="file://$USER_HOME$/.pub-cache/hosted/pub.dev/shared_preferences_android-2.4.10" />
+      <root url="file://$USER_HOME$/.pub-cache/hosted/pub.dev/shared_preferences_foundation-2.5.4" />
+      <root url="file://$USER_HOME$/.pub-cache/hosted/pub.dev/shared_preferences-2.5.3" />
+      <root url="file://$USER_HOME$/.pub-cache/hosted/pub.dev/shared_preferences_windows-2.4.1" />
+      <root url="file://$USER_HOME$/.pub-cache/hosted/pub.dev/shared_preferences_linux-2.4.1" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES />
+  </library>
+</component>
