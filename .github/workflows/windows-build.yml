@@ -85,18 +85,17 @@ jobs:
           path: final_build/
 
       - name: 📝 Create empty launcher script
-        run: echo. > final_build/start_app.bat
+        run: echo @echo off > final_build/start_app.bat
+        shell: cmd
 
-      - name: 🧱 Append to launcher script - start backend
-        run: echo @echo off >> final_build/start_app.bat
-
-      - name: ⏳ Append - wait and start frontend
+      - name: ⏳ Append commands to launcher script
         run: |
           echo echo Starting backend... >> final_build/start_app.bat
           echo start "" backend\main.exe >> final_build/start_app.bat
           echo timeout /t 1 /nobreak >> final_build/start_app.bat
           echo echo Starting frontend... >> final_build/start_app.bat
           echo start "" app.exe >> final_build/start_app.bat
+        shell: cmd
 
       - name: 📦 Upload Final App Bundle
         uses: actions/upload-artifact@v4
