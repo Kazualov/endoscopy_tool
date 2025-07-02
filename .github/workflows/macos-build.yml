@@ -1,0 +1,106 @@
+name: Build macOS App with Python Backend
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [Temp]
+
+jobs:
+  build-backend:
+    name: 🐍 Build Python Backend
+    runs-on: macos-13
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v3
+
+      - name: 🐍 Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: 📦 Install dependencies
+        run: |
+          python3 -m pip install --upgrade pip setuptools wheel py2app
+          pip install -r videoQueries/requirements.txt
+
+      - name: 🛠️ Create and build macOS app
+        working-directory: videoQueries
+        run: |
+          echo "from setuptools import setup; setup(app=['main.py'], options={'py2app': {'argv_emulation': True}})" > setup.py
+          python3 setup.py py2app
+        env:
+          PYTHONOPTIMIZE: "1"
+
+      - name: 📤 Upload backend app
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-app
+          path: videoQueries/dist/
+
+  build-frontend:
+    name: 💻 Build Flutter macOS App
+    runs-on: macos-13
+    needs: build-backend
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v3
+        with:
+          lfs: true
+          fetch-depth: 0
+
+      - name: 💻 Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.32.4'
+          channel: stable
+
+      - name: 🔧 Enable macOS desktop
+        run: flutter config --enable-macos-desktop
+
+      - name: 📦 Install dependencies
+        run: flutter pub get
+
+      - name: 🏗️ Build Flutter macOS app
+        run: flutter build macos --release
+
+      - name: 📤 Upload frontend build
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-app
+          path: build/macos/Build/Products/Release/
+
+  create-launcher:
+    name: 📝 Create Launcher Script
+    runs-on: macos-13
+    needs: [build-backend, build-frontend]
+
+    steps:
+      - name: 📥 Download backend
+        uses: actions/download-artifact@v4
+        with:
+          name: backend-app
+          path: final_app/backend/
+
+      - name: 📥 Download frontend
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-app
+          path: final_app/
+
+      - name: 📝 Create launcher script (.command)
+        run: |
+          echo '#!/bin/bash' > final_app/start_app.command
+          echo 'echo "Starting backend..."' >> final_app/start_app.command
+          echo 'open backend/main.app' >> final_app/start_app.command
+          echo 'sleep 2' >> final_app/start_app.command
+          echo 'echo "Starting frontend..."' >> final_app/start_app.command
+          echo 'open app.app' >> final_app/start_app.command
+          chmod +x final_app/start_app.command
+
+      - name: 📤 Upload full macOS app
+        uses: actions/upload-artifact@v4
+        with:
+          name: Full-macOS-App
+          path: final_app/
