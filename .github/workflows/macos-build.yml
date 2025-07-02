@@ -21,28 +21,19 @@ jobs:
 
       - name: 📦 Install dependencies
         run: |
-          python3 -m pip install --upgrade pip setuptools wheel py2app
+          python3 -m pip install --upgrade pip setuptools wheel pyinstaller
           pip install -r videoQueries/requirements.txt
 
-      - name: 🛠️ Build macOS backend app (isolated env)
+      - name: 🛠️ Build macOS app using PyInstaller
         working-directory: videoQueries
         run: |
-          python3 -m venv venv
-          source venv/bin/activate
-          pip install --upgrade pip setuptools wheel py2app
-          pip install -r requirements.txt
+          pyinstaller main.py --onefile --windowed --distpath ../backend_dist
 
-          echo "from setuptools import setup; setup(app=['main.py'], options={'py2app': {'argv_emulation': True}})" > setup.py
-
-          rm -rf build dist
-          python setup.py py2app --no-strip --no-chdir
-        shell: bash
-
-      - name: 📤 Upload backend app
+      - name: 📤 Upload backend artifact
         uses: actions/upload-artifact@v4
         with:
           name: backend-app
-          path: videoQueries/dist/
+          path: backend_dist/main
 
   build-frontend:
     name: 💻 Build Flutter macOS App
@@ -99,7 +90,7 @@ jobs:
         run: |
           echo '#!/bin/bash' > final_app/start_app.command
           echo 'echo "Starting backend..."' >> final_app/start_app.command
-          echo 'open backend/main.app' >> final_app/start_app.command
+          echo './backend/main &' >> final_app/start_app.command
           echo 'sleep 2' >> final_app/start_app.command
           echo 'echo "Starting frontend..."' >> final_app/start_app.command
           echo 'open app.app' >> final_app/start_app.command
