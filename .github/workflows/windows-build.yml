@@ -25,7 +25,8 @@ jobs:
 
       - name: 🛠️ Build backend .exe
         run: |
-          pyinstaller videoQueries/main.py --onefile --distpath backend_dist
+          cd videoQueries
+          pyinstaller main.py --onefile --distpath ../backend_dist
 
       - name: 📤 Upload backend artifact
         uses: actions/upload-artifact@v4
