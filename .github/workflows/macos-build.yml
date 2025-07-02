@@ -24,14 +24,19 @@ jobs:
           python3 -m pip install --upgrade pip setuptools wheel py2app
           pip install -r videoQueries/requirements.txt
 
-      - name: 🛠️ Create and build macOS app (clean build)
+      - name: 🛠️ Build macOS backend app (isolated env)
         working-directory: videoQueries
         run: |
+          python3 -m venv venv
+          source venv/bin/activate
+          pip install --upgrade pip setuptools wheel py2app
+          pip install -r requirements.txt
+
           echo "from setuptools import setup; setup(app=['main.py'], options={'py2app': {'argv_emulation': True}})" > setup.py
+
           rm -rf build dist
-          python3 setup.py py2app --no-strip --no-chdir
-        env:
-          PYTHONOPTIMIZE: "1"
+          python setup.py py2app --no-strip --no-chdir
+        shell: bash
 
       - name: 📤 Upload backend app
         uses: actions/upload-artifact@v4
