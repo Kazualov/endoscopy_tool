@@ -24,11 +24,12 @@ jobs:
           python3 -m pip install --upgrade pip setuptools wheel py2app
           pip install -r videoQueries/requirements.txt
 
-      - name: 🛠️ Create and build macOS app
+      - name: 🛠️ Create and build macOS app (clean build)
         working-directory: videoQueries
         run: |
           echo "from setuptools import setup; setup(app=['main.py'], options={'py2app': {'argv_emulation': True}})" > setup.py
-          python3 setup.py py2app
+          rm -rf build dist
+          python3 setup.py py2app --no-strip --no-chdir
         env:
           PYTHONOPTIMIZE: "1"
 

@@ -2,9 +2,9 @@ name: Flutter & FastAPI CI/CD (TEMP)
 
 on:
   push:
-    branches: [ Temp ]
+    branches: [ Test ]
   pull_request:
-    branches: [ Temp ]
+    branches: [ Test ]
 
 jobs:
   lint-python:

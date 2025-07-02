@@ -3,7 +3,7 @@ name: Build Flutter App with Python Backend
 on:
   workflow_dispatch:
   push:
-    branches: [Temp]
+    branches: [main]
 
 jobs:
   build-backend:
