@@ -22,11 +22,13 @@ dependencies:
   media_kit_libs_macos_video: ^1.1.4
   media_kit_libs_windows_video: ^1.0.11
   window_size: ^0.1.0
-  google_fonts: ^6.2.1
   file_picker: ^10.2.0
   image_picker: ^1.1.2
   camera: ^0.11.1
   ffmpeg_kit_flutter_new: ^2.0.0
+  vector_math: ^2.1.4
+  flutter_webrtc: ^0.14.1
+  shared_preferences: ^2.2.2
 
 
   cupertino_icons: ^1.0.8
@@ -47,3 +49,4 @@ flutter:
       fonts:
         - asset: assets/fonts/Nunito-Medium.ttf
           weight: 400
+

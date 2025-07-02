@@ -7,7 +7,7 @@ class ScreenshotResponse(BaseModel):
     exam_id: str  # заменено с video_id
     filename: str
     file_path: str
-    created_at: datetime
+    timestamp_in_video: str
 
     class Config:
         from_attributes = True
