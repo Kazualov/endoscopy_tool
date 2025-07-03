@@ -1,11 +1,14 @@
 import 'dart:io';
 import 'dart:ui';
 import 'dart:ui' as ui;
+import 'package:endoscopy_tool/widgets/ApiService.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:vector_math/vector_math_64.dart' hide Colors;
+
+import 'main_page.dart';
 
 // ──────────────────────────────────────────────────────────────────────
 //  Enhanced Screenshot Editor – with drag, resize, and stroke width
@@ -326,23 +329,27 @@ class _PathMark extends _Mark {
 }
 
 class ScreenshotEditor extends StatefulWidget {
-  final ImageProvider screenshot;
-  final List<ImageProvider> otherScreenshots;
-
+  final ScreenshotItem screenshot;
+  final List<ScreenshotItem> otherScreenshots;
+  final String examinationId;
+  final ApiService apiService;
 
   const ScreenshotEditor({
     super.key,
     required this.screenshot,
     required this.otherScreenshots,
+    required this.examinationId,
+    required this.apiService
   });
+
 
   @override
   State<ScreenshotEditor> createState() => ScreenshotEditorState();
 }
 
 class ScreenshotEditorState extends State<ScreenshotEditor> with TickerProviderStateMixin {
-  late ImageProvider _activeScreenshot;
-  late List<ImageProvider> _otherScreenshots;
+  late ScreenshotItem _activeScreenshot;
+  late List<ScreenshotItem> _otherScreenshots;
   // Tools & palette
   Tool _tool = Tool.rect;
   EraserMode _eraserMode = EraserMode.shape;
@@ -537,26 +544,94 @@ class ScreenshotEditorState extends State<ScreenshotEditor> with TickerProviderS
   }
 
   // Save composite image to Documents directory, returns path
-  Future<String> save() async {
-    final boundary = _repaintKey.currentContext!.findRenderObject() as RenderRepaintBoundary;
-    final ui.Image img = await boundary.toImage(pixelRatio: 3);
-    final byteData = await img.toByteData(format: ui.ImageByteFormat.png);
-    final bytes = byteData!.buffer.asUint8List();
-    final dir = await getApplicationDocumentsDirectory();
-    final file = File('${dir.path}/annotated_${DateTime.now().millisecondsSinceEpoch}.png');
-    print(file);
-    await file.writeAsBytes(bytes);
-    return file.path;
+  Future<void> save() async {
+    try {
+      // Показываем индикатор загрузки
+      _showLoadingDialog();
+
+      // Создаем изображение из виджета
+      final boundary = _repaintKey.currentContext!.findRenderObject() as RenderRepaintBoundary;
+      final ui.Image img = await boundary.toImage(pixelRatio: 3);
+      final byteData = await img.toByteData(format: ui.ImageByteFormat.png);
+      final bytes = byteData!.buffer.asUint8List();
+
+      // Сохраняем временный файл
+      final dir = await getApplicationDocumentsDirectory();
+      final tempFile = File('${dir.path}/temp_annotated_${DateTime.now().millisecondsSinceEpoch}.png');
+      await tempFile.writeAsBytes(bytes);
+
+      // Отправляем файл на сервер
+      final result = await widget.apiService.updateAnnotatedScreenshot(
+        examId: widget.examinationId,
+        sourceScreenshotId: widget.screenshot.screenshotId,
+        file: tempFile,
+      );
+
+      // Удаляем временный файл
+      await tempFile.delete();
+
+      // Скрываем индикатор загрузки
+      _hideLoadingDialog();
+
+      // Показываем сообщение об успехе
+      _showSuccessMessage('Скриншот успешно сохранен');
+
+      // Возвращаемся назад или обновляем UI
+      Navigator.of(context).pop();
+
+    } catch (e) {
+      // Скрываем индикатор загрузки
+      _hideLoadingDialog();
+
+      // Показываем ошибку
+      _showErrorMessage('Ошибка при сохранении: $e');
+    }
   }
 
-  // Добавьте кнопку сохранения в ваш UI
+  // Показать индикатор загрузки
+  void _showLoadingDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(
+        child: CircularProgressIndicator(),
+      ),
+    );
+  }
+
+  // Скрыть индикатор загрузки
+  void _hideLoadingDialog() {
+    Navigator.of(context).pop();
+  }
+
+  // Показать сообщение об успехе
+  void _showSuccessMessage(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.green,
+      ),
+    );
+  }
+
+  // Показать сообщение об ошибке
+  void _showErrorMessage(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.red,
+      ),
+    );
+  }
+
+  // кнопку сохранения в UI
   Widget _buildSaveButton(ThemeData theme) {
     return Container(
       margin: const EdgeInsets.all(8),
       child: FloatingActionButton(
         onPressed: save,
         backgroundColor: theme.colorScheme.primary,
-        child: const Icon(Icons.save),
+        child: const Icon(Icons.cloud_upload), // Изменил иконку на upload
       ),
     );
   }
@@ -791,7 +866,7 @@ class ScreenshotEditorState extends State<ScreenshotEditor> with TickerProviderS
                     child: CustomPaint(
                       size: constraints.biggest,
                       painter: _StagePainter(
-                        _activeScreenshot,
+                        MemoryImage(_activeScreenshot.imageBytes!),
                         _marks,
                         draftRect: _draftRect,
                         draftPath: _draftPath,
@@ -834,7 +909,7 @@ class ScreenshotEditorState extends State<ScreenshotEditor> with TickerProviderS
             border: Border.all(color: Colors.grey.shade400, width: 2),
           ),
           clipBehavior: Clip.hardEdge,
-          child: Image(image: _otherScreenshots[i], fit: BoxFit.cover),
+          child: Image(image: MemoryImage(_otherScreenshots[i].imageBytes!), fit: BoxFit.cover),
         ),
       ),
     ),

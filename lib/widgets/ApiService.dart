@@ -1,8 +1,12 @@
 // Сервис для работы с API
 import 'dart:convert';
+import 'dart:io';
+import 'package:dio/dio.dart';
 import 'package:http/http.dart' as http;
 import '../pages/patient_library.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
+import 'package:http_parser/http_parser.dart'; // Для MediaType
+
 
 
 
@@ -229,6 +233,43 @@ class ApiService {
     );
   }
 
+  /// Обновляет аннотированный скриншот (версия с http)
+  Future<Map<String, dynamic>> updateAnnotatedScreenshot({
+    required String examId,
+    required String sourceScreenshotId,
+    required File file,
+  }) async {
+    try {
+      // Создаем multipart-запрос
+      var request = http.MultipartRequest(
+        'PUT',
+        Uri.parse('/exams/$examId/annotated_screenshots/$sourceScreenshotId'),
+      );
+
+      // Добавляем файл
+      request.files.add(
+        await http.MultipartFile.fromPath(
+          'file',
+          file.path,
+          filename: 'annotated_screenshot.jpg',
+          contentType: MediaType('image', 'jpeg'), // Указываем тип файла
+        ),
+      );
+
+      // Отправляем запрос
+      final response = await request.send();
+
+      // Проверяем статус ответа
+      if (response.statusCode == 200) {
+        final responseData = await response.stream.bytesToString();
+        return {'success': true, 'data': responseData};
+      } else {
+        throw Exception('Ошибка при загрузке файла: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Ошибка: $e');
+    }
+  }
 
 }
 

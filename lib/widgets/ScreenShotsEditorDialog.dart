@@ -1,13 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:endoscopy_tool/pages/screenShotsEditor.dart';
 
+import '../pages/main_page.dart';
+import 'ApiService.dart';
+
 class ScreenShotsEditorDialog extends StatelessWidget {
-  final ImageProvider screenshot;
-  final List<ImageProvider> otherScreenshots;
+  final ScreenshotItem screenshot;
+  final List<ScreenshotItem> otherScreenshots;
+  final String examinationId;
+  final ApiService apiService;
+
   const ScreenShotsEditorDialog({
     super.key,
     required this.screenshot,
     required this.otherScreenshots,
+    required this.examinationId,
+    required this.apiService
   });
 
   @override
@@ -20,7 +28,7 @@ class ScreenShotsEditorDialog extends StatelessWidget {
           color: Colors.transparent,
           child: Stack(
             children: [
-              ScreenshotEditor(screenshot: screenshot, otherScreenshots: otherScreenshots,),
+              ScreenshotEditor(screenshot: screenshot, otherScreenshots: otherScreenshots, examinationId: examinationId, apiService: apiService,),
 
               // Кнопка "назад"
               Positioned(

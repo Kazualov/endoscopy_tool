@@ -622,12 +622,11 @@ class _MainPageLayoutState extends State<MainPageLayout> {
                   context: context,
                   barrierDismissible: false,
                   builder: (_) => ScreenShotsEditorDialog(
-                    screenshot: MemoryImage(screenshots.first.imageBytes!),
+                    screenshot: screenshots.first,
                     otherScreenshots: screenshots
                         .skip(1)
                         .where((s) => s.imageBytes != null)
-                        .map((s) => MemoryImage(s.imageBytes!))
-                        .toList(),
+                        .toList(), examinationId: widget.examinationId!, apiService: ApiService(),
                   ),
                 );
               } else {
