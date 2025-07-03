@@ -61,61 +61,53 @@ async def websocket_endpoint(websocket: WebSocket, examination_id: str, db: Sess
     finally:
         cap.release()
 
-@router.websocket("/ws/video/{examination_id}")
-async def websocket_endpoint(
-    websocket: WebSocket, examination_id: str,
+@router.post(
+    "/process_video/{examination_id}",
+    response_model=List[DetectionResponse]
+)
+async def process_video(
+    examination_id: str,
     video_path: str = Query(...),
     db: Session = Depends(get_db)
 ):
-    await websocket.accept()
-
     cap = cv2.VideoCapture(video_path)
     start_time = time.time()
 
-    try:
-        while True:
-            ret, frame = cap.read()
-            if not ret:
-                break
+    all_detections = []
 
-            results = model(frame)[0]
-            current_time = time.time() - start_time
+    while True:
+        ret, frame = cap.read()
+        if not ret:
+            break
 
-            detections = []
-            for box in results.boxes:
-                x1, y1, x2, y2 = map(int, box.xyxy[0])
-                cls = int(box.cls[0])
-                label = model.names[cls]
-                conf = float(box.conf[0])
+        results = model(frame)[0]
+        current_time = time.time() - start_time
 
-                db_detection = Detection(
-                    examination_id=examination_id,
-                    timestamp=current_time,
-                    x1=x1, y1=y1, x2=x2, y2=y2,
-                    label=label,
-                    confidence=conf
-                )
-                db.add(db_detection)
+        for box in results.boxes:
+            x1, y1, x2, y2 = map(int, box.xyxy[0])
+            cls = int(box.cls[0])
+            label = model.names[cls]
+            conf = float(box.conf[0])
 
-                detections.append({
-                    "x1": x1, "y1": y1, "x2": x2, "y2": y2,
-                    "label": label, "confidence": conf,
-                    "timestamp": current_time
-                })
+            db_detection = Detection(
+                examination_id=examination_id,
+                timestamp=current_time,
+                x1=x1, y1=y1, x2=x2, y2=y2,
+                label=label,
+                confidence=conf
+            )
+            db.add(db_detection)
 
-            db.commit()
+            all_detections.append({
+                "x1": x1, "y1": y1, "x2": x2, "y2": y2,
+                "label": label, "confidence": conf,
+                "timestamp": current_time
+            })
 
-            await websocket.send_json({"detections": detections})
-            await asyncio.sleep(0.03)
+    db.commit()
+    cap.release()
 
-        # После окончания видео — можно послать клиенту сообщение или просто закрыть ws
-        await websocket.close()
-
-    except Exception as e:
-        print(f"WebSocket connection closed: {e}")
-
-    finally:
-        cap.release()
+    return all_detections
 
 @router.get("/examinations/{examination_id}/detections", response_model=List[DetectionResponse])
 def get_detections_for_examination(
