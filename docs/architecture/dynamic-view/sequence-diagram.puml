@@ -1,0 +1,19 @@
+@startuml
+autonumber
+
+actor Doctor
+participant "Frontend (UI)" as UI
+participant "API Server" as API
+participant "File Storage" as Storage
+participant "AI Detection Service" as AI
+database "Metadata DB" as DB
+
+Doctor -> UI : Selects video & clicks Upload
+UI -> API : POST /uploadVideo(video)
+API -> Storage : Save video file
+API -> AI : POST /detect(videoPath)
+AI --> API : List of detections (frame, bbox, label)
+API -> DB : Store detection results
+API --> UI : Detection summary & overlay data
+UI -> Doctor : Show annotated video
+@enduml
