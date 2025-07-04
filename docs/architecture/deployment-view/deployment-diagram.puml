@@ -1,0 +1,20 @@
+@startuml
+skinparam componentStyle uml2
+
+node "Doctor's PC (Standalone App)" {
+  
+  component "GUI (Frontend)" as GUI
+  component "Backend Core" as Backend
+  component "AI Detection Module" as AI
+  component "Voice Command Handler" as Voice
+  component "Local File Storage" as Storage
+  database "SQLite" as DB
+}
+
+GUI --> Backend : function calls
+Backend --> AI : internal call
+Backend --> Voice : internal call
+Backend --> Storage : save/load files
+Backend --> DB : read/write metadata
+
+@enduml
