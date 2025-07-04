@@ -22,6 +22,17 @@ def get_db():
     finally:
         db.close()
 
+def parse_timestamp_to_seconds(timestamp: str) -> int:
+    parts = list(map(int, timestamp.strip().split(":")))
+    if len(parts) == 2:
+        minutes, seconds = parts
+        return minutes * 60 + seconds
+    elif len(parts) == 3:
+        hours, minutes, seconds = parts
+        return hours * 3600 + minutes * 60 + seconds
+    else:
+        raise ValueError(f"Invalid timestamp format: {timestamp}")
+
 
 router = APIRouter()
 
@@ -46,7 +57,8 @@ async def upload_screenshot(
         exam_id=exam_id,
         filename=file.filename,
         file_path="",
-        timestamp_in_video=timestamp_in_video
+        timestamp_in_video=timestamp_in_video,
+        timestamp_in_seconds=parse_timestamp_to_seconds(timestamp_in_video)
     )
     db.add(screenshot)
     db.flush()  # Получаем ID скриншота до коммита
@@ -88,7 +100,7 @@ def get_screenshots(exam_id: str, db: Session = Depends(get_db)):
     screenshots = (
         db.query(Screenshot)
         .filter(Screenshot.exam_id == exam_id)
-        .order_by(Screenshot.timestamp_in_video)
+        .order_by(Screenshot.timestamp_in_seconds)
         .all()
     )
 
@@ -100,8 +112,8 @@ def get_screenshots(exam_id: str, db: Session = Depends(get_db)):
                 "exam_id": shot.exam_id,
                 "filename": shot.filename,
                 "file_path": shot.file_path,
-                "created_at": shot.created_at,
                 "timestamp_in_video": shot.timestamp_in_video,
+                "created_at": shot.created_at,
                 "annotated_filename": shot.annotated_filename,
                 "annotated_file_path": shot.annotated_file_path,
             })
