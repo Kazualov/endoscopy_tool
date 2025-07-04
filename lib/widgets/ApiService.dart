@@ -233,6 +233,88 @@ class ApiService {
     );
   }
 
+  /// Загружает аннотированный скриншот для указанного screenshot_id
+  static Future<Map<String, dynamic>?> uploadAnnotatedScreenshot({
+    required String screenshotId,
+    required String filePath,
+  }) async {
+    try {
+      var request = http.MultipartRequest(
+        'POST',
+        Uri.parse('$baseUrl/screenshots/$screenshotId/upload_annotated/'),
+      );
+
+      // Добавляем файл
+      request.files.add(
+        await http.MultipartFile.fromPath(
+          'annotated_file', // Имя параметра должно совпадать с именем в API
+          filePath,
+          filename: 'annotated_screenshot.jpg',
+          contentType: MediaType('image', 'jpeg'),
+        ),
+      );
+
+      // Отправляем запрос
+      final streamed = await request.send();
+      final response = await http.Response.fromStream(streamed);
+
+      if (response.statusCode == 200) {
+        final jsonResponse = jsonDecode(response.body);
+        return {
+          'success': true,
+          'annotated_filename': jsonResponse['annotated_filename'],
+          'file_path': jsonResponse['file_path'],
+        };
+      } else {
+        throw Exception('Failed to upload annotated screenshot: ${response.statusCode} - ${response.body}');
+      }
+    } catch (e) {
+      print('Error uploading annotated screenshot: $e');
+      return null;
+    }
+  }
+
+  /// Альтернативная версия с File объектом (если у вас есть File, а не путь)
+  static Future<Map<String, dynamic>?> uploadAnnotatedScreenshotFromFile({
+    required String screenshotId,
+    required File file,
+  }) async {
+    try {
+      var request = http.MultipartRequest(
+        'POST',
+        Uri.parse('$baseUrl/screenshots/$screenshotId/upload_annotated/'),
+      );
+
+      // Добавляем файл
+      request.files.add(
+        await http.MultipartFile.fromPath(
+          'annotated_file',
+          file.path,
+          filename: 'annotated_screenshot.jpg',
+          contentType: MediaType('image', 'jpeg'),
+        ),
+      );
+
+      // Отправляем запрос
+      final streamed = await request.send();
+      final response = await http.Response.fromStream(streamed);
+
+      if (response.statusCode == 200) {
+        final jsonResponse = jsonDecode(response.body);
+        return {
+          'success': true,
+          'annotated_filename': jsonResponse['annotated_filename'],
+          'file_path': jsonResponse['file_path'],
+        };
+      } else {
+        throw Exception('Failed to upload annotated screenshot: ${response.statusCode} - ${response.body}');
+      }
+    } catch (e) {
+      print('Error uploading annotated screenshot: $e');
+      return null;
+    }
+  }
+
   /// Обновляет аннотированный скриншот (версия с http)
   Future<Map<String, dynamic>> updateAnnotatedScreenshot({
     required String examId,

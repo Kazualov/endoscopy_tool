@@ -11,6 +11,8 @@ import time
 from sqlalchemy.orm import Session
 import asyncio
 from videoQueries.schemas.Detection import DetectionResponse
+from ultralytics.utils import LOGGER
+
 
 router = APIRouter()
 
@@ -28,7 +30,7 @@ async def websocket_endpoint(websocket: WebSocket, examination_id: str, db: Sess
             if not ret:
                 break
 
-            results = model(frame)[0]
+            results = model(frame, verbose=False)[0]
             current_time = time.time() - start_time
 
             detections = []

@@ -206,7 +206,7 @@ class _CameraStreamWidgetState extends State<CameraStreamWidget> {
 
             // Логируем детекции
             for (var detection in _currentDetections) {
-              print('Detected: ${detection.label} with confidence ${detection.confidence}');
+              //print('Detected: ${detection.label} with confidence ${detection.confidence}');
             }
           } catch (e) {
             print('Error parsing detection data: $e');

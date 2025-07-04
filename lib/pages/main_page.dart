@@ -38,6 +38,7 @@ class ScreenshotItem {
   final String filename;
   final String filePath;
   final String timestampInVideo;
+  final String? annotated_file_path;
   final Uint8List? imageBytes;
 
   ScreenshotItem({
@@ -45,6 +46,7 @@ class ScreenshotItem {
     required this.filename,
     required this.filePath,
     required this.timestampInVideo,
+    this.annotated_file_path,
     this.imageBytes,
   });
 
@@ -55,6 +57,7 @@ class ScreenshotItem {
       filename: json['filename'] ?? '',
       filePath: json['file_path'] ?? '',
       timestampInVideo: json['timestamp_in_video'] ?? '0:00',
+      annotated_file_path: json["annotated_file_path"],
     );
   }
 }
@@ -286,13 +289,26 @@ class _MainPageLayoutState extends State<MainPageLayout> {
           final screenshotItem = ScreenshotItem.fromJson(screenshotData);
 
           // Загружаем изображение для каждого скриншота
-          final imageBytes = await _loadScreenshotImage(screenshotItem.screenshotId);
+          // Сначала пробуем загрузить аннотированное изображение, если оно есть
+          Uint8List? imageBytes;
+
+          if (screenshotItem.annotated_file_path != null &&
+              screenshotItem.annotated_file_path!.isNotEmpty) {
+            // Пытаемся загрузить аннотированное изображение
+            imageBytes = await _loadAnnotatedScreenshotImage(screenshotItem.screenshotId);
+          }
+
+          // Если аннотированное изображение не загрузилось, загружаем обычное
+          if (imageBytes == null) {
+            imageBytes = await _loadScreenshotImage(screenshotItem.screenshotId);
+          }
 
           loadedScreenshots.add(ScreenshotItem(
             screenshotId: screenshotItem.screenshotId,
             filename: screenshotItem.filename,
             filePath: screenshotItem.filePath,
             timestampInVideo: screenshotItem.timestampInVideo,
+            annotated_file_path: screenshotItem.annotated_file_path, // Может быть null
             imageBytes: imageBytes,
           ));
         }
@@ -307,6 +323,56 @@ class _MainPageLayoutState extends State<MainPageLayout> {
       print('Error loading screenshots: $e');
     }
   }
+
+  Future<Uint8List?> _loadAnnotatedScreenshotImage(String screenshotId) async {
+    try {
+      final response = await http.get(
+        Uri.parse('$BASE_URL/screenshots/$screenshotId/annotated_file'), // Предполагаемый endpoint
+      );
+
+      if (response.statusCode == 200) {
+        return response.bodyBytes;
+      } else {
+        print('Failed to load annotated screenshot image: ${response.statusCode}');
+        return null;
+      }
+    } catch (e) {
+      print('Error loading annotated screenshot image: $e');
+      return null;
+    }
+  }
+
+
+  // Метод для обновления скриншота после сохранения аннотаций
+  Future<void> updateScreenshotWithAnnotation(String screenshotId, String annotatedFilePath) async {
+    final index = screenshots.indexWhere((s) => s.screenshotId == screenshotId);
+
+    if (index != -1) {
+      // Загружаем аннотированное изображение
+      final annotatedImageBytes = await _loadAnnotatedScreenshotImage(screenshotId);
+
+      if (annotatedImageBytes != null) {
+        setState(() {
+          screenshots[index] = ScreenshotItem(
+            screenshotId: screenshots[index].screenshotId,
+            filename: screenshots[index].filename,
+            filePath: screenshots[index].filePath,
+            timestampInVideo: screenshots[index].timestampInVideo,
+            annotated_file_path: annotatedFilePath, // Обновляем путь к аннотированному файлу
+            imageBytes: annotatedImageBytes, // Обновляем изображение на аннотированное
+          );
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Screenshot updated with annotations'),
+            backgroundColor: Color(0xFF00ACAB),
+          ),
+        );
+      }
+    }
+  }
+
 
   // Метод для загрузки изображения скриншота (возвращает binary data)
   Future<Uint8List?> _loadScreenshotImage(String screenshotId) async {
@@ -330,7 +396,6 @@ class _MainPageLayoutState extends State<MainPageLayout> {
   // Метод для загрузки скриншота на сервер
   Future<String?> _uploadScreenshot(Uint8List imageBytes, String timestampInVideo) async {
     if (widget.examinationId == null) return null;
-
     try {
       final url = '$BASE_URL/exams/${widget.examinationId}/upload_screenshot/';
       print('Uploading screenshot to: $url');
@@ -560,6 +625,7 @@ class _MainPageLayoutState extends State<MainPageLayout> {
         filename: 'screenshot_${DateTime.now().millisecondsSinceEpoch}.png',
         filePath: '',
         timestampInVideo: currentTimestamp,
+        annotated_file_path: null, // Изначально null
         imageBytes: imageBytes,
       ));
     });
@@ -585,6 +651,7 @@ class _MainPageLayoutState extends State<MainPageLayout> {
                 filename: screenshots[index].filename,
                 filePath: screenshots[index].filePath,
                 timestampInVideo: screenshots[index].timestampInVideo,
+                annotated_file_path: screenshots[index].annotated_file_path, // Остается null
                 imageBytes: screenshots[index].imageBytes,
               );
             }

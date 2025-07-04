@@ -560,12 +560,14 @@ class ScreenshotEditorState extends State<ScreenshotEditor> with TickerProviderS
       final tempFile = File('${dir.path}/temp_annotated_${DateTime.now().millisecondsSinceEpoch}.png');
       await tempFile.writeAsBytes(bytes);
 
+
       // Отправляем файл на сервер
-      final result = await widget.apiService.updateAnnotatedScreenshot(
-        examId: widget.examinationId,
-        sourceScreenshotId: widget.screenshot.screenshotId,
+      final result = await ApiService.uploadAnnotatedScreenshotFromFile(
+        screenshotId: _activeScreenshot.screenshotId,
         file: tempFile,
       );
+      print(_activeScreenshot.screenshotId);
+      print(result);
 
       // Удаляем временный файл
       await tempFile.delete();
@@ -575,9 +577,6 @@ class ScreenshotEditorState extends State<ScreenshotEditor> with TickerProviderS
 
       // Показываем сообщение об успехе
       _showSuccessMessage('Скриншот успешно сохранен');
-
-      // Возвращаемся назад или обновляем UI
-      Navigator.of(context).pop();
 
     } catch (e) {
       // Скрываем индикатор загрузки
