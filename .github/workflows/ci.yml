@@ -2,9 +2,9 @@ name: Flutter & FastAPI CI
 
 on:
   push:
-    branches: [ Tests ]
+    branches: [Tests]
   pull_request:
-    branches: [ Tests ]
+    branches: [Tests]
 
 jobs:
   lint-python:
@@ -75,9 +75,11 @@ jobs:
         with:
           python-version: '3.12'
       - run: |
+          pip install -e .
           pip install -r requirements.txt
           pip install pytest pytest-cov
       - run: |
+          export PYTHONPATH=$PYTHONPATH:$GITHUB_WORKSPACE
           pytest --cov=videoQueries \
                  --junitxml=results.xml \
                  --cov-report=xml \
@@ -101,16 +103,17 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.32.4'
       - run: flutter pub get
-      - run: sudo apt-get install lcov  # Install lcov for genhtml
+      - run: sudo apt-get install lcov
       - run: | 
-          flutter test --coverage  # Generates `lcov.info`
-          # Optional: Convert to HTML for easier viewing
+          flutter test --coverage
           genhtml coverage/lcov.info -o coverage/html
       - uses: actions/upload-artifact@v4
         with:
           name: flutter-coverage
-          path: coverage/  # Uploads both LCOV and HTML (if generated)
+          path: coverage/
 
   security-check:
     runs-on: ubuntu-latest
