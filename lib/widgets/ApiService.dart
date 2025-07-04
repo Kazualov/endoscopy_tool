@@ -3,6 +3,10 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../pages/patient_library.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
+import 'dart:io';
+import 'package:dio/dio.dart';
+import 'package:path_provider/path_provider.dart';
+
 
 
 
@@ -175,6 +179,36 @@ class ApiService {
       throw Exception('Failed to load detections');
     }
   }
+
+
+  Future<File?> processVideoOnServer({
+    required String examinationId,
+    required String videoPath,
+  }) async {
+    try {
+      final dio = Dio();
+
+      // Отправляем GET-параметр video_path как Query
+      final url = '$baseUrl/process_video/$examinationId';
+      final response = await dio.post(
+        url,
+        queryParameters: {'video_path': videoPath},
+        options: Options(responseType: ResponseType.bytes), // получаем байты
+      );
+
+      // Сохраняем файл локально
+      final dir = await getApplicationDocumentsDirectory();
+      final file = File('${dir.path}/annotated_video_${DateTime.now().millisecondsSinceEpoch}.mp4');
+      await file.writeAsBytes(response.data);
+
+      print("Видео сохранено по пути: ${file.path}");
+      return file;
+    } catch (e) {
+      print('Ошибка при обработке видео: $e');
+      return null;
+    }
+  }
+
 
 
   void connectToCameraStream(String examinationId) {

@@ -191,7 +191,7 @@ class _MainPageLayoutState extends State<MainPageLayout> {
   void handleDetection(Map<String, dynamic> detection) {
     final label = detection['label'];
     final confidence = detection['confidence'];
-    print(label);
+    // print(label);
   }
 
 

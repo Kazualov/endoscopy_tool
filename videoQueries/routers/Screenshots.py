@@ -87,7 +87,7 @@ def get_screenshots(exam_id: str, db: Session = Depends(get_db)):
     screenshots = (
         db.query(Screenshot)
         .filter(Screenshot.exam_id == exam_id)
-        .order_by(Screenshot.created_at)
+        .order_by(Screenshot.timestamp_in_video)
         .all()
     )
 
@@ -99,7 +99,7 @@ def get_screenshots(exam_id: str, db: Session = Depends(get_db)):
                 "exam_id": shot.exam_id,
                 "filename": shot.filename,
                 "file_path": shot.file_path,
-                "created_at": shot.created_at,
+                "timestamp_in_video": shot.timestamp_in_video,
                 "annotated_filename": shot.annotated_filename,
                 "annotated_file_path": shot.annotated_file_path,
             })
