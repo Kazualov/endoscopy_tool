@@ -5,7 +5,7 @@ from typing import List
 import io
 import zipfile
 from fastapi.responses import StreamingResponse
-from fastapi import APIRouter, UploadFile, File, Depends, HTTPException, status
+from fastapi import APIRouter, UploadFile, File, Depends, HTTPException, status, Form
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 import json
@@ -32,6 +32,7 @@ os.makedirs(SCREENSHOT_DIR, exist_ok=True)
 @router.post("/exams/{exam_id}/upload_screenshot/")
 async def upload_screenshot(
     exam_id: str,
+    timestamp_in_video: str = Form(...),
     file: UploadFile = File(...),
     db: Session = Depends(get_db)
 ):
@@ -44,7 +45,8 @@ async def upload_screenshot(
     screenshot = Screenshot(
         exam_id=exam_id,
         filename=file.filename,
-        file_path=""
+        file_path="",
+        timestamp_in_video=timestamp_in_video
     )
     db.add(screenshot)
     db.flush()  # Получаем ID скриншота до коммита
@@ -77,7 +79,6 @@ async def upload_screenshot(
         raise HTTPException(status_code=500, detail=f"Ошибка при сохранении скриншота: {e}")
 
 
-
 @router.get("/exams/{exam_id}/screenshots", response_model=List[ScreenshotResponse])
 def get_screenshots(exam_id: str, db: Session = Depends(get_db)):
     exam = db.query(Examination).filter(Examination.id == exam_id).first()
@@ -87,7 +88,7 @@ def get_screenshots(exam_id: str, db: Session = Depends(get_db)):
     screenshots = (
         db.query(Screenshot)
         .filter(Screenshot.exam_id == exam_id)
-        .order_by(Screenshot.created_at)
+        .order_by(Screenshot.timestamp_in_video)
         .all()
     )
 
@@ -100,6 +101,7 @@ def get_screenshots(exam_id: str, db: Session = Depends(get_db)):
                 "filename": shot.filename,
                 "file_path": shot.file_path,
                 "created_at": shot.created_at,
+                "timestamp_in_video": shot.timestamp_in_video,
                 "annotated_filename": shot.annotated_filename,
                 "annotated_file_path": shot.annotated_file_path,
             })
