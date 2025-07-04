@@ -1,0 +1,38 @@
+@startuml
+skinparam componentStyle uml2
+
+' ===== Interfaces =====
+interface IAppAPI
+interface ISessionManager
+interface IVoiceControl
+interface IDetection
+interface IScreenshot
+interface IStorage
+interface IMetadataDB
+
+' ===== Frontend =====
+package "Frontend" {
+  [Doctor UI] ..> IAppAPI : uses
+}
+
+' ===== Backend =====
+package "Backend" {
+  [API Server]
+  [API Server] -- IAppAPI
+  [API Server] -- ISessionManager
+  [API Server] -- IVoiceControl
+  [API Server] -- IDetection
+  [API Server] -- IScreenshot
+  [API Server] -- IStorage
+  [API Server] -- IMetadataDB
+}
+
+' ===== Core Modules =====
+[Session Manager] -- ISessionManager
+[Voice Command Processor] -- IVoiceControl
+[AI Detection Service] -- IDetection
+[Screenshot Drawer] -- IScreenshot
+[File Storage] -- IStorage
+[Metadata DB] -- IMetadataDB
+
+@enduml
