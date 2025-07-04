@@ -1,6 +1,8 @@
 from fastapi import FastAPI, WebSocket, Depends, HTTPException
+from pathlib import Path
 from fastapi import APIRouter, Query
 from videoQueries.models.Detection import Detection
+from videoQueries.models.Examination import Examination
 from ultralytics import YOLO
 from videoQueries.database import get_db
 import cv2
@@ -61,18 +63,35 @@ async def websocket_endpoint(websocket: WebSocket, examination_id: str, db: Sess
     finally:
         cap.release()
 
-@router.post(
-    "/process_video/{examination_id}",
-    response_model=List[DetectionResponse]
-)
+@router.post("/examinations/{examination_id}/process_video/", response_model=dict)
 async def process_video(
     examination_id: str,
     video_path: str = Query(...),
     db: Session = Depends(get_db)
 ):
-    cap = cv2.VideoCapture(video_path)
-    start_time = time.time()
+    # Проверка существования осмотра
+    exam = db.query(Examination).filter(Examination.id == examination_id).first()
+    if not exam:
+        raise HTTPException(status_code=404, detail="Осмотр не найден")
 
+    # Открытие видео
+    cap = cv2.VideoCapture(video_path)
+    if not cap.isOpened():
+        raise HTTPException(status_code=400, detail="Не получается открыть видео")
+
+    fps = cap.get(cv2.CAP_PROP_FPS)
+    width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+    height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+
+    # Подготовка выходного видео
+    input_stem = Path(video_path).stem  # Без расширения
+    output_filename = f"{input_stem}_detection.mp4"
+    output_path = Path(exam.folder_path) / output_filename
+
+    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+    out = cv2.VideoWriter(str(output_path), fourcc, fps, (width, height))
+
+    start_time = time.time()
     all_detections = []
 
     while True:
@@ -89,6 +108,15 @@ async def process_video(
             label = model.names[cls]
             conf = float(box.conf[0])
 
+            # Рисуем прямоугольник и подпись
+            cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
+            cv2.putText(
+                frame, f"{label} {conf:.2f}",
+                (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5,
+                (0, 255, 0), 2
+            )
+
+            # Сохраняем в БД
             db_detection = Detection(
                 examination_id=examination_id,
                 timestamp=current_time,
@@ -99,15 +127,28 @@ async def process_video(
             db.add(db_detection)
 
             all_detections.append({
+               "examination_id": examination_id,
                 "x1": x1, "y1": y1, "x2": x2, "y2": y2,
                 "label": label, "confidence": conf,
                 "timestamp": current_time
             })
 
-    db.commit()
-    cap.release()
+        # Сохраняем кадр с аннотациями в видео
+        out.write(frame)
 
-    return all_detections
+    # Завершаем работу
+    cap.release()
+    out.release()
+    db.commit()
+    response_detections = [
+        DetectionResponse(**d) for d in all_detections
+    ]
+    return {
+        "annotated_video_filename": output_filename,
+        "annotated_video_path": str(output_path),
+        "detections": all_detections
+    }
+
 
 @router.get("/examinations/{examination_id}/detections", response_model=List[DetectionResponse])
 def get_detections_for_examination(
