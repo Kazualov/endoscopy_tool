@@ -87,3 +87,10 @@ The application is deployed as a **standalone desktop app** on the doctor’s PC
 
 MIT License. See [LICENSE](./LICENSE) for details.
 
+---
+
+## 📚 Docs
+
+- [Static View (component.puml)](docs/architecture/static-view/component-diagram.puml)
+- [Dynamic View (upload_and_detect.puml)](docs/architecture/dynamic-view/sequence-diagram.puml)
+- [Deployment View (deployment.puml)](docs/architecture/deployment-view/deployment-diagram.puml)
