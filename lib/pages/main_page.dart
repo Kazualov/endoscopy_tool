@@ -326,14 +326,30 @@ class _MainPageLayoutState extends State<MainPageLayout> {
 
   Future<Uint8List?> _loadAnnotatedScreenshotImage(String screenshotId) async {
     try {
-      final response = await http.get(
-        Uri.parse('$BASE_URL/screenshots/$screenshotId/annotated_file'), // Предполагаемый endpoint
+      // Получаем информацию о скриншоте
+      final infoResponse = await http.get(
+        Uri.parse('$BASE_URL/screenshots/$screenshotId'),
       );
 
-      if (response.statusCode == 200) {
-        return response.bodyBytes;
+      if (infoResponse.statusCode == 200) {
+        final screenshotInfo = json.decode(infoResponse.body);
+        final annotatedFilePath = screenshotInfo['annotated_file_path'];
+
+        // Проверяем, есть ли аннотированный файл
+        if (annotatedFilePath != null && annotatedFilePath.toString().isNotEmpty) {
+          // Если у вас есть прямой доступ к файлу по пути или через другой endpoint
+          // Здесь нужно будет реализовать загрузку файла согласно вашей архитектуре
+          print('Annotated file path found: $annotatedFilePath');
+
+          // Пока возвращаем null, чтобы загрузился обычный скриншот
+          // Вам нужно реализовать способ получения файла по пути annotatedFilePath
+          return null;
+        } else {
+          print('No annotated file path found for screenshot $screenshotId');
+          return null;
+        }
       } else {
-        print('Failed to load annotated screenshot image: ${response.statusCode}');
+        print('Failed to get screenshot info: ${infoResponse.statusCode}');
         return null;
       }
     } catch (e) {
