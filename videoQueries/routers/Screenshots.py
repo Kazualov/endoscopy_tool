@@ -121,6 +121,23 @@ def get_screenshots(exam_id: str, db: Session = Depends(get_db)):
     return result
 
 
+@router.get("/screenshots/{screenshot_id}", response_model=ScreenshotResponse)
+def get_screenshot_info(screenshot_id: str, db: Session = Depends(get_db)):
+    screenshot = db.query(Screenshot).filter(Screenshot.id == screenshot_id).first()
+
+    if not screenshot or not os.path.exists(screenshot.file_path):
+        raise HTTPException(status_code=404, detail="Скриншот не найден")
+
+    return {
+        "screenshot_id": screenshot.id,
+        "exam_id": screenshot.exam_id,
+        "filename": screenshot.filename,
+        "file_path": screenshot.file_path,
+        "timestamp_in_video": screenshot.timestamp_in_video,
+        "created_at": screenshot.created_at,
+        "annotated_filename": screenshot.annotated_filename,
+        "annotated_file_path": screenshot.annotated_file_path,
+    }
 
 @router.get("/screenshots/{screenshot_id}/file")
 def get_screenshot_file(screenshot_id: int, db: Session = Depends(get_db)):
