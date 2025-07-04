@@ -55,3 +55,25 @@ def test_upload_video_twice(client):
         response = client.post(f"/examinations/{exam['id']}/video/", files=files)
 
     assert response.status_code == 400
+
+def test_get_examination_by_id(client):
+    patient_id = client.post("/patients/", json={"id": "554433"}).json()
+    exam = client.post("/examinations/", json={"patient_id": patient_id, "description": "get exam"}).json()
+
+    response = client.get(f"/examinations/{exam['id']}/")
+    assert response.status_code == 200
+    assert response.json()["id"] == exam["id"]
+    assert response.json()["patient_id"] == patient_id
+
+def test_delete_examination(client):
+    patient_id = client.post("/patients/", json={"id": "7654321"}).json()
+    exam = client.post("/examinations/", json={"patient_id": patient_id, "description": "to be deleted"}).json()
+
+    # Удаляем осмотр
+    response = client.delete(f"/examinations/{exam['id']}/")
+    assert response.status_code == 200
+
+    # Проверка, что осмотр больше не существует
+    response = client.get(f"/examinations/{exam['id']}/")
+    assert response.status_code == 404
+

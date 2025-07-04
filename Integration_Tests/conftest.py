@@ -1,7 +1,7 @@
 import pytest
 from fastapi.testclient import TestClient
-from main import app
-from database import Base, engine
+from videoQueries.main import app
+from videoQueries.database import Base, engine
 
 @pytest.fixture(scope="module")
 def client():
