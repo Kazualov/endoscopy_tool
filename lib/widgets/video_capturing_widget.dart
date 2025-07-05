@@ -695,67 +695,6 @@ class _CameraStreamWidgetState extends State<CameraStreamWidget> {
     }
   }
 
-// Альтернативный подход: группировка близких по времени детекций
-  Future<void> _addDetectionsToVideoGrouped(String inputPath, String outputPath) async {
-    try {
-      if (_allDetections.isEmpty) {
-        await File(inputPath).copy(outputPath);
-        return;
-      }
-
-      print('Processing ${_allDetections.length} detections with grouped approach...');
-
-      // Группируем детекции по временным интервалам (каждые 100мс)
-      final detectionGroups = <int, List<DetectionBox>>{};
-      final groupInterval = 100; // 100 миллисекунд
-
-      for (final detection in _allDetections) {
-        final groupKey = (detection.timestamp.inMilliseconds / groupInterval).floor();
-        detectionGroups.putIfAbsent(groupKey, () => []).add(detection);
-      }
-
-      final allFilters = <String>[];
-
-      // Создаем фильтры для каждой группы
-      for (final entry in detectionGroups.entries) {
-        final groupKey = entry.key;
-        final detections = entry.value;
-
-        final startTime = (groupKey * groupInterval) / 1000.0;
-        final endTime = startTime + (groupInterval / 1000.0);
-
-        for (final detection in detections) {
-          // Drawbox фильтр
-          allFilters.add(detection.toFFmpegDrawbox(startTime: startTime, endTime: endTime));
-          // Drawtext фильтр
-          allFilters.add(detection.toFFmpegDrawtext(startTime: startTime, endTime: endTime));
-        }
-      }
-
-      final filterComplex = allFilters.join(',');
-      final command = '-i "$inputPath" -vf "$filterComplex" -c:v libx264 -preset ultrafast -crf 23 -c:a copy "$outputPath"';
-
-      print('Running FFmpeg command with grouped approach (${detectionGroups.length} groups)');
-
-      final session = await FFmpegKit.execute(command);
-      final returnCode = await session.getReturnCode();
-
-      if (ReturnCode.isSuccess(returnCode)) {
-        print('✅ Video with grouped detections processed successfully');
-      } else {
-        final logs = await session.getFailStackTrace();
-        print('❌ Grouped FFmpeg error (code ${returnCode?.getValue()}): $logs');
-
-        // Final fallback: save without detections
-        await File(inputPath).copy(outputPath);
-      }
-    } catch (e) {
-      print('❌ Error in grouped processing: $e');
-      await File(inputPath).copy(outputPath);
-      rethrow;
-    }
-  }
-
 // Метод для улучшения точности временных меток при записи
   void _recordDetectionWithPreciseTime(DetectionBox detection) {
     // Получаем текущее время записи относительно начала
@@ -778,6 +717,7 @@ class _CameraStreamWidgetState extends State<CameraStreamWidget> {
       _allDetections.add(preciseDetection);
     }
   }
+
   Future<void> _openFolder(String folderPath) async {
     try {
       if (Platform.isWindows) {
