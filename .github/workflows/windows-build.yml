@@ -3,7 +3,7 @@ name: Build Flutter Windows App
 on:
   workflow_dispatch:  # Manual trigger
   push:
-    branches: [main]  # Auto-trigger on main branch
+    branches: [bugs-cleaning]  # Auto-trigger on main branch
 
 jobs:
   build:
