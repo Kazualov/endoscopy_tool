@@ -104,6 +104,9 @@ class _MainPageLayoutState extends State<MainPageLayout> {
   final GlobalKey _screenshotKey = GlobalKey();
   final GlobalKey<ScreenshotButtonState> screenshotButtonKey = GlobalKey();
 
+  //Flag to trigger vosk
+  bool flag = false;
+
   File? _convertedFile;
   bool _isLoading = false;
   String? _loadingMessage;
@@ -141,8 +144,7 @@ class _MainPageLayoutState extends State<MainPageLayout> {
     _voiceSubscription = voiceService.commandStream.listen((command) {
       print('[MainPageLayout] 🎤 Получена команда: $command');
 
-      if (command.toLowerCase().contains('скриншот') ||
-          command.toLowerCase().contains('screenshot')) {
+      if ((command.toLowerCase().contains('скриншот') || command.toLowerCase().contains('screenshot')) && flag == true) {
         print('[MainPageLayout] 🎤 Выполняем скриншот...');
         screenshotButtonKey.currentState?.captureAndSaveScreenshot(context);
       }
@@ -158,6 +160,7 @@ class _MainPageLayoutState extends State<MainPageLayout> {
   }
 
   void _initializeVideoPlayer() {
+    flag = false;
     _player = Player();
     _videoController = VideoController(_player!);
     _prepareAndPlay(_currentVideoPath!);
@@ -165,6 +168,7 @@ class _MainPageLayoutState extends State<MainPageLayout> {
 
   // Методы для работы с таймером камеры
   void _startCameraTimer() {
+    flag = true;
     _cameraStartTime = DateTime.now();
     _currentCameraDuration = Duration.zero;
 
@@ -219,6 +223,7 @@ class _MainPageLayoutState extends State<MainPageLayout> {
 
       // Initialize new player
       _initializeVideoPlayer();
+      flag = false;
     }
   }
 
@@ -228,7 +233,7 @@ class _MainPageLayoutState extends State<MainPageLayout> {
       _currentMode = VideoMode.camera;
       _currentVideoPath = null;
     });
-
+    flag = true;
     // Dispose video player when switching to camera
     _disposeVideoPlayer();
   }
@@ -244,7 +249,7 @@ class _MainPageLayoutState extends State<MainPageLayout> {
       _currentMode = VideoMode.uploaded;
       _currentVideoPath = capturedVideoPath;
     });
-
+    flag = false;
     // Dispose previous player if exists
     _disposeVideoPlayer();
 
@@ -252,12 +257,12 @@ class _MainPageLayoutState extends State<MainPageLayout> {
     _initializeVideoPlayer();
 
     // Show success message
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Video captured and loaded: ${capturedVideoPath.split('/').last}'),
-        backgroundColor: const Color(0xFF00ACAB),
-      ),
-    );
+    // ScaffoldMessenger.of(context).showSnackBar(
+    //   SnackBar(
+    //     content: Text('Video captured and loaded: ${capturedVideoPath.split('/').last}'),
+    //     backgroundColor: const Color(0xFF00ACAB),
+    //   ),
+    // );
   }
 
   void _disposeVideoPlayer() {
@@ -475,13 +480,13 @@ class _MainPageLayoutState extends State<MainPageLayout> {
 
       // Показываем сообщение о переходе к скриншоту
       final timeString = "${timestamp.inMinutes}:${(timestamp.inSeconds % 60).toString().padLeft(2, '0')}";
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Переход к скриншоту в $timeString'),
-          duration: const Duration(seconds: 1),
-          backgroundColor: const Color(0xFF00ACAB),
-        ),
-      );
+      // ScaffoldMessenger.of(context).showSnackBar(
+      //   SnackBar(
+      //     content: Text('Переход к скриншоту в $timeString'),
+      //     duration: const Duration(seconds: 1),
+      //     backgroundColor: const Color(0xFF00ACAB),
+      //   ),
+      // );
     }
   }
 
@@ -564,12 +569,12 @@ class _MainPageLayoutState extends State<MainPageLayout> {
       ));
     });
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Screenshot added at $currentTimestamp'),
-        backgroundColor: const Color(0xFF00ACAB),
-      ),
-    );
+    // ScaffoldMessenger.of(context).showSnackBar(
+    //   SnackBar(
+    //     content: Text('Screenshot added at $currentTimestamp'),
+    //     backgroundColor: const Color(0xFF00ACAB),
+    //   ),
+    // );
 
     // Параллельно отправляем на сервер (без блокировки UI)
     if (widget.examinationId != null) {
@@ -598,8 +603,6 @@ class _MainPageLayoutState extends State<MainPageLayout> {
 
 
 //----------------------------------------------------------------------------
-
-
   // Build the control buttons in the sidebar
   Widget _buildControlButtons() {
     return Column(
@@ -661,23 +664,13 @@ class _MainPageLayoutState extends State<MainPageLayout> {
           tooltip: "Capture Video",
         ),
 
-        // Reset camera timer button (only in camera mode)
-        if (_currentMode == VideoMode.camera)
-          IconButton(
-            onPressed: _resetCameraTimer,
-            icon: const Icon(
-              Icons.refresh,
-              color: Color(0xFF00ACAB),
-            ),
-            tooltip: "Reset Timer",
-          ),
-
         IconButton(
           onPressed: exportText,
           icon: const Icon(
             Icons.download_rounded,
             color: Color(0xFF00ACAB),
           ),
+          tooltip: "Download voice notes",
         ),
         IconButton(
           onPressed: () {
@@ -686,16 +679,20 @@ class _MainPageLayoutState extends State<MainPageLayout> {
               MaterialPageRoute(builder: (context) => EndoscopistApp()),
             );
           },
-          icon: const Icon(Icons.arrow_back_ios_new_rounded,
-              color: Color(0xFF00ACAB)),
+          icon: const Icon(
+              Icons.arrow_back_ios_new_rounded,
+              color: Color(0xFF00ACAB)
+          ),
+          tooltip: "Back to menu",
         ),
-        IconButton(
+        /*IconButton(
           onPressed: exportText,
           icon: const Icon(
             Icons.settings_rounded,
             color: Color(0xFF00ACAB),
           ),
-        ),
+          tooltip: "Settings",
+        ),*/ //Settings??
       ],
     );
   }

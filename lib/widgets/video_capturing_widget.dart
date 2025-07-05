@@ -360,6 +360,7 @@ class _CameraStreamWidgetState extends State<CameraStreamWidget> {
         '-video_size ${widget.videoWidth}x${widget.videoHeight} '
         '-i "$videoInput" -c:v libx264 -preset ultrafast -crf 23 '
         '-pix_fmt yuv420p "$tempPath"'
+
         : '-f dshow -i video="$videoInput" '
         '-c:v libx264 -preset ultrafast -crf 23 '
         '-r ${widget.frameRate} "$tempPath"';
@@ -401,8 +402,27 @@ class _CameraStreamWidgetState extends State<CameraStreamWidget> {
 
   Future<void> _stopRecording() async {
     if (!_isRecording || _ffmpegSession == null) return;
-    await _ffmpegSession!.cancel();
-    print('Recording manually stopped.');
+
+    print('Stopping recording...');
+
+    // Update UI immediately - don't wait for FFmpeg to finish
+    setState(() {
+      _isRecording = false;
+    });
+
+    try {
+      final sessionToCancel = _ffmpegSession;
+      _ffmpegSession = null; // Clear reference immediately
+
+      // Cancel the session
+      await sessionToCancel!.cancel();
+      print('Recording cancelled successfully.');
+
+    } catch (e) {
+      print('Error stopping recording: $e');
+    }
+
+    print('Recording stop completed.');
   }
 
   Future<void> _saveRecordedFile(String tempFilePath) async {
