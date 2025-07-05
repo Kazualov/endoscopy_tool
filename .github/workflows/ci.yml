@@ -92,6 +92,8 @@ jobs:
           pip install -r requirements.txt
           pip install pytest pytest-cov
       - run: |
+          ls -la Integration_Tests/
+          
           export PYTHONPATH=$PYTHONPATH:$GITHUB_WORKSPACE
           pytest Integration_Tests/ \
             --cov=videoQueries \
