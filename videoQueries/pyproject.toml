@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "videoQueries"
+version = "0.1.0"
+description = "Python backend for endoscopy tool"
+dependencies = [
+    "Faker==37.4.0",
+    "fastapi==0.115.14",
+    "opencv-python==4.11.0.86",
+    "pydantic==2.11.7",
+    "sounddevice==0.5.2",
+    "SQLAlchemy==2.0.27",
+    "ultralytics==8.3.162",
+    "uvicorn==0.35.0",
+    "vosk==0.3.45"
+]
