@@ -97,10 +97,7 @@ async def upload_video_to_examination(
         raise HTTPException(status_code=404, detail="Осмотр не найден")
     existing_video = db.query(Video).filter(Video.examination_id == examination_id).first()
     if existing_video:
-            raise HTTPException(
-                status_code=400,
-                detail="Video already exists for this examination"
-            )
+        raise HTTPException(status_code=400, detail="Video already exists for this examination")
     base_path = Path(exam.folder_path)
     base_path.mkdir(parents=True, exist_ok=True)  # вдруг удалили
 
