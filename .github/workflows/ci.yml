@@ -80,8 +80,9 @@ jobs:
 
       - name: Download YOLO model
         run: |
-          cd videoQueries/Detection_model
-          curl -L -o best.pt https://example.com/path/to/your/best.pt
+          mkdir -p videoQueries/Detection_model
+          curl -L -o videoQueries/Detection_model/best.pt https://your-storage-url/best.pt
+
 
       
       - name: Download Vosk model
