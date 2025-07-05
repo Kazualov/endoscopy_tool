@@ -15,7 +15,8 @@ dependencies = [
     "SQLAlchemy==2.0.27",
     "ultralytics==8.3.162",
     "uvicorn==0.35.0",
-    "vosk==0.3.45"
+    "vosk==0.3.45",
+    "python-multipart==0.0.9"
 ]
 
 [tool.setuptools.packages.find]
