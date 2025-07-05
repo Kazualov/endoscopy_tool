@@ -17,3 +17,14 @@ dependencies = [
     "uvicorn==0.35.0",
     "vosk==0.3.45"
 ]
+
+[tool.setuptools.packages.find]
+namespaces = false
+include = [
+    "data",
+    "models",
+    "routers",
+    "schemas",
+    "services",
+    "Detection_model"
+]
