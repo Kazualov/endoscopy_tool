@@ -63,7 +63,7 @@ We adapted the **GitHub Flow** model with additional structure for code quality 
 
 Our project follows a **custom Gitflow-inspired workflow**, designed to maintain code stability, separate concerns, and streamline deployment.
 
-##### Main Branches
+##### 🌳 Main Branches
 - **`main`**  
   Contains only **stable, production-ready** code.  
   Merges occur only after thorough testing and successful deployment.
