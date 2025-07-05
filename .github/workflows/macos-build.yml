@@ -1,4 +1,4 @@
-name: Build macOS App with Python Backend
+name: MacOS full application
 
 on:
   workflow_dispatch:
@@ -27,7 +27,10 @@ jobs:
       - name: 🛠️ Build macOS app using PyInstaller
         working-directory: videoQueries
         run: |
-          pyinstaller main.py --onefile --windowed --distpath ../backend_dist
+          pyinstaller main.py --onefile --distpath ../backend_dist
+
+      - name: 🔧 Make executable
+        run: chmod +x backend_dist/main
 
       - name: 📤 Upload backend artifact
         uses: actions/upload-artifact@v4
@@ -74,6 +77,9 @@ jobs:
     needs: [build-backend, build-frontend]
 
     steps:
+      - name: 📂 Create directory structure
+        run: mkdir -p final_app/backend
+
       - name: 📥 Download backend
         uses: actions/download-artifact@v4
         with:
@@ -86,15 +92,29 @@ jobs:
           name: frontend-app
           path: final_app/
 
+      - name: 🔧 Ensure backend is executable
+        run: chmod +x final_app/backend/main
+
       - name: 📝 Create launcher script (.command)
         run: |
-          echo '#!/bin/bash' > final_app/start_app.command
-          echo 'echo "Starting backend..."' >> final_app/start_app.command
-          echo './backend/main &' >> final_app/start_app.command
-          echo 'sleep 2' >> final_app/start_app.command
-          echo 'echo "Starting frontend..."' >> final_app/start_app.command
-          echo 'open app.app' >> final_app/start_app.command
+          cat > final_app/start_app.command << 'EOF'
+          #!/bin/bash
+          cd "$(dirname "$0")"
+          echo "Starting backend..."
+          ./backend/main &
+          BACKEND_PID=$!
+          sleep 3
+          echo "Starting frontend..."
+          open *.app
+          echo "Application started. Backend PID: $BACKEND_PID"
+          echo "To stop the backend, run: kill $BACKEND_PID"
+          EOF
           chmod +x final_app/start_app.command
+
+      - name: 📋 List final app contents
+        run: |
+          echo "Final app structure:"
+          find final_app -type f -exec ls -la {} \;
 
       - name: 📤 Upload full macOS app
         uses: actions/upload-artifact@v4

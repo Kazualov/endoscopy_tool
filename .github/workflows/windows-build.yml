@@ -1,9 +1,9 @@
-name: Build Flutter App with Python Backend
+name: Windows full application
 
 on:
   workflow_dispatch:
   push:
-    branches: [main]
+    branches: [Temp]
 
 jobs:
   build-backend:
@@ -73,6 +73,10 @@ jobs:
     needs: [build-backend, build-frontend]
 
     steps:
+      - name: 📂 Create directory structure
+        run: mkdir final_build\backend
+        shell: cmd
+
       - name: 📥 Download backend artifact
         uses: actions/download-artifact@v4
         with:
@@ -85,17 +89,21 @@ jobs:
           name: frontend-build
           path: final_build/
 
-      - name: 📝 Create empty launcher script
-        run: echo @echo off > final_build/start_app.bat
+      - name: 📝 Create launcher script
+        run: |
+          echo @echo off > final_build\start_app.bat
+          echo echo Starting backend... >> final_build\start_app.bat
+          echo start "" backend\main.exe >> final_build\start_app.bat
+          echo timeout /t 3 /nobreak ^> nul >> final_build\start_app.bat
+          echo echo Starting frontend... >> final_build\start_app.bat
+          echo start "" *.exe >> final_build\start_app.bat
+          echo echo Application started successfully! >> final_build\start_app.bat
         shell: cmd
 
-      - name: ⏳ Append commands to launcher script
+      - name: 📋 List final build contents
         run: |
-          echo echo Starting backend... >> final_build/start_app.bat
-          echo start "" backend\main.exe >> final_build/start_app.bat
-          echo timeout /t 1 /nobreak >> final_build/start_app.bat
-          echo echo Starting frontend... >> final_build/start_app.bat
-          echo start "" app.exe >> final_build/start_app.bat
+          echo Final build structure:
+          dir final_build /s
         shell: cmd
 
       - name: 📦 Upload Final App Bundle
