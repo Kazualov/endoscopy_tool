@@ -101,7 +101,7 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
 
                 return Positioned(
                   left: markerLeftPosition,
-                  top: 8,
+                  top: 21,
                   child: GestureDetector(
                     onTap: () {
                       // Переходим к позиции скриншота
@@ -112,7 +112,7 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
                       width: 4,
                       height: 20,
                       decoration: BoxDecoration(
-                        color: Colors.yellow[700],
+                        color: Color(0xFF01a3a2),
                         borderRadius: BorderRadius.circular(2),
                         boxShadow: [
                           BoxShadow(
