@@ -77,7 +77,15 @@ jobs:
 
       - name: Install system dependencies
         run: sudo apt-get update && sudo apt-get install -y portaudio19-dev
-          
+
+      - name: Download Vosk model
+        run: |
+          cd videoQueries
+          curl -LO https://alphacephei.com/vosk/models/vosk-model-small-ru-0.22.zip
+          unzip vosk-model-small-ru-0.22.zip
+          rm vosk-model-small-ru-0.22.zip
+
+      
       - run: |
           cd videoQueries
           pip install -e .
