@@ -21,7 +21,7 @@ class DetectionBox {
   final double y2;
   final String label;
   final double confidence;
-  final DateTime timestamp;
+  final Duration timestamp; // Изменили DateTime на Duration
 
   DetectionBox({
     required this.x1,
@@ -34,15 +34,59 @@ class DetectionBox {
   });
 
   factory DetectionBox.fromJson(Map<String, dynamic> json) {
+    // Функция для преобразования временной метки в Duration
+    Duration parseTimestamp(dynamic timestamp) {
+      if (timestamp is int) {
+        return Duration(milliseconds: timestamp);
+      } else if (timestamp is double) {
+        return Duration(milliseconds: timestamp.toInt());
+      } else if (timestamp is String) {
+        try {
+          return Duration(milliseconds: int.parse(timestamp));
+        } catch (e) {
+          return Duration.zero;
+        }
+      } else {
+        return Duration.zero;
+      }
+    }
+
     return DetectionBox(
-      x1: json['x1']?.toDouble() ?? 0.0,
-      y1: json['y1']?.toDouble() ?? 0.0,
-      x2: json['x2']?.toDouble() ?? 0.0,
-      y2: json['y2']?.toDouble() ?? 0.0,
-      label: json['label'] ?? '',
-      confidence: json['confidence']?.toDouble() ?? 0.0,
-      timestamp: DateTime.now(),
+      x1: _toDouble(json['x1']),
+      y1: _toDouble(json['y1']),
+      x2: _toDouble(json['x2']),
+      y2: _toDouble(json['y2']),
+      label: json['label']?.toString() ?? '',
+      confidence: _toDouble(json['confidence']),
+      timestamp: parseTimestamp(json['timestamp']),
     );
+  }
+
+  static double _toDouble(dynamic value) {
+    if (value is double) return value;
+    if (value is int) return value.toDouble();
+    if (value is String) return double.tryParse(value) ?? 0.0;
+    return 0.0;
+  }
+
+  // Метод для преобразования в команду drawbox FFmpeg с точным временем
+  String toFFmpegDrawbox({double? startTime, double? endTime}) {
+    final width = x2 - x1;
+    final height = y2 - y1;
+    String filter = "drawbox=x=${x1.toInt()}:y=${y1.toInt()}:w=${width.toInt()}:h=${height.toInt()}:color=red@0.5:thickness=3";
+    if (startTime != null && endTime != null) {
+      filter += ":enable='between(t,$startTime,$endTime)'";
+    }
+    return filter;
+  }
+
+// Метод для создания текстового фильтра с точным временем
+  String toFFmpegDrawtext({double? startTime, double? endTime}) {
+    String filter = "drawtext=text='$label ${(confidence * 100).toInt()}%':x=${x1.toInt()}:y=${(y1 - 20).toInt()}:fontsize=16:fontcolor=red:box=1:boxcolor=white@0.8";
+    if (startTime != null && endTime != null) {
+      filter += ":enable='between(t,$startTime,$endTime)'";
+    }
+    return filter;
   }
 }
 
@@ -171,7 +215,9 @@ class _CameraStreamWidgetState extends State<CameraStreamWidget> {
   // Добавляем переменные для детекции
   WebSocketChannel? _webSocketChannel;
   List<DetectionBox> _currentDetections = [];
+  List<DetectionBox> _allDetections = [];
   bool _isDetectionEnabled = false;
+  DateTime? _recordingStartTime;
 
   @override
   void initState() {
@@ -192,42 +238,40 @@ class _CameraStreamWidgetState extends State<CameraStreamWidget> {
         Uri.parse('ws://127.0.0.1:8000/ws/camera/$examinationId'),
       );
 
-      _webSocketChannel!.stream.listen(
-            (message) {
-          try {
-            final data = jsonDecode(message);
-            final detections = data['detections'] as List<dynamic>? ?? [];
+      _webSocketChannel!.stream.listen((message) {
+        try {
+          final data = jsonDecode(message);
+          final detections = data['detections'] as List<dynamic>? ?? [];
 
-            setState(() {
-              _currentDetections = detections
-                  .map((det) => DetectionBox.fromJson(det))
-                  .toList();
-            });
+          final newDetections = detections
+              .map((det) => DetectionBox.fromJson(det))
+              .toList();
 
-            // Логируем детекции
-            for (var detection in _currentDetections) {
-              print('Detected: ${detection.label} with confidence ${detection.confidence}');
+          setState(() {
+            _currentDetections = newDetections;
+          });
+
+          // Сохраняем детекции с точным временем во время записи
+          if (_isRecording && _recordingStartTime != null) {
+            final currentTime = DateTime.now();
+            final relativeTime = currentTime.difference(_recordingStartTime!);
+
+            for (final detection in newDetections) {
+              final preciseDetection = DetectionBox(
+                x1: detection.x1,
+                y1: detection.y1,
+                x2: detection.x2,
+                y2: detection.y2,
+                label: detection.label,
+                confidence: detection.confidence,
+                timestamp: relativeTime, // Точное относительное время
+              );
+              _allDetections.add(preciseDetection);
             }
-          } catch (e) {
-            print('Error parsing detection data: $e');
           }
-        },
-        onDone: () {
-          print('WebSocket closed');
-          setState(() {
-            _currentDetections.clear();
-          });
-        },
-        onError: (error) {
-          print('WebSocket error: $error');
-          setState(() {
-            _currentDetections.clear();
-          });
-        },
-      );
-
-      setState(() {
-        _isDetectionEnabled = true;
+        } catch (e) {
+          print('Error parsing detection data: $e');
+        }
       });
     } catch (e) {
       print('Failed to connect to WebSocket: $e');
@@ -345,6 +389,11 @@ class _CameraStreamWidgetState extends State<CameraStreamWidget> {
     if (widget.startCaptured != null){
       widget.startCaptured!();
     }
+
+    // Сохраняем время начала записи
+    _recordingStartTime = DateTime.now();
+    _allDetections.clear(); // Очищаем предыдущие детекции
+
     final tempPath = await _getTempOutputFilePath();
     _outputPath = tempPath;
 
@@ -426,124 +475,329 @@ class _CameraStreamWidgetState extends State<CameraStreamWidget> {
   }
 
   Future<void> _saveRecordedFile(String tempFilePath) async {
-    String? saveDir = _defaultSaveFolder;
-
-    print('Trying to save: $tempFilePath');
-
-    if (!File(tempFilePath).existsSync()) {
-      print('❌ File does not exist: $tempFilePath');
-      return;
-    }
-
-    if (saveDir == null || saveDir.isEmpty) {
-      saveDir = await FilePicker.platform.getDirectoryPath();
-      if (saveDir == null) {
-        print('User cancelled folder selection.');
+    try {
+      // Проверяем существование файла
+      final tempFile = File(tempFilePath);
+      if (!await tempFile.exists()) {
+        print('❌ Temp file does not exist: $tempFilePath');
+        _showErrorSnackbar('Recording file not found');
         return;
       }
-      setState(() => _defaultSaveFolder = saveDir);
-      await _saveSettings();
-    }
 
-    final fileName = 'recording_${DateTime.now().millisecondsSinceEpoch}.mp4';
-    final destination = path.join(saveDir, fileName);
-
-    try {
-      await File(tempFilePath).copy(destination);
-      print('✅ Copied to: $destination');
-
-      if (widget.examinationId != null) {
-        print('📤 Uploading video to database...');
-
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Row(
-                children: [
-                  SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                    ),
-                  ),
-                  SizedBox(width: 10),
-                  Text('Uploading video to database...'),
-                ],
-              ),
-              backgroundColor: Colors.orange,
-              duration: Duration(seconds: 30),
-            ),
-          );
+      // Получаем директорию для сохранения
+      String? saveDir = _defaultSaveFolder;
+      if (saveDir == null || saveDir.isEmpty) {
+        saveDir = await FilePicker.platform.getDirectoryPath();
+        if (saveDir == null || saveDir.isEmpty) {
+          print('User cancelled folder selection');
+          return;
         }
-
-        try {
-          final videoId = await ApiService.uploadVideoToExamination(
-            widget.examinationId!,
-            destination,
-          );
-
-          if (videoId != null) {
-            print('✅ Video uploaded successfully with ID: $videoId');
-
-            if (mounted) {
-              ScaffoldMessenger.of(context).clearSnackBars();
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text('Video captured and uploaded successfully!'),
-                  backgroundColor: const Color(0xFF00ACAB),
-                  action: SnackBarAction(
-                    label: 'Open Folder',
-                    onPressed: () => _openFolder(saveDir!),
-                  ),
-                ),
-              );
-            }
-          } else {
-            print('❌ Failed to upload video to database');
-
-            if (mounted) {
-              ScaffoldMessenger.of(context).clearSnackBars();
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text('Video saved locally but failed to upload to database'),
-                  backgroundColor: Colors.orange,
-                ),
-              );
-            }
-          }
-        } catch (e) {
-          print('❌ Error uploading video: $e');
-
-          if (mounted) {
-            ScaffoldMessenger.of(context).clearSnackBars();
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('Video saved locally but upload failed: $e'),
-                backgroundColor: Colors.red,
-              ),
-            );
-          }
-        }
-      } else {
-        print("no ExamId");
+        await _prefs?.setString('default_save_folder', saveDir);
       }
 
-      if (widget.onVideoCaptured != null) {
-        widget.onVideoCaptured!(destination);
-      }
+      // Создаем имя файла
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
+      final fileName = 'recording_$timestamp.mp4';
+      final destination = path.join(saveDir, fileName);
 
+      // Копируем файл с обработкой детекций
+      try {
+        if (_allDetections.isNotEmpty) {
+          await _addDetectionsToVideo(tempFilePath, destination);
+        } else {
+          await tempFile.copy(destination);
+        }
+
+        print('✅ Video saved to: $destination');
+
+        // Загружаем видео на сервер, если есть examinationId
+        if (widget.examinationId != null) {
+          await _uploadVideoToServer(destination);
+        }
+
+        if (widget.onVideoCaptured != null) {
+          widget.onVideoCaptured!(destination);
+        }
+
+        _showSuccessSnackbar('Video saved successfully', saveDir);
+      } catch (e) {
+        print('❌ Error processing video: $e');
+        _showErrorSnackbar('Error processing video: $e');
+      }
     } catch (e) {
       print('❌ Failed to save recording: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to save recording: $e')),
-        );
-      }
+      _showErrorSnackbar('Failed to save recording: $e');
+    } finally {
+      _allDetections.clear();
     }
   }
 
+  void _showSuccessSnackbar(String message, String? directory) {
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.green,
+        action: directory != null ? SnackBarAction(
+          label: 'Open Folder',
+          onPressed: () => _openFolder(directory),
+        ) : null,
+      ),
+    );
+  }
+
+  void _showErrorSnackbar(String message) {
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.red,
+      ),
+    );
+  }
+
+  Future<void> _uploadVideoToServer(String filePath) async {
+    if (widget.examinationId == null) return;
+
+    try {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              CircularProgressIndicator(
+                strokeWidth: 2,
+                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+              ),
+              SizedBox(width: 10),
+              Text('Uploading video to server...'),
+            ],
+          ),
+          backgroundColor: Colors.orange,
+          duration: Duration(seconds: 30),
+        ),
+      );
+
+      final videoId = await ApiService.uploadVideoToExamination(
+        widget.examinationId!,
+        filePath,
+      );
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).clearSnackBars();
+
+      if (videoId != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Video uploaded successfully!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to upload video'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
+    } catch (e) {
+      print('❌ Error uploading video: $e');
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).clearSnackBars();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Upload error: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+
+// Основной метод для добавления детекций с точными временными метками
+  Future<void> _addDetectionsToVideo(String inputPath, String outputPath) async {
+    try {
+      if (_allDetections.isEmpty) {
+        await File(inputPath).copy(outputPath);
+        return;
+      }
+
+      print('Processing ${_allDetections.length} detections with precise timing...');
+
+      // Сортируем детекции по времени
+      _allDetections.sort((a, b) => a.timestamp.compareTo(b.timestamp));
+
+      // Рассчитываем продолжительность показа каждой детекции
+      // Если детекции приходят каждые 3 кадра при 30 FPS, то это каждые 0.1 секунды
+      final detectionDuration = 3.0 / widget.frameRate; // ~0.1 секунды для 30 FPS
+
+      final allFilters = <String>[];
+
+      // Создаем фильтры для каждой детекции с точным временем
+      for (final detection in _allDetections) {
+        final startTime = detection.timestamp.inMilliseconds / 1000.0;
+        final endTime = startTime + detectionDuration;
+
+        // Drawbox фильтр
+        allFilters.add(detection.toFFmpegDrawbox(startTime: startTime, endTime: endTime));
+        // Drawtext фильтр
+        allFilters.add(detection.toFFmpegDrawtext(startTime: startTime, endTime: endTime));
+      }
+
+      final filterComplex = allFilters.join(',');
+      final command = '-i "$inputPath" -vf "$filterComplex" -c:v libx264 -preset ultrafast -crf 23 -c:a copy "$outputPath"';
+
+      print('Running FFmpeg command with ${allFilters.length} filters');
+      print('Detection duration: ${detectionDuration}s');
+
+      final session = await FFmpegKit.execute(command);
+      final returnCode = await session.getReturnCode();
+
+      if (ReturnCode.isSuccess(returnCode)) {
+        print('✅ Video with precise detections processed successfully');
+      } else {
+        final logs = await session.getFailStackTrace();
+        print('❌ FFmpeg error (code ${returnCode?.getValue()}): $logs');
+
+        // Fallback: try without text labels
+        await _addDetectionsToVideoBoxesOnly(inputPath, outputPath);
+      }
+    } catch (e) {
+      print('❌ Error in precise FFmpeg processing: $e');
+      await File(inputPath).copy(outputPath);
+      rethrow;
+    }
+  }
+
+// Метод только с прямоугольниками (без текста) с точным временем
+  Future<void> _addDetectionsToVideoBoxesOnly(String inputPath, String outputPath) async {
+    try {
+      print('Trying boxes-only approach with precise timing...');
+
+      final detectionDuration = 3.0 / widget.frameRate;
+      final boxFilters = <String>[];
+
+      // Создаем только drawbox фильтры с точным временем
+      for (final detection in _allDetections) {
+        final startTime = detection.timestamp.inMilliseconds / 1000.0;
+        final endTime = startTime + detectionDuration;
+
+        boxFilters.add(detection.toFFmpegDrawbox(startTime: startTime, endTime: endTime));
+      }
+
+      final filterComplex = boxFilters.join(',');
+      final command = '-i "$inputPath" -vf "$filterComplex" -c:v libx264 -preset ultrafast -crf 23 -c:a copy "$outputPath"';
+
+      print('Running boxes-only FFmpeg command with precise timing');
+
+      final session = await FFmpegKit.execute(command);
+      final returnCode = await session.getReturnCode();
+
+      if (ReturnCode.isSuccess(returnCode)) {
+        print('✅ Video with precise detection boxes processed successfully');
+      } else {
+        final logs = await session.getFailStackTrace();
+        print('❌ Boxes-only FFmpeg error (code ${returnCode?.getValue()}): $logs');
+
+        // Final fallback: save without detections
+        await File(inputPath).copy(outputPath);
+      }
+    } catch (e) {
+      print('❌ Error in boxes-only processing: $e');
+      await File(inputPath).copy(outputPath);
+      rethrow;
+    }
+  }
+
+// Альтернативный подход: группировка близких по времени детекций
+  Future<void> _addDetectionsToVideoGrouped(String inputPath, String outputPath) async {
+    try {
+      if (_allDetections.isEmpty) {
+        await File(inputPath).copy(outputPath);
+        return;
+      }
+
+      print('Processing ${_allDetections.length} detections with grouped approach...');
+
+      // Группируем детекции по временным интервалам (каждые 100мс)
+      final detectionGroups = <int, List<DetectionBox>>{};
+      final groupInterval = 100; // 100 миллисекунд
+
+      for (final detection in _allDetections) {
+        final groupKey = (detection.timestamp.inMilliseconds / groupInterval).floor();
+        detectionGroups.putIfAbsent(groupKey, () => []).add(detection);
+      }
+
+      final allFilters = <String>[];
+
+      // Создаем фильтры для каждой группы
+      for (final entry in detectionGroups.entries) {
+        final groupKey = entry.key;
+        final detections = entry.value;
+
+        final startTime = (groupKey * groupInterval) / 1000.0;
+        final endTime = startTime + (groupInterval / 1000.0);
+
+        for (final detection in detections) {
+          // Drawbox фильтр
+          allFilters.add(detection.toFFmpegDrawbox(startTime: startTime, endTime: endTime));
+          // Drawtext фильтр
+          allFilters.add(detection.toFFmpegDrawtext(startTime: startTime, endTime: endTime));
+        }
+      }
+
+      final filterComplex = allFilters.join(',');
+      final command = '-i "$inputPath" -vf "$filterComplex" -c:v libx264 -preset ultrafast -crf 23 -c:a copy "$outputPath"';
+
+      print('Running FFmpeg command with grouped approach (${detectionGroups.length} groups)');
+
+      final session = await FFmpegKit.execute(command);
+      final returnCode = await session.getReturnCode();
+
+      if (ReturnCode.isSuccess(returnCode)) {
+        print('✅ Video with grouped detections processed successfully');
+      } else {
+        final logs = await session.getFailStackTrace();
+        print('❌ Grouped FFmpeg error (code ${returnCode?.getValue()}): $logs');
+
+        // Final fallback: save without detections
+        await File(inputPath).copy(outputPath);
+      }
+    } catch (e) {
+      print('❌ Error in grouped processing: $e');
+      await File(inputPath).copy(outputPath);
+      rethrow;
+    }
+  }
+
+// Метод для улучшения точности временных меток при записи
+  void _recordDetectionWithPreciseTime(DetectionBox detection) {
+    // Получаем текущее время записи относительно начала
+    final recordingStart = _recordingStartTime; // Нужно добавить эту переменную
+    final currentTime = DateTime.now();
+    final relativeTime = currentTime.difference(recordingStart!);
+
+    // Создаем детекцию с точным временем
+    final preciseDetection = DetectionBox(
+      x1: detection.x1,
+      y1: detection.y1,
+      x2: detection.x2,
+      y2: detection.y2,
+      label: detection.label,
+      confidence: detection.confidence,
+      timestamp: relativeTime, // Используем относительное время
+    );
+
+    if (_isRecording) {
+      _allDetections.add(preciseDetection);
+    }
+  }
   Future<void> _openFolder(String folderPath) async {
     try {
       if (Platform.isWindows) {
