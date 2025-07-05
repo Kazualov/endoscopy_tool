@@ -1,5 +1,6 @@
 import uuid
 from conftest import client
+from pathlib import Path
 #We check that the API returns the correct response when creating an inspection
 def test_create_examination_success(client):
     #Creation of a patient preliminary
@@ -46,11 +47,13 @@ def test_upload_video_twice(client):
     patient_id = client.post("/patients/", json={"id": "229299292"}).json()
     exam = client.post("/examinations/", json={"patient_id": patient_id, "description": "Repeat test"}).json()
 
-    with open("/Integration_Tests/sample.mp4", "rb") as f:
+    test_files_dir = Path(__file__).parent / "test_files"
+    with open(test_files_dir / "sample.mp4", "rb") as f:
         files = {"file": ("sample.mp4", f, "video/mp4")}
         client.post(f"/examinations/{exam['id']}/video/", files=files)
 
-    with open("/Integration_Tests/sample.mp4", "rb") as f:
+    test_files_dir = Path(__file__).parent / "test_files"
+    with open(test_files_dir / "sample.mp4", "rb") as f:
         files = {"file": ("sample.mp4", f, "video/mp4")}
         response = client.post(f"/examinations/{exam['id']}/video/", files=files)
 
