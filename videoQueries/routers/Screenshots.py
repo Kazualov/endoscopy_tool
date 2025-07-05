@@ -5,7 +5,7 @@ from typing import List
 import io
 import zipfile
 from fastapi.responses import StreamingResponse
-from fastapi import APIRouter, UploadFile, File, Depends, HTTPException, status, Form
+from fastapi import APIRouter, UploadFile, File, Depends, HTTPException, status
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 import json
@@ -22,17 +22,6 @@ def get_db():
     finally:
         db.close()
 
-def parse_timestamp_to_seconds(timestamp: str) -> int:
-    parts = list(map(int, timestamp.strip().split(":")))
-    if len(parts) == 2:
-        minutes, seconds = parts
-        return minutes * 60 + seconds
-    elif len(parts) == 3:
-        hours, minutes, seconds = parts
-        return hours * 3600 + minutes * 60 + seconds
-    else:
-        raise ValueError(f"Invalid timestamp format: {timestamp}")
-
 
 router = APIRouter()
 
@@ -43,7 +32,6 @@ os.makedirs(SCREENSHOT_DIR, exist_ok=True)
 @router.post("/exams/{exam_id}/upload_screenshot/")
 async def upload_screenshot(
     exam_id: str,
-    timestamp_in_video: str = Form(...),
     file: UploadFile = File(...),
     db: Session = Depends(get_db)
 ):
@@ -56,9 +44,7 @@ async def upload_screenshot(
     screenshot = Screenshot(
         exam_id=exam_id,
         filename=file.filename,
-        file_path="",
-        timestamp_in_video=timestamp_in_video,
-        timestamp_in_seconds=parse_timestamp_to_seconds(timestamp_in_video)
+        file_path=""
     )
     db.add(screenshot)
     db.flush()  # Получаем ID скриншота до коммита
@@ -91,6 +77,7 @@ async def upload_screenshot(
         raise HTTPException(status_code=500, detail=f"Ошибка при сохранении скриншота: {e}")
 
 
+
 @router.get("/exams/{exam_id}/screenshots", response_model=List[ScreenshotResponse])
 def get_screenshots(exam_id: str, db: Session = Depends(get_db)):
     exam = db.query(Examination).filter(Examination.id == exam_id).first()
@@ -100,7 +87,7 @@ def get_screenshots(exam_id: str, db: Session = Depends(get_db)):
     screenshots = (
         db.query(Screenshot)
         .filter(Screenshot.exam_id == exam_id)
-        .order_by(Screenshot.timestamp_in_seconds)
+        .order_by(Screenshot.timestamp_in_video)
         .all()
     )
 
@@ -113,7 +100,6 @@ def get_screenshots(exam_id: str, db: Session = Depends(get_db)):
                 "filename": shot.filename,
                 "file_path": shot.file_path,
                 "timestamp_in_video": shot.timestamp_in_video,
-                "created_at": shot.created_at,
                 "annotated_filename": shot.annotated_filename,
                 "annotated_file_path": shot.annotated_file_path,
             })
@@ -121,23 +107,6 @@ def get_screenshots(exam_id: str, db: Session = Depends(get_db)):
     return result
 
 
-@router.get("/screenshots/{screenshot_id}", response_model=ScreenshotResponse)
-def get_screenshot_info(screenshot_id: str, db: Session = Depends(get_db)):
-    screenshot = db.query(Screenshot).filter(Screenshot.id == screenshot_id).first()
-
-    if not screenshot or not os.path.exists(screenshot.file_path):
-        raise HTTPException(status_code=404, detail="Скриншот не найден")
-
-    return {
-        "screenshot_id": screenshot.id,
-        "exam_id": screenshot.exam_id,
-        "filename": screenshot.filename,
-        "file_path": screenshot.file_path,
-        "timestamp_in_video": screenshot.timestamp_in_video,
-        "created_at": screenshot.created_at,
-        "annotated_filename": screenshot.annotated_filename,
-        "annotated_file_path": screenshot.annotated_file_path,
-    }
 
 @router.get("/screenshots/{screenshot_id}/file")
 def get_screenshot_file(screenshot_id: int, db: Session = Depends(get_db)):

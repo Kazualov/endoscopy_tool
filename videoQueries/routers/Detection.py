@@ -1,8 +1,7 @@
-from fastapi import FastAPI, WebSocket, Depends, HTTPException
-from pathlib import Path
+import shutil
+from fastapi import FastAPI, WebSocket, Depends, HTTPException, File, UploadFile
 from fastapi import APIRouter, Query
 from videoQueries.models.Detection import Detection
-from videoQueries.models.Examination import Examination
 from ultralytics import YOLO
 from videoQueries.database import get_db
 import cv2
@@ -11,6 +10,11 @@ import time
 from sqlalchemy.orm import Session
 import asyncio
 from videoQueries.schemas.Detection import DetectionResponse
+from fastapi.responses import FileResponse
+import os
+import uuid
+
+
 
 router = APIRouter()
 
@@ -63,42 +67,44 @@ async def websocket_endpoint(websocket: WebSocket, examination_id: str, db: Sess
     finally:
         cap.release()
 
-@router.post("/examinations/{examination_id}/process_video/", response_model=dict)
+
+@router.post("/process_video/{examination_id}")
 async def process_video(
-    examination_id: str,
-    video_path: str = Query(...),
-    db: Session = Depends(get_db)
+        examination_id: str,
+        video_file: UploadFile = File(...),
+        db: Session = Depends(get_db)
 ):
-    # Проверка существования осмотра
-    exam = db.query(Examination).filter(Examination.id == examination_id).first()
-    if not exam:
-        raise HTTPException(status_code=404, detail="Осмотр не найден")
+    # Подготовка путей
+    storage_dir = f"examinations_storage/{examination_id}"
+    os.makedirs(storage_dir, exist_ok=True)
 
-    # Открытие видео
-    cap = cv2.VideoCapture(video_path)
+    input_path = os.path.join(storage_dir, f"input_{uuid.uuid4().hex}.mp4")
+    output_path = os.path.join(storage_dir, f"annotated_{uuid.uuid4().hex}.mp4")
+
+    # Сохраняем входное видео
+    with open(input_path, "wb") as f:
+        shutil.copyfileobj(video_file.file, f)
+
+    # Открываем видео
+    cap = cv2.VideoCapture(input_path)
     if not cap.isOpened():
-        raise HTTPException(status_code=400, detail="Не получается открыть видео")
+        raise RuntimeError(f"Could not open video file at {input_path}")
 
-    fps = cap.get(cv2.CAP_PROP_FPS)
+    # Видео параметры
     width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
     height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+    fps = cap.get(cv2.CAP_PROP_FPS) or 25
+    writer = cv2.VideoWriter(output_path, cv2.VideoWriter_fourcc(*'mp4v'), fps, (width, height))
 
-    # Подготовка выходного видео
-    input_stem = Path(video_path).stem  # Без расширения
-    output_filename = f"{input_stem}_detection.mp4"
-    output_path = Path(exam.folder_path) / output_filename
-
-    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-    out = cv2.VideoWriter(str(output_path), fourcc, fps, (width, height))
-
-    start_time = time.time()
     all_detections = []
+    start_time = time.time()
 
     while True:
         ret, frame = cap.read()
         if not ret:
             break
 
+        # Инференс
         results = model(frame)[0]
         current_time = time.time() - start_time
 
@@ -107,14 +113,6 @@ async def process_video(
             cls = int(box.cls[0])
             label = model.names[cls]
             conf = float(box.conf[0])
-
-            # Рисуем прямоугольник и подпись
-            cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
-            cv2.putText(
-                frame, f"{label} {conf:.2f}",
-                (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5,
-                (0, 255, 0), 2
-            )
 
             # Сохраняем в БД
             db_detection = Detection(
@@ -126,28 +124,18 @@ async def process_video(
             )
             db.add(db_detection)
 
-            all_detections.append({
-               "examination_id": examination_id,
-                "x1": x1, "y1": y1, "x2": x2, "y2": y2,
-                "label": label, "confidence": conf,
-                "timestamp": current_time
-            })
+            # Рисуем на кадре
+            cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
+            cv2.putText(frame, f"{label} {conf:.2f}", (x1, y1 - 10),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
 
-        # Сохраняем кадр с аннотациями в видео
-        out.write(frame)
-
-    # Завершаем работу
-    cap.release()
-    out.release()
+    # Завершение
     db.commit()
-    response_detections = [
-        DetectionResponse(**d) for d in all_detections
-    ]
-    return {
-        "annotated_video_filename": output_filename,
-        "annotated_video_path": str(output_path),
-        "detections": all_detections
-    }
+    cap.release()
+    writer.release()
+
+    return FileResponse(path=output_path, media_type="video/mp4", filename="annotated.mp4")
+
 
 
 @router.get("/examinations/{examination_id}/detections", response_model=List[DetectionResponse])

@@ -17,7 +17,7 @@ import 'package:vector_math/vector_math_64.dart' hide Colors;
 //  • Zoom & Pan support
 // ──────────────────────────────────────────────────────────────────────
 
-enum Tool { rect, pen, eraser, select }
+enum Tool { rect, pen, eraser, select, circle, arrow }
 enum EraserMode { pixel, shape }
 
 // Handle types for rectangle resizing
@@ -325,6 +325,264 @@ class _PathMark extends _Mark {
   }
 }
 
+class _CircleMark extends _Mark {
+  Rect rect; // Используем rect для определения границ круга
+
+  _CircleMark(this.rect, Color c, double strokeWidth) : super(c, strokeWidth);
+
+  @override
+  void draw(Canvas canvas) {
+    final center = rect.center;
+    final radius = (rect.width < rect.height ? rect.width : rect.height) / 2;
+    canvas.drawCircle(center, radius, paint);
+  }
+
+  @override
+  void drawSelection(Canvas canvas) {
+    if (!selected) return;
+
+    // Draw selection border
+    final selectionPaint = Paint()
+      ..color = Colors.blue
+      ..strokeWidth = 2
+      ..style = PaintingStyle.stroke;
+    canvas.drawRect(rect.inflate(5), selectionPaint);
+
+    // Draw resize handles
+    final handles = getResizeHandles();
+    final handlePaint = Paint()
+      ..color = Colors.blue
+      ..style = PaintingStyle.fill;
+
+    for (final handle in handles) {
+      canvas.drawRect(handle.rect, handlePaint);
+    }
+  }
+
+  @override
+  bool hit(Offset p) {
+    final center = rect.center;
+    final radius = (rect.width < rect.height ? rect.width : rect.height) / 2;
+    final distance = (p - center).distance;
+    const tolerance = 8.0;
+    return (distance >= radius - tolerance && distance <= radius + tolerance);
+  }
+
+  @override
+  _Mark? erasePixel(Offset point, double radius) {
+    return hit(point) ? null : this;
+  }
+
+  @override
+  void move(Offset delta) {
+    rect = rect.translate(delta.dx, delta.dy);
+  }
+
+  @override
+  Rect getBounds() => rect;
+
+  @override
+  List<ResizeHandle> getResizeHandles() {
+    const handleSize = 8.0;
+    final handles = <ResizeHandle>[];
+
+    // Corner handles
+    handles.add(ResizeHandle(
+        Rect.fromCenter(center: rect.topLeft, width: handleSize, height: handleSize),
+        HandleType.topLeft
+    ));
+    handles.add(ResizeHandle(
+        Rect.fromCenter(center: rect.topRight, width: handleSize, height: handleSize),
+        HandleType.topRight
+    ));
+    handles.add(ResizeHandle(
+        Rect.fromCenter(center: rect.bottomLeft, width: handleSize, height: handleSize),
+        HandleType.bottomLeft
+    ));
+    handles.add(ResizeHandle(
+        Rect.fromCenter(center: rect.bottomRight, width: handleSize, height: handleSize),
+        HandleType.bottomRight
+    ));
+
+    return handles;
+  }
+
+  @override
+  void resize(HandleType handle, Offset newPosition) {
+    switch (handle) {
+      case HandleType.topLeft:
+        rect = Rect.fromLTRB(newPosition.dx, newPosition.dy, rect.right, rect.bottom);
+        break;
+      case HandleType.topRight:
+        rect = Rect.fromLTRB(rect.left, newPosition.dy, newPosition.dx, rect.bottom);
+        break;
+      case HandleType.bottomLeft:
+        rect = Rect.fromLTRB(newPosition.dx, rect.top, rect.right, newPosition.dy);
+        break;
+      case HandleType.bottomRight:
+        rect = Rect.fromLTRB(rect.left, rect.top, newPosition.dx, newPosition.dy);
+        break;
+      default:
+      // Круг не поддерживает изменение размера по краям
+        break;
+    }
+  }
+}
+
+// 3. Добавьте новый класс для стрелки
+class _ArrowMark extends _Mark {
+  Offset start;
+  Offset end;
+
+  _ArrowMark(this.start, this.end, Color c, double strokeWidth) : super(c, strokeWidth);
+
+  @override
+  void draw(Canvas canvas) {
+    // Рисуем линию
+    canvas.drawLine(start, end, paint);
+
+    // Рисуем наконечник стрелки
+    _drawArrowHead(canvas);
+  }
+
+  void _drawArrowHead(Canvas canvas) {
+    final arrowPaint = Paint()
+      ..color = paint.color
+      ..strokeWidth = paint.strokeWidth
+      ..style = PaintingStyle.fill;
+
+    // Вычисляем направление стрелки
+    final direction = end - start;
+    final length = direction.distance;
+
+    if (length == 0) return;
+
+    final unitVector = direction / length;
+    final arrowLength = 20.0;
+    final arrowAngle = 0.5; // радианы
+
+    // Точки для наконечника стрелки
+    final arrowBack = end - unitVector * arrowLength;
+    final perpendicular = Offset(-unitVector.dy, unitVector.dx);
+
+    final arrowPoint1 = arrowBack + perpendicular * arrowLength * 0.3;
+    final arrowPoint2 = arrowBack - perpendicular * arrowLength * 0.3;
+
+    // Рисуем наконечник
+    final arrowPath = Path()
+      ..moveTo(end.dx, end.dy)
+      ..lineTo(arrowPoint1.dx, arrowPoint1.dy)
+      ..lineTo(arrowPoint2.dx, arrowPoint2.dy)
+      ..close();
+
+    canvas.drawPath(arrowPath, arrowPaint);
+  }
+
+  @override
+  void drawSelection(Canvas canvas) {
+    if (!selected) return;
+
+    // Draw selection border around arrow bounds
+    final bounds = getBounds();
+    final selectionPaint = Paint()
+      ..color = Colors.blue
+      ..strokeWidth = 2
+      ..style = PaintingStyle.stroke;
+    canvas.drawRect(bounds.inflate(5), selectionPaint);
+
+    // Draw handles at start and end
+    final handlePaint = Paint()
+      ..color = Colors.blue
+      ..style = PaintingStyle.fill;
+
+    const handleSize = 8.0;
+    canvas.drawRect(
+        Rect.fromCenter(center: start, width: handleSize, height: handleSize),
+        handlePaint
+    );
+    canvas.drawRect(
+        Rect.fromCenter(center: end, width: handleSize, height: handleSize),
+        handlePaint
+    );
+  }
+
+  @override
+  bool hit(Offset p) {
+    const tolerance = 12.0;
+    return _distanceToLineSegment(p, start, end) < tolerance;
+  }
+
+  @override
+  _Mark? erasePixel(Offset point, double radius) {
+    return hit(point) ? null : this;
+  }
+
+  @override
+  void move(Offset delta) {
+    start = start + delta;
+    end = end + delta;
+  }
+
+  @override
+  Rect getBounds() {
+    return Rect.fromPoints(start, end);
+  }
+
+  @override
+  List<ResizeHandle> getResizeHandles() {
+    const handleSize = 8.0;
+    return [
+      ResizeHandle(
+          Rect.fromCenter(center: start, width: handleSize, height: handleSize),
+          HandleType.topLeft // Используем как start point
+      ),
+      ResizeHandle(
+          Rect.fromCenter(center: end, width: handleSize, height: handleSize),
+          HandleType.bottomRight // Используем как end point
+      ),
+    ];
+  }
+
+  @override
+  void resize(HandleType handle, Offset newPosition) {
+    switch (handle) {
+      case HandleType.topLeft:
+        start = newPosition;
+        break;
+      case HandleType.bottomRight:
+        end = newPosition;
+        break;
+      default:
+        break;
+    }
+  }
+
+  double _distanceToLineSegment(Offset point, Offset start, Offset end) {
+    final A = point.dx - start.dx;
+    final B = point.dy - start.dy;
+    final C = end.dx - start.dx;
+    final D = end.dy - start.dy;
+
+    final dot = A * C + B * D;
+    final lenSq = C * C + D * D;
+
+    if (lenSq == 0) return (point - start).distance;
+
+    final param = dot / lenSq;
+
+    Offset projection;
+    if (param < 0) {
+      projection = start;
+    } else if (param > 1) {
+      projection = end;
+    } else {
+      projection = Offset(start.dx + param * C, start.dy + param * D);
+    }
+
+    return (point - projection).distance;
+  }
+}
+
 class ScreenshotEditor extends StatefulWidget {
   final ImageProvider screenshot;
   final List<ImageProvider> otherScreenshots;
@@ -367,6 +625,9 @@ class ScreenshotEditorState extends State<ScreenshotEditor> with TickerProviderS
   bool _isResizing = false;
   HandleType? _resizeHandle;
   Offset? _dragStart;
+  Offset? _circleStart;
+  Offset? _arrowStart;
+  Offset? _draftArrowEnd;
 
   // Transform controls
   late TransformationController _transformController;
@@ -583,72 +844,86 @@ class ScreenshotEditorState extends State<ScreenshotEditor> with TickerProviderS
 
 // ───────────────── Left sidebar ─────────────────
   Widget _buildLeft(ThemeData t) {
-    const icons = [Icons.crop_square, Icons.edit, Icons.auto_fix_off, Icons.near_me];
+    const icons = [
+      Icons.crop_square,
+      Icons.edit,
+      Icons.auto_fix_off,
+      Icons.near_me,
+      Icons.circle_outlined,
+      Icons.arrow_forward,
+    ];
+
     return Container(
-      width: 72,
-      padding: const EdgeInsets.symmetric(vertical: 12),
+      width: 120, // Увеличенная ширина
+      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
       decoration: BoxDecoration(
         color: t.colorScheme.surface,
         borderRadius: const BorderRadius.horizontal(right: Radius.circular(24)),
-        boxShadow: const [BoxShadow(blurRadius: 8, offset: Offset(0, 2), color: Colors.black26)],
+        boxShadow: const [
+          BoxShadow(blurRadius: 8, offset: Offset(0, 2), color: Colors.black26),
+        ],
       ),
       child: Column(
         children: [
           const SizedBox(height: 48),
-          for (int i = 0; i < icons.length; ++i)
-            GestureDetector(
-              onDoubleTap: i == 2 ? _toggleEraserMode : null,
-              child: _ToolBtn(
-                icon: icons[i],
-                active: _tool.index == i,
-                onTap: () => setState(() => _tool = Tool.values[i]),
-                subtitle: i == 2 && _tool == Tool.eraser
-                    ? (_eraserMode == EraserMode.shape ? 'Shape' : 'Pixel')
-                    : null,
-              ),
-            ),
-          const SizedBox(height: 12),
 
-          // Укороченный слайдер ширины
-          SizedBox(
-             // ограничение по высоте
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text('Width', style: TextStyle(fontSize: 10, color: t.textTheme.bodySmall?.color)),
-                RotatedBox(
-                  quarterTurns: 3,
-                  child: SliderTheme(
-                    data: SliderTheme.of(context).copyWith(
-                      trackHeight: 1.5,
-                      thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 5),
-                      overlayShape: const RoundSliderOverlayShape(overlayRadius: 10),
-                    ),
-                    child: Slider(
-                      value: _strokeWidth,
-                      min: 1.0,
-                      max: 4.0,
-                      divisions: 4,
-                      onChanged: (value) => setState(() => _strokeWidth = value),
-                    ),
+          // Инструменты: 2 в ряд
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: List.generate(icons.length, (i) {
+              return GestureDetector(
+                onDoubleTap: i == 2 ? _toggleEraserMode : null,
+                child: _ToolBtn(
+                  icon: icons[i],
+                  active: _tool.index == i,
+                  onTap: () => setState(() => _tool = Tool.values[i]),
+                  subtitle: i == 2 && _tool == Tool.eraser
+                      ? (_eraserMode == EraserMode.shape ? 'Shape' : 'Pixel')
+                      : null,
+                ),
+              );
+            }),
+          ),
+
+          const SizedBox(height: 16),
+
+          // Толщина
+          Column(
+            children: [
+              Text('Width', style: TextStyle(fontSize: 10, color: t.textTheme.bodySmall?.color)),
+              RotatedBox(
+                quarterTurns: 3,
+                child: SliderTheme(
+                  data: SliderTheme.of(context).copyWith(
+                    trackHeight: 1.5,
+                    thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 5),
+                    overlayShape: const RoundSliderOverlayShape(overlayRadius: 10),
+                  ),
+                  child: Slider(
+                    value: _strokeWidth,
+                    min: 1.0,
+                    max: 4.0,
+                    divisions: 4,
+                    onChanged: (value) => setState(() => _strokeWidth = value),
                   ),
                 ),
-                Text('${_strokeWidth.round()}', style: const TextStyle(fontSize: 10)),
-              ],
-            ),
+              ),
+              Text('${_strokeWidth.round()}', style: const TextStyle(fontSize: 10)),
+            ],
           ),
 
           const SizedBox(height: 12),
 
-          // Палитра — выбранный цвет больше
+          // Палитра
           ...List.generate(_colors.length, (i) {
             final isSelected = i == _colorIx;
             return GestureDetector(
               onTap: () => setState(() => _colorIx = i),
               child: Container(
                 margin: const EdgeInsets.symmetric(vertical: 3),
-                width: isSelected ? 32 : 20,
-                height: isSelected ? 32 :20,
+                width: isSelected ? 45 : 32,
+                height: isSelected ? 45 : 32,
                 decoration: BoxDecoration(
                   color: _colors[i],
                   shape: BoxShape.circle,
@@ -663,20 +938,23 @@ class ScreenshotEditorState extends State<ScreenshotEditor> with TickerProviderS
 
           const Spacer(),
 
-          _ToolBtn(
-            icon: Icons.zoom_out_map,
-            onTap: _resetZoom,
-            subtitle: 'Reset',
-          ),
-          const SizedBox(height: 8),
+          _ToolBtn(icon: Icons.zoom_out_map, onTap: _resetZoom, subtitle: 'Reset'),
 
-          // Undo и Redo снова друг под другом
-          _ToolBtn(icon: Icons.undo, onTap: _onUndo),
-          _ToolBtn(icon: Icons.redo, onTap: _onRedo),
+          // Нижние кнопки в ряд
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              _ToolBtn(icon: Icons.undo, onTap: _onUndo),
+              _ToolBtn(icon: Icons.redo, onTap: _onRedo),
+            ],
+          ),
+
+          const SizedBox(height: 8),
         ],
       ),
     );
   }
+
 
 
   // ───────────────── Stage ─────────────────
@@ -710,6 +988,13 @@ class ScreenshotEditorState extends State<ScreenshotEditor> with TickerProviderS
                           break;
                         case Tool.eraser:
                           _eraseAt(imagePoint);
+                          break;
+                        case Tool.circle:  // Добавлено
+                          _circleStart = imagePoint;
+                          _draftRect = Rect.fromPoints(imagePoint, imagePoint);
+                          break;
+                        case Tool.arrow:   // Добавлено
+                          _arrowStart = imagePoint;
                           break;
                         case Tool.select:
                         // Check for resize handle first
@@ -748,6 +1033,17 @@ class ScreenshotEditorState extends State<ScreenshotEditor> with TickerProviderS
                               _draftRect = Rect.fromPoints(_rectStart!, imagePoint);
                             }
                             break;
+                          case Tool.circle:  // Добавлено
+                            if (_circleStart != null) {
+                              _draftRect = Rect.fromPoints(_circleStart!, imagePoint);
+                            }
+                            break;
+                          case Tool.arrow:   // Добавлено
+                            if (_arrowStart != null) {
+                              // Сохраняем конечную точку для рисования стрелки
+                              _draftArrowEnd = imagePoint;
+                            }
+                            break;
                           case Tool.pen:
                             _draftPoints.add(imagePoint);
                             _draftPath!.lineTo(imagePoint.dx, imagePoint.dy);
@@ -768,10 +1064,17 @@ class ScreenshotEditorState extends State<ScreenshotEditor> with TickerProviderS
                       });
                     },
                     onPanEnd: (_) {
-                      if (_draftRect != null || _draftPath != null) {
+                      if (_draftRect != null || _draftPath != null || _arrowStart != null) {
                         _pushUndo();
                         if (_draftRect != null) {
-                          _marks.add(_RectMark(_draftRect!, _currentColor, _strokeWidth));
+                          if (_tool == Tool.rect) {
+                            _marks.add(_RectMark(_draftRect!, _currentColor, _strokeWidth));
+                          } else if (_tool == Tool.circle) {
+                            _marks.add(_CircleMark(_draftRect!, _currentColor, _strokeWidth));
+                          }
+                        }
+                        if (_arrowStart != null && _draftArrowEnd != null) {
+                          _marks.add(_ArrowMark(_arrowStart!, _draftArrowEnd!, _currentColor, _strokeWidth));
                         }
                         if (_draftPath != null && _draftPoints.length > 1) {
                           _marks.add(_PathMark(_draftPath!, _currentColor, _strokeWidth, List.of(_draftPoints)));
@@ -783,6 +1086,9 @@ class ScreenshotEditorState extends State<ScreenshotEditor> with TickerProviderS
                       _draftPath = null;
                       _draftPoints.clear();
                       _rectStart = null;
+                      _circleStart = null;    // Добавлено
+                      _arrowStart = null;     // Добавлено
+                      _draftArrowEnd = null;  // Добавлено
                       _isDragging = false;
                       _isResizing = false;
                       _resizeHandle = null;
@@ -801,6 +1107,9 @@ class ScreenshotEditorState extends State<ScreenshotEditor> with TickerProviderS
                           ..style = PaintingStyle.stroke
                           ..strokeCap = StrokeCap.round,
                         eraserMode: _tool == Tool.eraser ? _eraserMode : null,
+                        currentTool: _tool,              // Добавлено
+                        draftArrowStart: _arrowStart,    // Добавлено
+                        draftArrowEnd: _draftArrowEnd,   // Добавлено
                       ),
                     ),
                   );
@@ -849,6 +1158,9 @@ class _StagePainter extends CustomPainter {
   final Path? draftPath;
   final Paint draftPaint;
   final EraserMode? eraserMode;
+  final Tool? currentTool;           // Добавлено
+  final Offset? draftArrowStart;     // Добавлено
+  final Offset? draftArrowEnd;
   ui.Image? _bgImage;
 
   _StagePainter(this.bg, this.marks, {
@@ -856,6 +1168,9 @@ class _StagePainter extends CustomPainter {
     this.draftPath,
     required this.draftPaint,
     this.eraserMode,
+    this.currentTool,              // Добавлено
+    this.draftArrowStart,          // Добавлено
+    this.draftArrowEnd,
   });
 
   @override
@@ -879,7 +1194,48 @@ class _StagePainter extends CustomPainter {
     }
 
     // Draw drafts
-    if (draftRect != null) canvas.drawRect(draftRect!, draftPaint);
+    if (draftRect != null) {
+      if (currentTool == Tool.rect) {
+        canvas.drawRect(draftRect!, draftPaint);
+      } else if (currentTool == Tool.circle) {
+        final center = draftRect!.center;
+        final radius = (draftRect!.width < draftRect!.height ? draftRect!.width : draftRect!.height) / 2;
+        canvas.drawCircle(center, radius, draftPaint);
+      }
+    }
+
+    if (draftArrowStart != null && draftArrowEnd != null) {
+      // Рисуем линию
+      canvas.drawLine(draftArrowStart!, draftArrowEnd!, draftPaint);
+
+      // Рисуем наконечник стрелки (аналогично _ArrowMark._drawArrowHead)
+      final direction = draftArrowEnd! - draftArrowStart!;
+      final length = direction.distance;
+
+      if (length > 0) {
+        final unitVector = direction / length;
+        final arrowLength = 20.0;
+        final arrowBack = draftArrowEnd! - unitVector * arrowLength;
+        final perpendicular = Offset(-unitVector.dy, unitVector.dx);
+
+        final arrowPoint1 = arrowBack + perpendicular * arrowLength * 0.3;
+        final arrowPoint2 = arrowBack - perpendicular * arrowLength * 0.3;
+
+        final arrowPath = Path()
+          ..moveTo(draftArrowEnd!.dx, draftArrowEnd!.dy)
+          ..lineTo(arrowPoint1.dx, arrowPoint1.dy)
+          ..lineTo(arrowPoint2.dx, arrowPoint2.dy)
+          ..close();
+
+        final arrowPaint = Paint()
+          ..color = draftPaint.color
+          ..strokeWidth = draftPaint.strokeWidth
+          ..style = PaintingStyle.fill;
+
+        canvas.drawPath(arrowPath, arrowPaint);
+      }
+    }
+
     if (draftPath != null) canvas.drawPath(draftPath!, draftPaint);
   }
 
