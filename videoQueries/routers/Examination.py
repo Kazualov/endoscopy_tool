@@ -16,6 +16,7 @@ router = APIRouter()
 
 DEFAULT_STORAGE_PATH = Path("./examinations_storage")  # путь по умолчанию
 
+
 @router.post("/examinations/", response_model=ExaminationResponse)
 def create_examination(
         data: ExaminationCreate,
@@ -115,7 +116,7 @@ async def upload_video_to_examination(
     notes_path = base_path / "notes.json"
     with open(notes_path, "w", encoding="utf-8") as f:
         json.dump({"notes": notes}, f, ensure_ascii=False, indent=2)
-
+# comment
     video = Video(id=video_id, filename=file.filename, file_path=str(save_path))
     db.add(video)
 
