@@ -75,6 +75,7 @@ jobs:
         with:
           python-version: '3.12'
       - run: |
+          cd videoQueries
           pip install -e .
           pip install -r requirements.txt
           pip install pytest pytest-cov
