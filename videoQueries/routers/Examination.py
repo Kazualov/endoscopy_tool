@@ -85,6 +85,7 @@ def get_examination(exam_id, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Осмотр не найден")
     return exam
 
+
 @router.post("/examinations/{examination_id}/video/")
 async def upload_video_to_examination(
         examination_id: str,
@@ -92,39 +93,55 @@ async def upload_video_to_examination(
         notes: str = Form(""),
         db: Session = Depends(get_db)
 ):
+    # Get the examination
     exam = db.query(Examination).filter(Examination.id == examination_id).first()
     if not exam:
         raise HTTPException(status_code=404, detail="Осмотр не найден")
-    existing_video = db.query(Video).filter(Video.examination_id == examination_id).first()
-    if existing_video:
-            raise HTTPException(
-                status_code=400,
-                detail="Video already exists for this examination"
-            )
-    base_path = Path(exam.folder_path)
-    base_path.mkdir(parents=True, exist_ok=True)  # вдруг удалили
 
+    # Check for existing video using the relationship
+    if exam.video:
+        raise HTTPException(
+            status_code=400,
+            detail="Video already exists for this examination"
+        )
+
+    # Prepare file paths
+    base_path = Path(exam.folder_path)
+    base_path.mkdir(parents=True, exist_ok=True)
+
+    # Generate video ID and paths
     video_id = str(uuid.uuid4())
     file_ext = Path(file.filename).suffix
     video_filename = f"video{file_ext}"
     save_path = base_path / video_filename
 
+    # Save video file
     with open(save_path, "wb") as f:
         shutil.copyfileobj(file.file, f)
 
+    # Save notes
     notes_path = base_path / "notes.json"
     with open(notes_path, "w", encoding="utf-8") as f:
         json.dump({"notes": notes}, f, ensure_ascii=False, indent=2)
 
-    video = Video(id=video_id, filename=file.filename, file_path=str(save_path))
+    # Create and associate the video
+    video = Video(
+        id=video_id,
+        filename=file.filename,
+        file_path=str(save_path),
+        examination_id=examination_id  # This sets the foreign key
+    )
+
+    # Add to session and commit
     db.add(video)
-
-    exam.video_id = video_id
     db.commit()
-    db.refresh(exam)
+    db.refresh(video)  # Refresh to get any database defaults
 
-    return {"video_id": video_id, "message": "Видео добавлено к осмотру"}
-
+    return {
+        "video_id": video_id,
+        "message": "Видео добавлено к осмотру",
+        "file_path": str(save_path)
+    }
 
 
 @router.delete("/examinations/{examination_id}")
