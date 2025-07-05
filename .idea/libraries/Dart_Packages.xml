@@ -40,7 +40,7 @@
         <entry key="camera_android_camerax">
           <value>
             <list>
-              <option value="$USER_HOME$/.pub-cache/hosted/pub.dev/camera_android_camerax-0.6.18+3/lib" />
+              <option value="$USER_HOME$/.pub-cache/hosted/pub.dev/camera_android_camerax-0.6.19/lib" />
             </list>
           </value>
         </entry>
@@ -243,7 +243,7 @@
         <entry key="flutter_webrtc">
           <value>
             <list>
-              <option value="$USER_HOME$/.pub-cache/hosted/pub.dev/flutter_webrtc-0.14.1/lib" />
+              <option value="$USER_HOME$/.pub-cache/hosted/pub.dev/flutter_webrtc-0.14.2/lib" />
             </list>
           </value>
         </entry>
@@ -780,7 +780,7 @@
       <root url="file://$USER_HOME$/.pub-cache/hosted/pub.dev/async-2.13.0/lib" />
       <root url="file://$USER_HOME$/.pub-cache/hosted/pub.dev/boolean_selector-2.1.2/lib" />
       <root url="file://$USER_HOME$/.pub-cache/hosted/pub.dev/camera-0.11.1/lib" />
-      <root url="file://$USER_HOME$/.pub-cache/hosted/pub.dev/camera_android_camerax-0.6.18+3/lib" />
+      <root url="file://$USER_HOME$/.pub-cache/hosted/pub.dev/camera_android_camerax-0.6.19/lib" />
       <root url="file://$USER_HOME$/.pub-cache/hosted/pub.dev/camera_avfoundation-0.9.20+1/lib" />
       <root url="file://$USER_HOME$/.pub-cache/hosted/pub.dev/camera_platform_interface-2.10.0/lib" />
       <root url="file://$USER_HOME$/.pub-cache/hosted/pub.dev/camera_web-0.3.5/lib" />
@@ -806,7 +806,7 @@
       <root url="file://$USER_HOME$/.pub-cache/hosted/pub.dev/fixnum-1.1.1/lib" />
       <root url="file://$USER_HOME$/.pub-cache/hosted/pub.dev/flutter_lints-6.0.0/lib" />
       <root url="file://$USER_HOME$/.pub-cache/hosted/pub.dev/flutter_plugin_android_lifecycle-2.0.28/lib" />
-      <root url="file://$USER_HOME$/.pub-cache/hosted/pub.dev/flutter_webrtc-0.14.1/lib" />
+      <root url="file://$USER_HOME$/.pub-cache/hosted/pub.dev/flutter_webrtc-0.14.2/lib" />
       <root url="file://$USER_HOME$/.pub-cache/hosted/pub.dev/http-1.4.0/lib" />
       <root url="file://$USER_HOME$/.pub-cache/hosted/pub.dev/http_parser-4.1.2/lib" />
       <root url="file://$USER_HOME$/.pub-cache/hosted/pub.dev/image-4.5.4/lib" />
