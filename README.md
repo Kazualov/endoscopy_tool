@@ -63,7 +63,7 @@ We adapted the **GitHub Flow** model with additional structure for code quality 
 
 Our project follows a **custom Gitflow-inspired workflow**, designed to maintain code stability, separate concerns, and streamline deployment.
 
-## Main Branches
+##### Main Branches
 - **`main`**  
   Contains only **stable, production-ready** code.  
   Merges occur only after thorough testing and successful deployment.
@@ -72,7 +72,7 @@ Our project follows a **custom Gitflow-inspired workflow**, designed to maintain
   Serves as a **staging area** for deployment.  
   Code from development branches is merged here for integration testing before going to `main`.
 
-## 🛠 Development Branches
+##### 🛠 Development Branches
 
 - **`backend_new`**  
   All new backend features are developed here.  
@@ -86,7 +86,7 @@ Our project follows a **custom Gitflow-inspired workflow**, designed to maintain
   Contains all **automated tests** and related infrastructure.  
   Updated in parallel with feature development.
 
-## 🔥 Hotfixes
+##### 🔥 Hotfixes
 
 - **`hotfix/*`**  
   Used for **critical bug fixes** in production.  
