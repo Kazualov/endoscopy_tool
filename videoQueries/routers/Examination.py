@@ -94,33 +94,38 @@ async def upload_video_to_examination(
 ):
     exam = db.query(Examination).filter(Examination.id == examination_id).first()
     if not exam:
-        raise HTTPException(status_code=404, detail="Осмотр не найден")
-    existing_video = db.query(Video).filter(Video.examination_id == examination_id).first()
-    if existing_video:
+        raise HTTPException(status_code=404, detail="Examination not found")
+    
+    # Check if video already exists using the relationship
+    if exam.video:  # This works because of uselist=False
         raise HTTPException(status_code=400, detail="Video already exists for this examination")
-    base_path = Path(exam.folder_path)
-    base_path.mkdir(parents=True, exist_ok=True)  # вдруг удалили
 
+    # Create and save the video
     video_id = str(uuid.uuid4())
     file_ext = Path(file.filename).suffix
-    video_filename = f"video{file_ext}"
-    save_path = base_path / video_filename
+    video_filename = f"video_{video_id}{file_ext}"
+    save_path = Path(exam.folder_path) / video_filename
 
-    with open(save_path, "wb") as f:
-        shutil.copyfileobj(file.file, f)
-
-    notes_path = base_path / "notes.json"
-    with open(notes_path, "w", encoding="utf-8") as f:
-        json.dump({"notes": notes}, f, ensure_ascii=False, indent=2)
-
-    video = Video(id=video_id, filename=file.filename, file_path=str(save_path))
-    db.add(video)
-
-    exam.video_id = video_id
-    db.commit()
-    db.refresh(exam)
-
-    return {"video_id": video_id, "message": "Видео добавлено к осмотру"}
+    try:
+        with open(save_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+        
+        video = Video(
+            id=video_id,
+            filename=video_filename,
+            file_path=str(save_path),
+            examination_id=examination_id
+        )
+        db.add(video)
+        db.commit()
+        
+        return {"video_id": video_id, "message": "Video uploaded successfully"}
+    
+    except Exception as e:
+        db.rollback()
+        if save_path.exists():
+            save_path.unlink()
+        raise HTTPException(status_code=500, detail=f"Failed to upload video: {str(e)}")
 
 
 
