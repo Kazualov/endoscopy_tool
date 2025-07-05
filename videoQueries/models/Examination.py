@@ -1,7 +1,6 @@
 from sqlalchemy import Column, String, ForeignKey, DateTime, func
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, deferred
 from videoQueries.database import Base
-
 
 class Examination(Base):
     __tablename__ = "examinations"
@@ -11,7 +10,6 @@ class Examination(Base):
     description = Column(String)
     date = Column(DateTime, default=func.now())
     folder_path = Column(String, nullable=False)
-    # Removed video_id column to avoid circular reference
 
     # Relationships
     patient = relationship("Patient", back_populates="examinations")
@@ -22,3 +20,8 @@ class Examination(Base):
         cascade="all, delete-orphan"
     )
     detections = relationship("Detection", back_populates="examination", cascade="all, delete")
+
+    # Add hybrid property for video_id
+    @property
+    def video_id(self):
+        return self.video.id if self.video else None
