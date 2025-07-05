@@ -850,72 +850,80 @@ class ScreenshotEditorState extends State<ScreenshotEditor> with TickerProviderS
       Icons.auto_fix_off,
       Icons.near_me,
       Icons.circle_outlined,
-      Icons.arrow_forward ];
+      Icons.arrow_forward,
+    ];
+
     return Container(
-      width: 72,
-      padding: const EdgeInsets.symmetric(vertical: 12),
+      width: 120, // Увеличенная ширина
+      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
       decoration: BoxDecoration(
         color: t.colorScheme.surface,
         borderRadius: const BorderRadius.horizontal(right: Radius.circular(24)),
-        boxShadow: const [BoxShadow(blurRadius: 8, offset: Offset(0, 2), color: Colors.black26)],
+        boxShadow: const [
+          BoxShadow(blurRadius: 8, offset: Offset(0, 2), color: Colors.black26),
+        ],
       ),
       child: Column(
         children: [
           const SizedBox(height: 48),
-          for (int i = 0; i < icons.length; ++i)
-            GestureDetector(
-              onDoubleTap: i == 2 ? _toggleEraserMode : null,
-              child: _ToolBtn(
-                icon: icons[i],
-                active: _tool.index == i,
-                onTap: () => setState(() => _tool = Tool.values[i]),
-                subtitle: i == 2 && _tool == Tool.eraser
-                    ? (_eraserMode == EraserMode.shape ? 'Shape' : 'Pixel')
-                    : null,
-              ),
-            ),
-          const SizedBox(height: 12),
 
-          // Укороченный слайдер ширины
-          SizedBox(
-             // ограничение по высоте
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text('Width', style: TextStyle(fontSize: 10, color: t.textTheme.bodySmall?.color)),
-                RotatedBox(
-                  quarterTurns: 3,
-                  child: SliderTheme(
-                    data: SliderTheme.of(context).copyWith(
-                      trackHeight: 1.5,
-                      thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 5),
-                      overlayShape: const RoundSliderOverlayShape(overlayRadius: 10),
-                    ),
-                    child: Slider(
-                      value: _strokeWidth,
-                      min: 1.0,
-                      max: 4.0,
-                      divisions: 4,
-                      onChanged: (value) => setState(() => _strokeWidth = value),
-                    ),
+          // Инструменты: 2 в ряд
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: List.generate(icons.length, (i) {
+              return GestureDetector(
+                onDoubleTap: i == 2 ? _toggleEraserMode : null,
+                child: _ToolBtn(
+                  icon: icons[i],
+                  active: _tool.index == i,
+                  onTap: () => setState(() => _tool = Tool.values[i]),
+                  subtitle: i == 2 && _tool == Tool.eraser
+                      ? (_eraserMode == EraserMode.shape ? 'Shape' : 'Pixel')
+                      : null,
+                ),
+              );
+            }),
+          ),
+
+          const SizedBox(height: 16),
+
+          // Толщина
+          Column(
+            children: [
+              Text('Width', style: TextStyle(fontSize: 10, color: t.textTheme.bodySmall?.color)),
+              RotatedBox(
+                quarterTurns: 3,
+                child: SliderTheme(
+                  data: SliderTheme.of(context).copyWith(
+                    trackHeight: 1.5,
+                    thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 5),
+                    overlayShape: const RoundSliderOverlayShape(overlayRadius: 10),
+                  ),
+                  child: Slider(
+                    value: _strokeWidth,
+                    min: 1.0,
+                    max: 4.0,
+                    divisions: 4,
+                    onChanged: (value) => setState(() => _strokeWidth = value),
                   ),
                 ),
-                Text('${_strokeWidth.round()}', style: const TextStyle(fontSize: 10)),
-              ],
-            ),
+              ),
+              Text('${_strokeWidth.round()}', style: const TextStyle(fontSize: 10)),
+            ],
           ),
 
           const SizedBox(height: 12),
 
-          // Палитра — выбранный цвет больше
+          // Палитра
           ...List.generate(_colors.length, (i) {
             final isSelected = i == _colorIx;
             return GestureDetector(
               onTap: () => setState(() => _colorIx = i),
               child: Container(
                 margin: const EdgeInsets.symmetric(vertical: 3),
-                width: isSelected ? 32 : 20,
-                height: isSelected ? 32 :20,
+                width: isSelected ? 45 : 32,
+                height: isSelected ? 45 : 32,
                 decoration: BoxDecoration(
                   color: _colors[i],
                   shape: BoxShape.circle,
@@ -930,20 +938,23 @@ class ScreenshotEditorState extends State<ScreenshotEditor> with TickerProviderS
 
           const Spacer(),
 
-          _ToolBtn(
-            icon: Icons.zoom_out_map,
-            onTap: _resetZoom,
-            subtitle: 'Reset',
-          ),
-          const SizedBox(height: 8),
+          _ToolBtn(icon: Icons.zoom_out_map, onTap: _resetZoom, subtitle: 'Reset'),
 
-          // Undo и Redo снова друг под другом
-          _ToolBtn(icon: Icons.undo, onTap: _onUndo),
-          _ToolBtn(icon: Icons.redo, onTap: _onRedo),
+          // Нижние кнопки в ряд
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              _ToolBtn(icon: Icons.undo, onTap: _onUndo),
+              _ToolBtn(icon: Icons.redo, onTap: _onRedo),
+            ],
+          ),
+
+          const SizedBox(height: 8),
         ],
       ),
     );
   }
+
 
 
   // ───────────────── Stage ─────────────────
