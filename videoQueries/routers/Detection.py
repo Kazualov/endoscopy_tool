@@ -14,7 +14,7 @@ from videoQueries.schemas.Detection import DetectionResponse
 
 router = APIRouter()
 
-model = YOLO("./Detection_model/best.pt")  # Предобученная или твоя модель
+model = YOLO("videoQueries/Detection_model/best.pt")  # Предобученная или твоя модель
 
 @router.websocket("/ws/camera/{examination_id}")
 async def websocket_endpoint(websocket: WebSocket, examination_id: str, db: Session = Depends(get_db)):
