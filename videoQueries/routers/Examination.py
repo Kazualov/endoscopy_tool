@@ -92,10 +92,12 @@ async def upload_video_to_examination(
         notes: str = Form(""),
         db: Session = Depends(get_db)
 ):
+        
     exam = db.query(Examination).filter(Examination.id == examination_id).first()
     if not exam:
         raise HTTPException(status_code=404, detail="Осмотр не найден")
-
+    if database.has_video(exam_id):  # Implement this check
+        raise HTTPException(status_code=400, detail="Video already exists for this examination")
     base_path = Path(exam.folder_path)
     base_path.mkdir(parents=True, exist_ok=True)  # вдруг удалили
 
