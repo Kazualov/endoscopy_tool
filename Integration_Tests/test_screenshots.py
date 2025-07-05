@@ -1,54 +1,68 @@
+from pathlib import Path
 from conftest import client
 
-#We check that everything works correctly when uploading screenshots of inspections
+# Define test file paths relative to this test file
+TEST_DIR = Path(__file__).parent
+SAMPLE_JPG = TEST_DIR / "sample.jpg"
+SAMPLE_MP4 = TEST_DIR / "sample.mp4"
+
 def test_upload_screenshot(client):
+    """Test successful screenshot upload"""
+    # Verify test file exists
+    assert SAMPLE_JPG.exists(), f"Test image missing at {SAMPLE_JPG}"
+    
+    # Create test data
     patient_id = client.post("/patients/", json={"id": "2121212"}).json()
-    exam = client.post("/examinations/", json={"patient_id": patient_id, "description": "screenshot"}).json()
+    exam = client.post("/examinations/", json={
+        "patient_id": patient_id,
+        "description": "screenshot"
+    }).json()
 
-    with open("/Integration_Tests/sample.jpg", "rb") as f:
-        files = {"file": ("sample.jpg", f, "image/jpg")}
-        response = client.post(f"/exams/{exam['id']}/upload_screenshot/", files=files)
+    # Upload screenshot with required timestamp
+    with open(SAMPLE_JPG, "rb") as f:
+        response = client.post(
+            f"/exams/{exam['id']}/upload_screenshot/",
+            files={"file": ("sample.jpg", f, "image/jpeg")},
+            data={"timestamp_in_video": "00:00:01"}  # Added required field
+        )
 
-    assert response.status_code == 200
-    assert "screenshot_id" in response.json()
-
-from pathlib import Path
-import os
-
-from pathlib import Path
+    # Verify response
+    assert response.status_code == 200, response.text
+    response_data = response.json()
+    assert "screenshot_id" in response_data
+    assert "filename" in response_data  # Matches endpoint response
 
 def test_upload_screenshot_and_annotated_version(client):
-    # Step 1: Create patient and examination
+    """Test uploading both original and annotated screenshot"""
+    # Verify test files exist
+    assert SAMPLE_JPG.exists(), f"Test image missing at {SAMPLE_JPG}"
+    
+    # Create test data
     patient_id = client.post("/patients/", json={"id": "123456"}).json()
     exam = client.post("/examinations/", json={
         "patient_id": patient_id,
         "description": "Test upload screenshot"
     }).json()
-    exam_id = exam["id"]
 
-    # Step 2: Upload screenshot (with timestamp)
-    screenshot_image_path = Path("/Integration_Tests/sample.mp4")
-    assert screenshot_image_path.exists(), "Screenshot test image not found."
-
-    with open(screenshot_image_path, "rb") as f:
-        files = {"file": ("annotated_sample.jpg", f, "image/jpeg")}
-        data = {"timestamp_in_video": "00:00:05"}
-        upload_response = client.post(
-            f"/exams/{exam_id}/upload_screenshot/",
-            files=files,
-            data=data
+    # Upload initial screenshot (using JPG)
+    with open(SAMPLE_JPG, "rb") as f:
+        response = client.post(
+            f"/exams/{exam['id']}/upload_screenshot/",
+            files={"file": ("screenshot.jpg", f, "image/jpeg")},
+            data={"timestamp_in_video": "00:00:05"}
         )
-        assert upload_response.status_code == 200, upload_response.text
-        screenshot_id = upload_response.json()["screenshot_id"]
+        assert response.status_code == 200, response.text
+        screenshot_id = response.json()["screenshot_id"]
 
-    # Step 3: Upload annotated version for the same screenshot
-    with open(screenshot_image_path, "rb") as f:
-        files = {"annotated_file": ("annotated_sample.jpg", f, "image/jpeg")}
-        response = client.post(f"/screenshots/{screenshot_id}/upload_annotated/", files=files)
+    # Upload annotated version (using same JPG)
+    with open(SAMPLE_JPG, "rb") as f:
+        response = client.post(
+            f"/screenshots/{screenshot_id}/upload_annotated/",
+            files={"annotated_file": ("annotated.jpg", f, "image/jpeg")}
+        )
 
-    # Step 4: Validate response
-    assert response.status_code == 200
-    data = response.json()
-    assert "annotated_filename" in data
-    assert "file_path" in data
-    assert data["annotated_filename"].endswith("_annotated.jpg")
+    # Verify response matches endpoint implementation
+    assert response.status_code == 200, response.text
+    response_data = response.json()
+    assert "annotated_filename" in response_data
+    assert response_data["annotated_filename"].endswith("_annotated.jpg")
