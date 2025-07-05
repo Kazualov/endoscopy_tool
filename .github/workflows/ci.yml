@@ -77,13 +77,6 @@ jobs:
 
       - name: Install system dependencies
         run: sudo apt-get update && sudo apt-get install -y portaudio19-dev
-
-      - name: Download YOLO model
-        run: |
-          mkdir -p videoQueries/Detection_model
-          curl -L -o videoQueries/Detection_model/best.pt https://your-storage-url/best.pt
-
-
       
       - name: Download Vosk model
         run: |
