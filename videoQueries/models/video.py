@@ -15,7 +15,9 @@ class Video(Base):
     notes = Column(String)
     timestamp = Column(String)
     file_path = Column(String)
+    examination_id = Column(String, ForeignKey('examinations.id'))
 
+    examination = relationship("Examination", back_populates="videos")
     # Вторая сторона one-to-one
     examination = relationship(
         "Examination",
