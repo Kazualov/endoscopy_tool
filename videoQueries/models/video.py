@@ -1,10 +1,7 @@
 from sqlalchemy import Column, String, ForeignKey
 from sqlalchemy.orm import relationship
 from videoQueries.database import Base
-from videoQueries.models.Examination import Examination
 
-
-# models/Video.py
 class Video(Base):
     __tablename__ = "videos"
 
@@ -17,12 +14,5 @@ class Video(Base):
     file_path = Column(String)
     examination_id = Column(String, ForeignKey('examinations.id'))
 
-    # Вторая сторона one-to-one
-    examination = relationship(
-        "Examination",
-        back_populates="video",
-        uselist=False,
-        primaryjoin="Video.id==foreign(Examination.video_id)",  # добавлено foreign()
-        foreign_keys=[Examination.video_id]  # передаём объект колонки, а не строку
-    )
-
+    # Simplified relationship
+    examination = relationship("Examination", back_populates="video")
