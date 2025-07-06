@@ -203,8 +203,7 @@ The CI pipeline consists of the following jobs:
 - **Security Check with Safety** (`security-check`)
 
 The full CI workflow file can be found here:  
-👉 [`Flutter & FastAPI CI`]([.github/workflows/flutter_fastapi_ci.yml](https://github.com/Kazualov/endoscopy_tool/actions/runs/16092200891))  
-*(Update the path if your workflow file is located elsewhere.)*
+👉 [`Flutter & FastAPI CI`](https://github.com/Kazualov/endoscopy_tool/actions/runs/16092200891)
 
 #### Static Analysis Tools
 
@@ -231,8 +230,7 @@ The full CI workflow file can be found here:
 #### CI Workflow Runs
 
 You can view the status and history of all CI runs here:  
-👉 [GitHub Actions - Workflow Runs]([https://github.com/YOUR_USERNAME/YOUR_REPO/actions](https://github.com/Kazualov/endoscopy_tool/actions))  
-*(Replace with your actual repository link.)*
+👉 [GitHub Actions - Workflow Runs](https://github.com/Kazualov/endoscopy_tool/actions)
 
 ---
 
