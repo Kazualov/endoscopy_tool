@@ -222,7 +222,7 @@
         <entry key="flutter">
           <value>
             <list>
-              <option value="/opt/homebrew/Caskroom/flutter/3.32.2/flutter/packages/flutter/lib" />
+              <option value="/usr/local/Caskroom/flutter/3.32.4/flutter/packages/flutter/lib" />
             </list>
           </value>
         </entry>
@@ -243,14 +243,14 @@
         <entry key="flutter_test">
           <value>
             <list>
-              <option value="/opt/homebrew/Caskroom/flutter/3.32.2/flutter/packages/flutter_test/lib" />
+              <option value="/usr/local/Caskroom/flutter/3.32.4/flutter/packages/flutter_test/lib" />
             </list>
           </value>
         </entry>
         <entry key="flutter_web_plugins">
           <value>
             <list>
-              <option value="/opt/homebrew/Caskroom/flutter/3.32.2/flutter/packages/flutter_web_plugins/lib" />
+              <option value="/usr/local/Caskroom/flutter/3.32.4/flutter/packages/flutter_web_plugins/lib" />
             </list>
           </value>
         </entry>
@@ -607,7 +607,7 @@
         <entry key="sky_engine">
           <value>
             <list>
-              <option value="/opt/homebrew/Caskroom/flutter/3.32.2/flutter/bin/cache/pkg/sky_engine/lib" />
+              <option value="/usr/local/Caskroom/flutter/3.32.4/flutter/bin/cache/pkg/sky_engine/lib" />
             </list>
           </value>
         </entry>
@@ -897,10 +897,10 @@
       <root url="file://$USER_HOME$/.pub-cache/hosted/pub.dev/window_size-0.1.0/lib" />
       <root url="file://$USER_HOME$/.pub-cache/hosted/pub.dev/xdg_directories-1.1.0/lib" />
       <root url="file://$USER_HOME$/.pub-cache/hosted/pub.dev/xml-6.5.0/lib" />
-      <root url="file:///opt/homebrew/Caskroom/flutter/3.32.2/flutter/bin/cache/pkg/sky_engine/lib" />
-      <root url="file:///opt/homebrew/Caskroom/flutter/3.32.2/flutter/packages/flutter/lib" />
-      <root url="file:///opt/homebrew/Caskroom/flutter/3.32.2/flutter/packages/flutter_test/lib" />
-      <root url="file:///opt/homebrew/Caskroom/flutter/3.32.2/flutter/packages/flutter_web_plugins/lib" />
+      <root url="file:///usr/local/Caskroom/flutter/3.32.4/flutter/bin/cache/pkg/sky_engine/lib" />
+      <root url="file:///usr/local/Caskroom/flutter/3.32.4/flutter/packages/flutter/lib" />
+      <root url="file:///usr/local/Caskroom/flutter/3.32.4/flutter/packages/flutter_test/lib" />
+      <root url="file:///usr/local/Caskroom/flutter/3.32.4/flutter/packages/flutter_web_plugins/lib" />
     </CLASSES>
     <JAVADOC />
     <SOURCES />
