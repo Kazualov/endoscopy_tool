@@ -3,6 +3,7 @@
   <component name="ProjectModuleManager">
     <modules>
       <module fileurl="file://$PROJECT_DIR$/endoscopy_tool.iml" filepath="$PROJECT_DIR$/endoscopy_tool.iml" />
+      <module fileurl="file://$PROJECT_DIR$/videoQueries/.venv/test/test.iml" filepath="$PROJECT_DIR$/videoQueries/.venv/test/test.iml" />
     </modules>
   </component>
 </project>
