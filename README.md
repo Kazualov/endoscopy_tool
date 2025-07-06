@@ -160,6 +160,30 @@ gitGraph
    commit id: "Add backend tests"
 ```
 
+---
+
+## Quality assurance
+
+### Quality attribute scenarios
+See [docs/quality-assurance/quality-attribute-scenarios.md](docs/quality-assurance/quality-attribute-scenarios.md)
+
+### Automated tests
+
+**Tools used:**
+- `pytest` — unit testing
+- `newman` — integration tests via Postman
+- `flake8` — code style
+- `bandit` — security linting
+
+**Types of tests:**
+- Unit tests (`/tests/unit`)
+- Integration tests (`/tests/integration`)
+- Static analysis tools in CI pipeline
+
+Tests are triggered on each pull request via GitHub Actions. Failed tests block merging.
+
+---
+
 ### Secrets management
 - We do not have any data that requires encryption, so no methods have been used to encrypt or protect the data.
 
