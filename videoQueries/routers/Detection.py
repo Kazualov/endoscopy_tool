@@ -11,10 +11,39 @@ import time
 from sqlalchemy.orm import Session
 import asyncio
 from videoQueries.schemas.Detection import DetectionResponse
+import sys
+import os
+
+def get_model_path() -> str:
+    if getattr(sys, 'frozen', False):
+        # При запуске из .exe (PyInstaller)
+        base = sys._MEIPASS
+
+        # Проверим оба возможных варианта пути
+        path1 = os.path.join(base, "videoQueries", "Detection_model", "best.pt")
+        path2 = os.path.join(base, "Detection_model", "best.pt")
+
+        if os.path.exists(path1):
+            return path1
+        elif os.path.exists(path2):
+            return path2
+        else:
+            raise FileNotFoundError("Model file not found in .exe bundle.")
+    else:
+        # Обычный запуск из исходников
+        base = os.path.dirname(__file__)
+        path = os.path.join(base, "videoQueries", "Detection_model", "best.pt")
+        if not os.path.exists(path):
+            raise FileNotFoundError(f"Model not found at {path}")
+        return path
+
+
+model_path = get_model_path()
+model = YOLO(model_path)
+
 
 router = APIRouter()
 
-model = YOLO("./Detection_model/best.pt")  # Предобученная или твоя модель
 
 @router.websocket("/ws/camera/{examination_id}")
 async def websocket_endpoint(websocket: WebSocket, examination_id: str, db: Session = Depends(get_db)):
