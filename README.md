@@ -230,7 +230,7 @@ The full CI workflow file can be found here:
 #### CI Workflow
 
 The full CI workflow file can be found here:  
-👉 [Flutter & FastAPI CI](https://github.com/Kazualov/endoscopy_tool/blob/main/.github/workflows/windows-build.yml)
+👉 [CI]([https://github.com/Kazualov/endoscopy_tool/blob/main/.github/workflows/windows-build.yml](https://github.com/Kazualov/endoscopy_tool/blob/Tests/.github/workflows/ci.yml))
 
 
 #### CI Workflow Runs
