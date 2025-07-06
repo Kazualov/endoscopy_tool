@@ -1,13 +1,17 @@
 # -*- mode: python ; coding: utf-8 -*-
+import sys ; sys.setrecursionlimit(sys.getrecursionlimit() * 5)
 
 
 a = Analysis(
-    ['videoQueries\\main.py'],
+    ['videoQueries/main.py'],
     pathex=['.'],
-    binaries=[('venv\\Lib\\site-packages\\vosk\\libvosk.dll', 'vosk')],
-    datas=[('videoQueries\\data\\videos', 'videoQueries\\data\\videos'),
-     ('videoQueries\\data\\screenshots', 'videoQueries\\data\\screenshots'),
-      ('videoQueries\\vosk-model-small-ru-0.22', 'videoQueries\\vosk-model-small-ru-0.22')],
+    binaries=[('/Users/kite/PycharmProjects/1/.venv/lib/python3.12/site-packages/vosk//libvosk.dyld', 'vosk')],
+    datas=[
+        ('videoQueries/data/videos', 'videoQueries/data/videos'),
+        ('videoQueries/data/screenshots', 'videoQueries/data/screenshots'),
+        ('videoQueries/vosk-model-small-ru-0.22', 'videoQueries/vosk-model-small-ru-0.22'),
+        ('videoQueries/Detection_model/best.pt', 'videoQueries/Detection_model'),
+    ],
     hiddenimports=['python-multipart'],
     hookspath=[],
     hooksconfig={},
@@ -16,6 +20,7 @@ a = Analysis(
     noarchive=False,
     optimize=0,
 )
+
 pyz = PYZ(a.pure)
 
 exe = EXE(
@@ -29,18 +34,13 @@ exe = EXE(
     strip=False,
     upx=True,
     console=True,
-    disable_windowed_traceback=False,
-    argv_emulation=False,
-    target_arch=None,
-    codesign_identity=None,
-    entitlements_file=None,
 )
+
 coll = COLLECT(
     exe,
     a.binaries,
     a.datas,
     strip=False,
     upx=True,
-    upx_exclude=[],
     name='main',
 )
