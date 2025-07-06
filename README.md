@@ -227,10 +227,17 @@ The full CI workflow file can be found here:
 |---------|----------|------------------------------------------------------|
 | `safety`| Python   | Checks for known security vulnerabilities in dependencies. |
 
+#### CI Workflow
+
+The full CI workflow file can be found here:  
+👉 [Flutter & FastAPI CI](https://github.com/Kazualov/endoscopy_tool/blob/main/.github/workflows/windows-build.yml)
+
+
 #### CI Workflow Runs
 
 You can view the status and history of all CI runs here:  
 👉 [GitHub Actions - Workflow Runs](https://github.com/Kazualov/endoscopy_tool/actions)
+
 
 ---
 
