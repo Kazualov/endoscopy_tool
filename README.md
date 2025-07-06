@@ -324,13 +324,6 @@ The application is deployed as a **standalone desktop app** on the doctor’s PC
 
 ---
 
-## 👥 Authors
-
-- 
--
-
----
-
 ## 📄 License
 
 MIT License. See [LICENSE](./LICENSE) for details.
