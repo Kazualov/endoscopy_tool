@@ -159,6 +159,8 @@ gitGraph
    checkout Tests
    commit id: "Add backend tests"
 ```
+### Secrets management
+- We do not have any data that requires encryption, so no methods have been used to encrypt or protect the data.
 
 ---
 
@@ -170,10 +172,9 @@ See [docs/quality-assurance/quality-attribute-scenarios.md](docs/quality-assuran
 ### Automated tests
 
 **Tools used:**
-- `pytest` — unit testing
-- `newman` — integration tests via Postman
+- `pytest` — unit and integration testing
+- `testclient` — integration tests via Postman
 - `flake8` — code style
-- `bandit` — security linting
 
 **Types of tests:**
 - Unit tests (`/tests/unit`)
@@ -184,8 +185,9 @@ Tests are triggered on each pull request via GitHub Actions. Failed tests block 
 
 ---
 
-### Secrets management
-- We do not have any data that requires encryption, so no methods have been used to encrypt or protect the data.
+Сюда надо BUILD AND DEPLOYMENT
+
+---
 
 ## 🧱 Architecture
 
