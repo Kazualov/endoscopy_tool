@@ -237,7 +237,7 @@ class _MainPageLayoutState extends State<MainPageLayout> {
     // Dispose video player when switching to camera
     _disposeVideoPlayer();
   }
-
+//
   // Method to handle captured video file - opens it immediately
   void _onVideoCaptured(String capturedVideoPath) {
     print('Video captured and saved: $capturedVideoPath');
