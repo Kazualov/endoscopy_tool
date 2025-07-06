@@ -15,13 +15,17 @@ EndoAssist is a standalone desktop application that helps doctors conduct and re
 
 ---
 
-## 🚀 Installation
+## 🚀 Usage
 
-EndoAssist is distributed as a standalone installer for Windows. To install:
+1. **Download the Latest Build**  
+   Go to the [Actions](https://github.com/your-username/your-repo/actions) tab and download the latest successful build artifact.
 
-1. Download the latest `.exe` installer from [Releases](./releases).
-2. Run the installer and follow the on-screen instructions.
-3. Launch the app from the desktop/start menu shortcut.
+2. **Start the API Server**  
+   Run the downloaded `.exe` file to start the API server.  
+   > ⚠️ **Note:** API access credentials or configuration must be requested separately from the repository maintainers.
+
+3. **Run the Application**  
+   After the API server is up and running, launch the main application by executing its corresponding `.exe` file.
 
 > 💡 No internet connection is required. All data and models run locally.
 
