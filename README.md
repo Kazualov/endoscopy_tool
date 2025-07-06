@@ -189,7 +189,7 @@ Tests are triggered on each pull request via GitHub Actions. Failed tests block 
 
 ### Continuous Integration
 
-This project uses **GitHub Actions** for Continuous Integration (CI). The CI workflows are triggered on every push and pull request to the `Tests` branch.
+This project uses **GitHub Actions** for Continuous Integration (CI). The CI workflows are triggered on every push and pull request.
 
 #### CI Workflow
 
