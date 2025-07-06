@@ -13,6 +13,7 @@ from videoQueries.routers import Detection
 import uvicorn
 
 
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
