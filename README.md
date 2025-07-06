@@ -203,7 +203,7 @@ The CI pipeline consists of the following jobs:
 - **Security Check with Safety** (`security-check`)
 
 The full CI workflow file can be found here:  
-👉 [`Flutter & FastAPI CI`](https://github.com/Kazualov/endoscopy_tool/actions/runs/16092200891)
+👉 [`CI`](https://github.com/Kazualov/endoscopy_tool/actions/runs/16092200891)
 
 #### Static Analysis Tools
 
