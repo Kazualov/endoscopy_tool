@@ -1,7 +1,3 @@
-# EndoAssist – AI-Powered Endoscopy Session Assistant
-
-EndoAssist is a standalone desktop application that helps doctors conduct and review endoscopy sessions with enhanced convenience and precision. It provides AI-based polyp detection, voice control features, and a powerful interface for recording, annotating, and browsing medical sessions.
-
 # 📽️ EndoAssist – AI-Powered Endoscopy Session Assistant
 
 ## 🧠 Project Goal(s) and Description
