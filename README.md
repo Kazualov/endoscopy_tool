@@ -33,16 +33,16 @@ EndoAssist is a standalone desktop application that helps doctors conduct and re
 
 ## Development
 
+---
+
 ### [Kanban board](https://github.com/Kazualov/endoscopy_tool/blob/main/docs/Contributing.md)
 
----
 
 ### [Git workflow](https://github.com/Kazualov/endoscopy_tool/blob/main/docs/Contributing.md)
 
----
-
 
 ### [Secrets management](https://github.com/Kazualov/endoscopy_tool/blob/main/docs/Contributing.md)
+
 ---
 
 ## [Quality assurance](https://github.com/Kazualov/endoscopy_tool/blob/main/docs/quality_assurance.md)
