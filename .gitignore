@@ -124,3 +124,6 @@ venv/
 # PyCharm / IntelliJ IDEA
 *.iml
 .idea/
+
+# PyInstaller spec file
+main.spec
