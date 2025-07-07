@@ -78,34 +78,6 @@ graph TD
 - Run the `endoskopy_tool.exe` file from the second extracted folder to start the main tool.
 
 ---
-
-## 📦 Features
-
-- 🎬 Record or upload endoscopy session videos
-- 🧠 Automatic AI-based polyp detection
-- 🖼️ Screenshot drawer for marking key moments
-- 🗣️ Voice control (start, stop, take screenshot)
-- 🔍 Browse past examinations and review annotations
-- 🛠️ Fully offline – runs entirely on the doctor's machine
-
----
-
-## 🚀 Usage
-
-1. **Download the Latest Build**  
-   Go to the [Actions](https://github.com/your-username/your-repo/actions) tab and download the latest successful build artifact.
-
-2. **Start the API Server**  
-   Run the downloaded `.exe` file to start the API server.  
-   > ⚠️ **Note:** API access credentials or configuration must be requested separately from the repository maintainers.
-
-3. **Run the Application**  
-   After the API server is up and running, launch the main application by executing its corresponding `.exe` file.
-
-> 💡 No internet connection is required. All data and models run locally.
-
----
-
 ## Development
 
 ---
