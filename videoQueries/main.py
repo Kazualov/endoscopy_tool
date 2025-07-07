@@ -9,7 +9,7 @@ from videoQueries.routers import Screenshots
 from videoQueries.routers import Examination
 from videoQueries.routers import Set_path
 from contextlib import asynccontextmanager
-#from videoQueries.routers import Detection
+from videoQueries.routers import Detection
 import uvicorn
 
 
