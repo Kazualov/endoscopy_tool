@@ -163,9 +163,7 @@ gitGraph
    checkout Tests
    commit id: "Add backend tests"
 ```
-### Secrets management
-- We do not have any data that requires encryption, so no methods have been used to encrypt or protect the data.
-
+### [Secrets management](https://github.com/Kazualov/endoscopy_tool/blob/main/docs/Contributing.md)
 ---
 
 ## Quality assurance
