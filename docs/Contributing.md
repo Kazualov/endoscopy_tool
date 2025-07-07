@@ -21,3 +21,6 @@ Our team uses a Kanban board to manage tasks during the development process. You
 ### Git workflow
 
 We adapted the **GitHub Flow** model with additional structure for code quality and collaboration.
+
+### Secrets management
+- We do not have any data that requires encryption, so no methods have been used to encrypt or protect the data.
