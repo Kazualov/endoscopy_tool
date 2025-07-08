@@ -1,5 +1,5 @@
 ### Quality attribute scenarios
-See [docs/quality-assurance/quality-attribute-scenarios.md](docs/quality-assurance/quality-attribute-scenarios.md)
+See [quality-assurance/quality-attribute-scenarios.md](quality-assurance/quality-attribute-scenarios.md)
 
 ### Automated tests
 
