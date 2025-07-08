@@ -90,22 +90,6 @@ class DetectionBox {
   }
 }
 
-class DetectionSegment {
-  final Duration startTime;
-  final Duration endTime;
-  final String label;
-  final double maxConfidence;
-  final int detectionCount;
-
-  DetectionSegment({
-    required this.startTime,
-    required this.endTime,
-    required this.label,
-    required this.maxConfidence,
-    required this.detectionCount,
-  });
-}
-
 // CustomPainter для отрисовки прямоугольников детекции
 class DetectionOverlayPainter extends CustomPainter {
   final List<DetectionBox> detections;
@@ -193,7 +177,7 @@ class CameraStreamWidget extends StatefulWidget {
   final int videoWidth;
   final int videoHeight;
   final int frameRate;
-  final Function(String)? onVideoCaptured;
+  final Function(String, List<DetectionBox>)? onVideoCaptured;
   final Function()? startCaptured;
   final String? examinationId;
 
@@ -532,7 +516,7 @@ class _CameraStreamWidgetState extends State<CameraStreamWidget> {
         }
 
         if (widget.onVideoCaptured != null) {
-          widget.onVideoCaptured!(destination);
+          widget.onVideoCaptured!(destination, _allDetections);
         }
 
         _showSuccessSnackbar('Video saved successfully', saveDir);
