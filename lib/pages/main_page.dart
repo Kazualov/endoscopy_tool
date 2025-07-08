@@ -16,11 +16,12 @@ import 'package:path_provider/path_provider.dart';
 import 'package:file_picker/file_picker.dart';
 
 import 'package:endoscopy_tool/pages/patient_library.dart';
-import 'package:endoscopy_tool/widgets/video_player_widget.dart' hide DetectionBox;
 import 'package:endoscopy_tool/widgets/screenshot_button_widget.dart';
 import 'package:endoscopy_tool/widgets/video_capturing_widget.dart';
+import '../modules/detection_models.dart';
 import '../widgets/VoiceCommandService.dart';
 import '../widgets/ScreenShotsEditorDialog.dart';
+import '../widgets/video_player_widget.dart';
 
 
 
@@ -181,10 +182,14 @@ class _MainPageLayoutState extends State<MainPageLayout> {
   }
 
   void _initializeVideoPlayer() {
+    print('_initializeVideoPlayer: детекций перед инициализацией: ${_allDetections.length}');
+
     flag = false;
     _player = Player();
     _videoController = VideoController(_player!);
     _prepareAndPlay(_currentVideoPath!);
+
+    print('_initializeVideoPlayer: детекций после инициализации: ${_allDetections.length}');
   }
 
   // Методы для работы с таймером камеры
@@ -263,29 +268,34 @@ class _MainPageLayoutState extends State<MainPageLayout> {
   void _onVideoCaptured(String capturedVideoPath, {List<DetectionBox>? detections}) {
     print('Video captured and saved: $capturedVideoPath');
 
-
-
-    // Обработка детекций
-    if (detections != null) {
-      setState(() {
-        _allDetections = detections;
-        _detectionSegments = _processDetectionsIntoSegments(detections);
-      });
-    }
-
-    // Stop camera timer since we're switching to uploaded mode
+    // Сначала останавливаем камеру и очищаем ресурсы
     _stopCameraTimer();
 
-    setState(() {
-      _currentMode = VideoMode.uploaded;
-      _currentVideoPath = capturedVideoPath;
-    });
-    flag = false;
-    // Dispose previous player if exists
-    _disposeVideoPlayer();
+    // Обновляем состояние
+    if (mounted) {  // Проверяем, что виджет еще в дереве
+      setState(() {
+        if (detections != null) {
+          _allDetections = List.from(detections); // Создаем копию массива
+          _detectionSegments = _processDetectionsIntoSegments(_allDetections);
+          print('setState: Детекций установлено: ${_allDetections.length}');
+        }
 
-    // Initialize player with captured video
-    _initializeVideoPlayer();
+        _currentMode = VideoMode.uploaded;
+        _currentVideoPath = capturedVideoPath;
+      });
+
+      print('После setState: Детекций в _allDetections: ${_allDetections.length}');
+
+      flag = false;
+      _disposeVideoPlayer();
+
+      // Добавляем задержку для инициализации плеера
+      Future.delayed(Duration(milliseconds: 200), () {
+        if (mounted) {
+          _initializeVideoPlayer();
+        }
+      });
+    }
   }
 
   List<DetectionSegment> _processDetectionsIntoSegments(List<DetectionBox> detections) {
@@ -612,12 +622,14 @@ class _MainPageLayoutState extends State<MainPageLayout> {
             ),
           );
         }
+        print("все детекции перед отдачей плееру $_allDetections");
         return _player != null
             ? VideoPlayerWidget(
           player: _player!,
           screenshotMarkers: _getScreenshotMarkers(),
-          detectionMarkers: _getDetectionMarkers(), // Добавьте этот параметр
+          detections: _allDetections, // Передаем все детекции
           onMarkerTap: _onMarkerTap,
+          onDetectionIntervalTap: _onDetectionIntervalTap, // Добавляем обработчик
         )
             : const Center(child: Text("Video player not initialized"));
 
@@ -630,7 +642,7 @@ class _MainPageLayoutState extends State<MainPageLayout> {
               videoHeight: 720,
               frameRate: 30,
               examinationId: widget.examinationId,
-              onVideoCaptured: (path, {detections}) => _onVideoCaptured(path, detections: detections),
+              onVideoCaptured: (path, detections) => _onVideoCaptured(path, detections: detections),
               startCaptured: _startCameraTimer,
             ),
             Positioned(
@@ -655,6 +667,32 @@ class _MainPageLayoutState extends State<MainPageLayout> {
           ],
         );
     }
+  }
+
+
+  void _onDetectionIntervalTap(DetectionSegment segment) {
+    if (_currentMode == VideoMode.uploaded && _player != null) {
+      _player!.seek(segment.startTime);
+
+      // Показываем информацию о детекции
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+              'Детекция: ${segment.label}\n'
+                  'Время: ${_formatDuration(segment.startTime)} - ${_formatDuration(segment.endTime)}\n'
+                  'Количество: ${segment.detectionCount}, Уверенность: ${(segment.maxConfidence * 100).toStringAsFixed(1)}%'
+          ),
+          backgroundColor: const Color(0xFF00ACAB),
+          duration: const Duration(seconds: 3),
+        ),
+      );
+    }
+  }
+
+  String _formatDuration(Duration duration) {
+    final minutes = duration.inMinutes.toString().padLeft(2, '0');
+    final seconds = (duration.inSeconds % 60).toString().padLeft(2, '0');
+    return '$minutes:$seconds';
   }
 
 // Также обновите метод _addScreenshot для автоматического обновления UI
