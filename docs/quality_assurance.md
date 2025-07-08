@@ -17,4 +17,4 @@ See [quality-assurance/quality-attribute-scenarios.md](quality-assurance/quality
 - Static analysis tools in CI pipeline ([workflow](https://github.com/Kazualov/endoscopy_tool/actions/runs/16092200891/workflow))
 
 ### User acceptance tests
-See [docs/quality-assurance/user-acceptance-tests.md](docs/quality-assurance/user-acceptance-tests.md)
+See [quality-assurance/user-acceptance-tests.md](quality-assurance/user-acceptance-tests.md)
