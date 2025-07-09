@@ -177,7 +177,7 @@ class CameraStreamWidget extends StatefulWidget {
   final int videoWidth;
   final int videoHeight;
   final int frameRate;
-  final Function(String)? onVideoCaptured;
+  final Function(String, List<DetectionBox>)? onVideoCaptured;
   final Function()? startCaptured;
   final String? examinationId;
 
@@ -516,7 +516,7 @@ class _CameraStreamWidgetState extends State<CameraStreamWidget> {
         }
 
         if (widget.onVideoCaptured != null) {
-          widget.onVideoCaptured!(destination);
+          widget.onVideoCaptured!(destination, _allDetections);
         }
 
         _showSuccessSnackbar('Video saved successfully', saveDir);
