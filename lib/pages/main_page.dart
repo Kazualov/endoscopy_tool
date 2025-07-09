@@ -35,7 +35,7 @@ enum VideoMode {
 
 // Модель для хранения данных скриншота
 class ScreenshotItem {
-  final String screenshotId; // ID скриншота из базы данных
+  final String screenshotId;
   final String filename;
   final String filePath;
   final String timestampInVideo;
@@ -82,7 +82,7 @@ class DetectionSegmentMarker {
 class MainPage extends StatelessWidget {
   final String? videoPath;
   final VideoMode initialMode;
-  final String? examinationId; // Добавляем ID осмотра для работы со скриншотами
+  final String? examinationId;
 
   const MainPage({
     super.key,
@@ -155,6 +155,10 @@ class _MainPageLayoutState extends State<MainPageLayout> {
   // Voice command subscription
   StreamSubscription<String>? _voiceSubscription;
 
+  WebSocket? _freezeWebSocket;
+  bool _freezeDetectionActive = false;
+  String? _lastFreezeScreenshot;
+
   @override
   void initState() {
     super.initState();
@@ -171,6 +175,13 @@ class _MainPageLayoutState extends State<MainPageLayout> {
         screenshotButtonKey.currentState?.captureAndSaveScreenshot(context);
       }
     });
+
+    if (_currentMode == VideoMode.camera) {
+      // Запускаем с небольшой задержкой, чтобы UI успел инициализироваться
+      Future.delayed(Duration(milliseconds: 500), () {
+        _startFreezeDetection();
+      });
+    }
     // Initialize based on the initial mode
     if (_currentMode == VideoMode.uploaded && _currentVideoPath != null) {
       _initializeVideoPlayer();
@@ -181,15 +192,129 @@ class _MainPageLayoutState extends State<MainPageLayout> {
     }
   }
 
-  void _initializeVideoPlayer() {
-    print('_initializeVideoPlayer: детекций перед инициализацией: ${_allDetections.length}');
+  // Методы для управления freeze detection
+  Future<void> _startFreezeDetection() async {
+    if (_freezeDetectionActive) return;
 
+    try {
+      // Запускаем детекцию на сервере
+      final response = await http.post(
+        Uri.parse('$BASE_URL/start-freeze-detection'),
+        headers: {'Content-Type': 'application/json'},
+      );
+
+      if (response.statusCode == 200) {
+        // Подключаемся к WebSocket
+        _freezeWebSocket = await WebSocket.connect('ws://127.0.0.1:8000/ws/freeze');
+
+        _freezeWebSocket!.listen(
+              (data) {
+            final freezeData = json.decode(data);
+            _handleFreezeDetection(freezeData);
+          },
+          onDone: () {
+            print('Freeze detection WebSocket closed');
+            _freezeDetectionActive = false;
+          },
+          onError: (error) {
+            print('Freeze detection WebSocket error: $error');
+            _freezeDetectionActive = false;
+          },
+        );
+
+        setState(() {
+          _freezeDetectionActive = true;
+        });
+
+        print('Freeze detection started');
+      }
+    } catch (e) {
+      print('Error starting freeze detection: $e');
+    }
+  }
+
+  Future<void> _stopFreezeDetection() async {
+    if (!_freezeDetectionActive) return;
+
+    try {
+      // Останавливаем детекцию на сервере
+      await http.post(
+        Uri.parse('$BASE_URL/stop-freeze-detection'),
+        headers: {'Content-Type': 'application/json'},
+      );
+
+      // Закрываем WebSocket
+      await _freezeWebSocket?.close();
+      _freezeWebSocket = null;
+
+      setState(() {
+        _freezeDetectionActive = false;
+      });
+
+      print('Freeze detection stopped');
+    } catch (e) {
+      print('Error stopping freeze detection: $e');
+    }
+  }
+
+  void _handleFreezeDetection(Map<String, dynamic> freezeData) {
+    if (freezeData['freeze'] == true && freezeData['screenshot'] != null) {
+      final screenshotBase64 = freezeData['screenshot'];
+
+      // Декодируем base64 в Uint8List
+      final imageBytes = base64Decode(screenshotBase64);
+
+      // Добавляем скриншот с текущим таймкодом
+      _addScreenshotFromFreeze(imageBytes);
+
+      print('Freeze detected and screenshot captured automatically');
+    }
+  }
+
+// Специальный метод для добавления скриншотов от freeze detection
+  Future<void> _addScreenshotFromFreeze(Uint8List imageBytes) async {
+    final currentTimestamp = _getCurrentTimeCode();
+
+    // Добавляем скриншот в локальный список
+    setState(() {
+      screenshots.add(ScreenshotItem(
+        screenshotId: DateTime.now().millisecondsSinceEpoch.toString(),
+        filename: 'freeze_screenshot_${DateTime.now().millisecondsSinceEpoch}.png',
+        filePath: '',
+        timestampInVideo: currentTimestamp,
+        imageBytes: imageBytes,
+      ));
+    });
+
+    // Отправляем на сервер
+    if (widget.examinationId != null) {
+      _uploadScreenshot(imageBytes, currentTimestamp).then((screenshotId) {
+        if (screenshotId != null) {
+          print('Freeze screenshot successfully uploaded with ID: $screenshotId');
+          // Обновляем ID скриншота
+          setState(() {
+            final index = screenshots.length - 1;
+            if (index >= 0) {
+              screenshots[index] = ScreenshotItem(
+                screenshotId: screenshotId,
+                filename: screenshots[index].filename,
+                filePath: screenshots[index].filePath,
+                timestampInVideo: screenshots[index].timestampInVideo,
+                imageBytes: screenshots[index].imageBytes,
+              );
+            }
+          });
+        }
+      });
+    }
+  }
+
+
+  void _initializeVideoPlayer() {
     flag = false;
     _player = Player();
     _videoController = VideoController(_player!);
     _prepareAndPlay(_currentVideoPath!);
-
-    print('_initializeVideoPlayer: детекций после инициализации: ${_allDetections.length}');
   }
 
   // Методы для работы с таймером камеры
@@ -214,19 +339,16 @@ class _MainPageLayoutState extends State<MainPageLayout> {
     _currentCameraDuration = Duration.zero;
   }
 
-  void _resetCameraTimer() {
-    _stopCameraTimer();
-    _startCameraTimer();
-  }
   void handleDetection(Map<String, dynamic> detection) {
     final label = detection['label'];
     final confidence = detection['confidence'];
     // print(label);
   }
 
-
   // Method to switch to upload video mode
   Future<void> _switchToUploadMode() async {
+    // Останавливаем freeze detection при переключении на видео
+    _stopFreezeDetection();
     // Stop camera timer when switching to upload mode
     _stopCameraTimer();
 
@@ -260,8 +382,12 @@ class _MainPageLayoutState extends State<MainPageLayout> {
       _currentVideoPath = null;
     });
     flag = true;
+
     // Dispose video player when switching to camera
     _disposeVideoPlayer();
+
+    // Запускаем freeze detection для камеры
+    _startFreezeDetection();
   }
 //
   // Method to handle captured video file - opens it immediately
@@ -572,7 +698,6 @@ class _MainPageLayoutState extends State<MainPageLayout> {
   }
   void exportText() {}
 
-
   //-------------------Time Line--------------------------//
   // Метод для преобразования скриншотов в пометки для таймлайна
   List<ScreenshotMarker> _getScreenshotMarkers() {
@@ -710,13 +835,6 @@ class _MainPageLayoutState extends State<MainPageLayout> {
       ));
     });
 
-    // ScaffoldMessenger.of(context).showSnackBar(
-    //   SnackBar(
-    //     content: Text('Screenshot added at $currentTimestamp'),
-    //     backgroundColor: const Color(0xFF00ACAB),
-    //   ),
-    // );
-
     // Параллельно отправляем на сервер (без блокировки UI)
     if (widget.examinationId != null) {
       _uploadScreenshot(imageBytes, currentTimestamp).then((screenshotId) {
@@ -841,7 +959,8 @@ class _MainPageLayoutState extends State<MainPageLayout> {
   @override
   void dispose() {
     _voiceSubscription?.cancel();
-    _stopCameraTimer(); // Останавливаем таймер при dispose
+    _stopCameraTimer();
+    _stopFreezeDetection(); // Добавить остановку freeze detection
     _disposeVideoPlayer();
     super.dispose();
   }

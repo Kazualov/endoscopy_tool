@@ -32,7 +32,7 @@ async def websocket_endpoint(websocket: WebSocket, examination_id: str, db: Sess
             if not ret:
                 break
 
-            results = model(frame)[0]
+            results = model(frame, verbose=False)[0]
             current_time = time.time() - start_time
 
             detections = []
