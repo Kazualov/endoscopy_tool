@@ -25,7 +25,7 @@ import '../widgets/video_player_widget.dart';
 
 
 // hello den, van, azamat, alex
-//  with derection & timeline
+//  with derection in timeline
 
 // Enum to define different video modes
 enum VideoMode {
