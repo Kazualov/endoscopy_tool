@@ -5,6 +5,8 @@ import base64
 import numpy as np
 from typing import List
 from starlette.websockets import WebSocket
+import asyncio
+import queue
 
 
 class FreezeDetector:
@@ -12,13 +14,14 @@ class FreezeDetector:
         self.camera_source = camera_source
         self.threshold = threshold
         self.interval = interval
-        self.threshold = threshold
         self.running = False
         self.freeze_detected = None  # Track last status
         self.last_screenshot = None
         self.lock = threading.Lock()
         self.thread = None
         self.clients: List[WebSocket] = []
+        self.message_queue = queue.Queue()
+        self.event_loop = None
 
     def start(self):
         if self.running:
@@ -26,6 +29,9 @@ class FreezeDetector:
         self.running = True
         self.thread = threading.Thread(target=self._run, daemon=True)
         self.thread.start()
+
+        # Start message dispatcher thread
+        threading.Thread(target=self._dispatch_messages, daemon=True).start()
 
     def stop(self):
         self.running = False
@@ -36,22 +42,48 @@ class FreezeDetector:
         return self.running
 
     def register_client(self, websocket: WebSocket):
-        self.clients.append(websocket)
+        with self.lock:
+            self.clients.append(websocket)
+            if self.event_loop is None:
+                self.event_loop = asyncio.get_event_loop()
 
     def unregister_client(self, websocket: WebSocket):
-        if websocket in self.clients:
-            self.clients.remove(websocket)
+        with self.lock:
+            if websocket in self.clients:
+                self.clients.remove(websocket)
 
     def _broadcast(self, message: dict):
-        to_remove = []
-        for ws in self.clients:
-            try:
-                import asyncio
-                asyncio.create_task(ws.send_json(message))
-            except Exception:
-                to_remove.append(ws)
+        # Put message in queue instead of sending directly
+        self.message_queue.put(message)
 
-        for ws in to_remove:
+    def _dispatch_messages(self):
+        while self.running:
+            try:
+                message = self.message_queue.get(timeout=0.1)
+                if not self.clients or self.event_loop is None:
+                    continue
+
+                # Create a copy of clients to avoid threading issues
+                with self.lock:
+                    clients = self.clients.copy()
+
+                # Schedule coroutines to run in the event loop
+                for ws in clients:
+                    try:
+                        asyncio.run_coroutine_threadsafe(
+                            self._safe_send(ws, message),
+                            self.event_loop
+                        )
+                    except Exception:
+                        self.unregister_client(ws)
+
+            except queue.Empty:
+                continue
+
+    async def _safe_send(self, ws: WebSocket, message: dict):
+        try:
+            await ws.send_json(message)
+        except Exception:
             self.unregister_client(ws)
 
     def _run(self):
