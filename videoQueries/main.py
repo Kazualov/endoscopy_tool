@@ -10,6 +10,7 @@ from videoQueries.routers import Examination
 from videoQueries.routers import Set_path
 from contextlib import asynccontextmanager
 from videoQueries.routers import Detection
+from videoQueries.routers import freeze_detector
 import uvicorn
 
 
@@ -31,7 +32,7 @@ app.include_router(Examination.router)
 app.include_router(Screenshots.router)
 app.include_router(Detection.router)
 app.include_router(voiceCommand.router) # discarded for simplicity
-
+app.include_router(freeze_detector.router)
 app.include_router(Set_path.router)
 
 # CORS
