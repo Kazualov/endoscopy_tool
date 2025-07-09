@@ -34,6 +34,14 @@ class ApiService {
   // Создать нового пациента
   static Future<String?> createPatient(String id) async {
     try {
+      final log = await getPatient(id);
+      if (log){
+        return id;
+      }
+    } catch(e){
+      print('Error creating patient: $e');
+    }
+    try {
       final response = await http.post(
         Uri.parse('$baseUrl/patients/'),
         headers: {'Content-Type': 'application/json'},
@@ -52,6 +60,25 @@ class ApiService {
     } catch (e) {
       print('Error creating patient: $e');
       return null;
+    }
+  }
+
+  static Future<bool> getPatient(String patientId) async {
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/patients/$patientId'),
+        headers: {'Content-Type': 'application/json'},
+      );
+
+      if (response.statusCode == 200) {
+        return true;
+      } else if (response.statusCode == 404) {
+        throw Exception('Patient not found');
+      } else {
+        throw Exception('Failed to load patient data');
+      }
+    } catch (e) {
+      throw Exception('Error: ${e.toString()}');
     }
   }
 
