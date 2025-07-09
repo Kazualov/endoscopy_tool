@@ -1,101 +1,38 @@
-from fastapi import FastAPI, WebSocket, Depends, HTTPException
-from pathlib import Path
-from fastapi import APIRouter, Query, WebSocketDisconnect
+import shutil
+from fastapi import FastAPI, WebSocket, Depends, HTTPException, File, UploadFile
+from fastapi import APIRouter, Query
 from videoQueries.models.Detection import Detection
-from videoQueries.models.Examination import Examination
 from ultralytics import YOLO
 from videoQueries.database import get_db
 import cv2
 from typing import List
 import time
 from sqlalchemy.orm import Session
-import time
-import base64
-import numpy as np
 import asyncio
-import sys
-import os
 from videoQueries.schemas.Detection import DetectionResponse
-import sys
+from fastapi.responses import FileResponse
 import os
+import uuid
 
-def get_model_path() -> str:
-    if getattr(sys, 'frozen', False):
-        # При запуске из .exe (PyInstaller)
-        base = sys._MEIPASS
-
-        # Проверим оба возможных варианта пути
-        path1 = os.path.join(base, "videoQueries", "Detection_model", "best.pt")
-        path2 = os.path.join(base, "Detection_model", "best.pt")
-
-        if os.path.exists(path1):
-            return path1
-        elif os.path.exists(path2):
-            return path2
-        else:
-            raise FileNotFoundError("Model file not found in .exe bundle.")
-    else:
-        # Обычный запуск из исходников
-        base = os.path.dirname(os.path.dirname(__file__))
-        path = os.path.join(base, "Detection_model", "best.pt")
-        if not os.path.exists(path):
-            raise FileNotFoundError(f"Model not found at {path}")
-        return path
-
-
-model_path = get_model_path()
-model = YOLO(model_path)
 
 
 router = APIRouter()
-def get_model_path() -> str:
-    if getattr(sys, 'frozen', False):
-        # При запуске из .exe (PyInstaller)
-        base = sys._MEIPASS
 
-        # Проверим оба возможных варианта пути
-        path1 = os.path.join(base, "videoQueries", "Detection_model", "best.pt")
-        path2 = os.path.join(base, "Detection_model", "best.pt")
+model = YOLO("./Detection_model/best.pt")  # Предобученная или твоя модель
 
-        if os.path.exists(path1):
-            return path1
-        elif os.path.exists(path2):
-            return path2
-        else:
-            raise FileNotFoundError("Model file not found in .exe bundle.")
-    else:
-        # Обычный запуск из исходников
-        base = os.path.dirname(os.path.dirname(__file__))
-        path = os.path.join(base, "Detection_model", "best.pt")
-        if not os.path.exists(path):
-            raise FileNotFoundError(f"Model not found at {path}")
-        return path
-
-
-model_path = get_model_path()
-model = YOLO(model_path)
-
-
-@router.websocket("/ws/detect/{examination_id}")
-async def detect_from_client_frames(websocket: WebSocket, examination_id: str, db: Session = Depends(get_db)):
+@router.websocket("/ws/camera/{examination_id}")
+async def websocket_endpoint(websocket: WebSocket, examination_id: str, db: Session = Depends(get_db)):
     await websocket.accept()
+    cap = cv2.VideoCapture(0)
     start_time = time.time()
 
     try:
         while True:
-            data = await websocket.receive_json()
-            img_data = data.get("image")
+            ret, frame = cap.read()
+            if not ret:
+                break
 
-            if not img_data:
-                continue
-
-            # Декодируем base64 → numpy
-            image_bytes = base64.b64decode(img_data)
-            nparr = np.frombuffer(image_bytes, np.uint8)
-            frame = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
-
-            # YOLO инференс
-            results = model(frame)[0]
+            results = model(frame, verbose=False)[0]
             current_time = time.time() - start_time
 
             detections = []
@@ -117,61 +54,58 @@ async def detect_from_client_frames(websocket: WebSocket, examination_id: str, d
 
                 detections.append({
                     "x1": x1, "y1": y1, "x2": x2, "y2": y2,
-                    "label": label,
-                    "confidence": conf,
+                    "label": label, "confidence": conf,
                     "timestamp": current_time
                 })
 
             db.commit()
-
-            # Отправляем JSON обратно
             await websocket.send_json({"detections": detections})
             await asyncio.sleep(0.03)
 
-    except WebSocketDisconnect:
-        print("WebSocket disconnected")
     except Exception as e:
-        print(f"Error: {e}")
+        print(f"WebSocket connection closed: {e}")
     finally:
-        await websocket.close()
+        cap.release()
 
-@router.post("/examinations/{examination_id}/process_video/", response_model=dict)
+
+@router.post("/process_video/{examination_id}")
 async def process_video(
-    examination_id: str,
-    video_path: str = Query(...),
-    db: Session = Depends(get_db)
+        examination_id: str,
+        video_file: UploadFile = File(...),
+        db: Session = Depends(get_db)
 ):
-    # Проверка существования осмотра
-    exam = db.query(Examination).filter(Examination.id == examination_id).first()
-    if not exam:
-        raise HTTPException(status_code=404, detail="Осмотр не найден")
+    # Подготовка путей
+    storage_dir = f"examinations_storage/{examination_id}"
+    os.makedirs(storage_dir, exist_ok=True)
 
-    # Открытие видео
-    cap = cv2.VideoCapture(video_path)
+    input_path = os.path.join(storage_dir, f"input_{uuid.uuid4().hex}.mp4")
+    output_path = os.path.join(storage_dir, f"annotated_{uuid.uuid4().hex}.mp4")
+
+    # Сохраняем входное видео
+    with open(input_path, "wb") as f:
+        shutil.copyfileobj(video_file.file, f)
+
+    # Открываем видео
+    cap = cv2.VideoCapture(input_path)
     if not cap.isOpened():
-        raise HTTPException(status_code=400, detail="Не получается открыть видео")
+        raise RuntimeError(f"Could not open video file at {input_path}")
 
-    fps = cap.get(cv2.CAP_PROP_FPS)
+    # Видео параметры
     width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
     height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+    fps = cap.get(cv2.CAP_PROP_FPS) or 25
+    writer = cv2.VideoWriter(output_path, cv2.VideoWriter_fourcc(*'mp4v'), fps, (width, height))
 
-    # Подготовка выходного видео
-    input_stem = Path(video_path).stem  # Без расширения
-    output_filename = f"{input_stem}_detection.mp4"
-    output_path = Path(exam.folder_path) / output_filename
-
-    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-    out = cv2.VideoWriter(str(output_path), fourcc, fps, (width, height))
-
-    start_time = time.time()
     all_detections = []
+    start_time = time.time()
 
     while True:
         ret, frame = cap.read()
         if not ret:
             break
 
-        results = model(frame, verbose=False)[0]
+        # Инференс
+        results = model(frame)[0]
         current_time = time.time() - start_time
 
         for box in results.boxes:
@@ -179,14 +113,6 @@ async def process_video(
             cls = int(box.cls[0])
             label = model.names[cls]
             conf = float(box.conf[0])
-
-            # Рисуем прямоугольник и подпись
-            cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
-            cv2.putText(
-                frame, f"{label} {conf:.2f}",
-                (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5,
-                (0, 255, 0), 2
-            )
 
             # Сохраняем в БД
             db_detection = Detection(
@@ -198,28 +124,18 @@ async def process_video(
             )
             db.add(db_detection)
 
-            all_detections.append({
-               "examination_id": examination_id,
-                "x1": x1, "y1": y1, "x2": x2, "y2": y2,
-                "label": label, "confidence": conf,
-                "timestamp": current_time
-            })
+            # Рисуем на кадре
+            cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
+            cv2.putText(frame, f"{label} {conf:.2f}", (x1, y1 - 10),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
 
-        # Сохраняем кадр с аннотациями в видео
-        out.write(frame)
-
-    # Завершаем работу
-    cap.release()
-    out.release()
+    # Завершение
     db.commit()
-    response_detections = [
-        DetectionResponse(**d) for d in all_detections
-    ]
-    return {
-        "annotated_video_filename": output_filename,
-        "annotated_video_path": str(output_path),
-        "detections": all_detections
-    }
+    cap.release()
+    writer.release()
+
+    return FileResponse(path=output_path, media_type="video/mp4", filename="annotated.mp4")
+
 
 
 @router.get("/examinations/{examination_id}/detections", response_model=List[DetectionResponse])
