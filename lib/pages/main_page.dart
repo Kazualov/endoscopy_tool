@@ -23,7 +23,6 @@ import '../widgets/VoiceCommandService.dart';
 import '../widgets/ScreenShotsEditorDialog.dart';
 import '../widgets/video_player_widget.dart';
 
-
 // hello den, van, azamat, alex
 //  with derection in timeline
 

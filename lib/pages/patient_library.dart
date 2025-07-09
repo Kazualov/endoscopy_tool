@@ -382,40 +382,6 @@ class _ExaminationGridScreenState extends State<ExaminationGridScreen> {
   }
 
 
-  // BuildContext? _dialogContext;
-  // void _showAddExaminationDialog(BuildContext context) {
-  //   showDialog(
-  //     context: context,
-  //     builder: (BuildContext context) {
-  //       _dialogContext = context; // сохраняем контекст
-  //       return AlertDialog(
-  //         title: Text("Добавить обследование"),
-  //         content: Column(
-  //           mainAxisSize: MainAxisSize.min,
-  //           children: [
-  //             ListTile(
-  //               leading: Icon(Icons.video_library),
-  //               title: Text("Выбрать видео с компьютера"),
-  //               onTap: () {
-  //                 Navigator.of(context).pop();
-  //                 addExaminationWithVideo();
-  //               },
-  //             ),
-  //             ListTile(
-  //               leading: Icon(Icons.videocam),
-  //               title: Text("Открыть камеру"),
-  //               onTap: () {
-  //                 Navigator.of(context).pop();
-  //                 addExaminationWithCamera();
-  //               },
-  //             ),
-  //           ],
-  //         ),
-  //       );
-  //     },
-  //   );
-  // }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -517,10 +483,6 @@ class _ExaminationGridScreenState extends State<ExaminationGridScreen> {
                           textAlign: TextAlign.center,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                        ),
-                        Text(
-                          'Exam ID: ${examination.id}',
-                          style: TextStyle(fontSize: 8, color: Colors.grey),
                         ),
                       ],
                     ),
