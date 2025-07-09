@@ -747,7 +747,6 @@ class _MainPageLayoutState extends State<MainPageLayout> {
             ),
           );
         }
-        print("все детекции перед отдачей плееру $_allDetections");
         return _player != null
             ? VideoPlayerWidget(
           player: _player!,
