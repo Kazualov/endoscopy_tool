@@ -58,8 +58,8 @@ graph TD
 - [ ] Record and store doctor's voice during procedures  
 - [ ] View full voice recordings and transcripts  
 - [ ] Generate short summaries of voice records  
-- [ ] Improve and finalize the user interface for the final version  
-
+- [ ] Improve and finalize the user interface for the final version
+---
 
 ## 🔧 Installation and Deployment Instructions
 
