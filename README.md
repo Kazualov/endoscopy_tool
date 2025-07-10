@@ -84,61 +84,52 @@ graph TD
 ---
 ## 📘 Usage Instructions / Short User Guide
 
-This guide provides an overview of how to use the application to create examinations, record procedures, capture and annotate screenshots, and view AI-based detections.
+This guide walks you through how to use the application for creating examinations, recording or uploading procedures, capturing and annotating screenshots, and viewing AI-based detections.
 
----
+### 🏥 1. Creating a New Examination
 
-### 1️⃣ Creating a New Examination
+- Open the application and click the ➕ **Plus** button on the main screen.
+- Fill in the required **patient information** in the form.
+- Once the examination is created, you will be taken to the **live camera screen**.
 
-- Open the application and click the ➕ **Plus** button to create a new examination.
-- Fill in the required **patient information**.
-- Once saved, you will be taken to the **live camera preview screen**.
-
----
-
-### 🎥 Recording and Screenshot Capture
+### 🎥 2. Live Recording and Real-Time AI Detection
 
 - On the live camera screen:
   - Click the **Record** button to start recording the procedure.
-  - Click the same button again to **stop recording**.
-- You can capture screenshots in **two ways**:
-  - 🔊 Say the word **"Screenshot"** (voice command).
+  - Click again to **stop recording**.
+- To enable AI support, toggle the **"AI On"** switch — this activates **real-time detection of polyps** while recording.
+- You can capture screenshots in two ways:
+  - 🔊 Say **"Screenshot"** (voice command).
   - 🖱️ Click the **Screenshot** button on the right-hand side.
-- To enable **AI detection**, toggle the **"AI On"** switch. This will activate real-time detection of polyps during recording.
+- After taking a screenshot, you can click **Draw** to open the annotation tools with various drawing options and tooltips.
 
----
-### 📂 Uploading a Pre-Recorded Video
+### 📂 3. Uploading a Video Instead of Live Recording
 
-- On the same live camera screen, you also have the option to **upload a video** file.
-- Once uploaded, the application will automatically process the video and apply AI-based **polyp detection**.
-- You will then be redirected to the **video player screen**, where you can:
-  - Watch the uploaded video with detections overlaid.
-  - Take screenshots using the **button** (voice commands are disabled in this mode).
+- Alternatively, on the same live camera screen, you can choose to **upload a pre-recorded video**.
+- After uploading, the system will automatically process the video and apply AI-based **polyp detection**.
+- You will then be redirected to the **video player screen**, where:
+  - The video will display with detected anomalies highlighted.
+  - You can take screenshots using the **button only** (voice commands are disabled for uploaded videos).
+  - Screenshots can also be annotated using the drawing tools.
 
----
+### 🧭 4. Reviewing and Navigating Results
 
-### ✏️ Annotating Screenshots
+- After completing a real-time recording or uploading a video:
+  - You are automatically taken to a **review screen**.
+  - Here, you can:
+    - Watch the recorded or uploaded video.
+    - View AI detection results.
+    - Browse through and annotate captured screenshots.
 
-- After taking a screenshot, click the **Draw** button to enable annotation mode.
-- A toolbox with different drawing tools and tooltips will appear.
-- Use these tools to **mark areas** or **add notes** to the screenshots.
+### 📁 5. Accessing Saved Examinations
 
----
+- All completed examinations — whether live or uploaded — are stored on the **main screen**.
+- From here, you can reopen any examination to:
+  - Rewatch videos,
+  - View and edit annotations,
+  - Review AI results,
+  - Or export screenshots and data (if supported).
 
-### 🎬 Reviewing the Recorded Session
-
-- After recording ends, you will be redirected to the **review screen**:
-  - Watch the recorded video.
-  - Navigate through the captured screenshots.
-  - View AI-detected polyps in the video timeline and screenshots (if AI was enabled).
-
----
-### 📁 Viewing Saved Examinations
-
-- All completed examinations — whether created by recording or uploading a video — are listed on the **main screen**.
-- You can return to any examination at any time to review recordings, screenshots, annotations, and AI results.
-
----
 
 ## Development
 
