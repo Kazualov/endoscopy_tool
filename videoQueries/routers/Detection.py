@@ -31,8 +31,8 @@ def get_model_path() -> str:
             raise FileNotFoundError("Model file not found in .exe bundle.")
     else:
         # Обычный запуск из исходников
-        base = os.path.dirname(__file__)
-        path = os.path.join(base, "videoQueries", "Detection_model", "best.pt")
+        base = os.path.dirname(os.path.dirname(__file__))
+        path = os.path.join(base, "Detection_model", "best.pt")
         if not os.path.exists(path):
             raise FileNotFoundError(f"Model not found at {path}")
         return path
