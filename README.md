@@ -61,21 +61,25 @@ graph TD
 - [ ] Improve and finalize the user interface for the final version  
 
 
-## 🧭 Usage Instructions / Short User Guide
+## 🔧 Installation and Deployment Instructions
 
-### 1. Download and Setup
+1. **Download the Necessary Files**  
+   Open the following link in your browser:  
+   [https://disk.yandex.ru/d/xsm4Hyo1oVTSWA/builds](https://disk.yandex.ru/d/xsm4Hyo1oVTSWA/builds)
 
-- Open the following link and download all necessary files:  
-  [https://disk.yandex.ru/d/xsm4Hyo1oVTSWA/builds](https://disk.yandex.ru/d/xsm4Hyo1oVTSWA/builds)
+2. **Choose Your Operating System Folder**  
+   Select either the **macOS** or **Windows** folder, depending on your system.
 
-- Select the folder according to your operating system (macOS or Windows).
+3. **Set Up the Background Service**  
+   - Download and unzip the first archive named `dist.zip`.
+   - Open the extracted main folder.
+   - Launch the main executable file inside this folder.
+   - **Important:** Keep this window open while using the application.
 
-- Download and unzip the first archive named `dist.zip`.  
-  Open the extracted main folder, then launch the main executable file inside it. Keep this window open while using the application.
-
-- Download and unzip the second archive.
-
-- Run the `endoskopy_tool.exe` file from the second extracted folder to start the main tool.
+4. **Run the Main Tool**  
+   - Download and unzip the second archive (located in the same OS-specific folder).
+   - Open the extracted folder.
+   - Run the executable named `endoskopy_tool.exe` to start the main application.
 
 ---
 ## Development
