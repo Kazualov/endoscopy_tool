@@ -23,21 +23,19 @@ import '../widgets/VoiceCommandService.dart';
 import '../widgets/ScreenShotsEditorDialog.dart';
 import '../widgets/video_player_widget.dart';
 
-// hello den, van, azamat, alex
-//  with derection in timeline
-
 // Enum to define different video modes
 enum VideoMode {
   uploaded,    // Video uploaded from file
   camera       // Live camera capture
 }
 
-// Модель для хранения данных скриншота
+// Обновленная модель для хранения данных скриншота с точным временем
 class ScreenshotItem {
-  final String screenshotId; // ID скриншота из базы данных
+  final String screenshotId;
   final String filename;
   final String filePath;
-  final String timestampInVideo;
+  final String timestampInVideo; // Формат: "mm:ss.mmm"
+  final Duration timestampDuration; // Точное время в миллисекундах
   final Uint8List? imageBytes;
 
   ScreenshotItem({
@@ -45,20 +43,37 @@ class ScreenshotItem {
     required this.filename,
     required this.filePath,
     required this.timestampInVideo,
+    required this.timestampDuration,
     this.imageBytes,
   });
 
   // Фабричный метод для создания из JSON
   factory ScreenshotItem.fromJson(Map<String, dynamic> json) {
+    final timestampStr = json['timestamp_in_video'] ?? '0:00.000';
+    final timestampDuration = _parseDurationWithMs(timestampStr);
+
     return ScreenshotItem(
       screenshotId: json['screenshot_id'].toString(),
       filename: json['filename'] ?? '',
       filePath: json['file_path'] ?? '',
-      timestampInVideo: json['timestamp_in_video'] ?? '0:00',
+      timestampInVideo: timestampStr,
+      timestampDuration: timestampDuration,
     );
   }
-}
 
+  // Статический метод для парсинга времени с миллисекундами
+  static Duration _parseDurationWithMs(String timeString) {
+    final parts = timeString.split(':');
+    if (parts.length != 2) return Duration.zero;
+
+    final minutes = int.tryParse(parts[0]) ?? 0;
+    final secondsAndMs = parts[1].split('.');
+    final seconds = int.tryParse(secondsAndMs[0]) ?? 0;
+    final milliseconds = secondsAndMs.length > 1 ? int.tryParse(secondsAndMs[1]) ?? 0 : 0;
+
+    return Duration(minutes: minutes, seconds: seconds, milliseconds: milliseconds);
+  }
+}
 
 class DetectionSegmentMarker {
   final Duration startTime;
@@ -81,7 +96,7 @@ class DetectionSegmentMarker {
 class MainPage extends StatelessWidget {
   final String? videoPath;
   final VideoMode initialMode;
-  final String? examinationId; // Добавляем ID осмотра для работы со скриншотами
+  final String? examinationId;
 
   const MainPage({
     super.key,
@@ -133,6 +148,10 @@ class _MainPageLayoutState extends State<MainPageLayout> {
   // Константы для API
   static const String BASE_URL = 'http://127.0.0.1:8000';
 
+  // Параметры видео для покадровой навигации
+  double _videoFps = 10.0; // FPS по умолчанию
+  Duration get _frameStep => Duration(milliseconds: (1000 / _videoFps).round());
+
   // Screenshot management
   List<ScreenshotItem> screenshots = [];
   List<DetectionBox> _allDetections = [];
@@ -157,7 +176,6 @@ class _MainPageLayoutState extends State<MainPageLayout> {
   @override
   void initState() {
     super.initState();
-    // Set initial mode from constructor
     _currentMode = widget.initialMode;
     _currentVideoPath = widget.videoPath;
 
@@ -170,11 +188,10 @@ class _MainPageLayoutState extends State<MainPageLayout> {
         screenshotButtonKey.currentState?.captureAndSaveScreenshot(context);
       }
     });
-    // Initialize based on the initial mode
+
     if (_currentMode == VideoMode.uploaded && _currentVideoPath != null) {
       _initializeVideoPlayer();
     }
-    // Load existing screenshots if examination ID is provided
     if (widget.examinationId != null) {
       _loadExistingScreenshots();
     }
@@ -189,6 +206,34 @@ class _MainPageLayoutState extends State<MainPageLayout> {
     _prepareAndPlay(_currentVideoPath!);
 
     print('_initializeVideoPlayer: детекций после инициализации: ${_allDetections.length}');
+  }
+
+  // Покадровая навигация
+  void _seekFrameForward() {
+    if (_currentMode == VideoMode.uploaded && _player != null) {
+      final currentPosition = _player!.state.position;
+      final newPosition = currentPosition + _frameStep;
+      _player!.seek(newPosition);
+    }
+  }
+
+  void _seekFrameBackward() {
+    if (_currentMode == VideoMode.uploaded && _player != null) {
+      final currentPosition = _player!.state.position;
+      final newPosition = currentPosition - _frameStep;
+      if (newPosition >= Duration.zero) {
+        _player!.seek(newPosition);
+      } else {
+        _player!.seek(Duration.zero);
+      }
+    }
+  }
+
+  // Точная навигация по времени (с миллисекундами)
+  void _seekToExactTime(Duration duration) {
+    if (_currentMode == VideoMode.uploaded && _player != null) {
+      _player!.seek(duration);
+    }
   }
 
   // Методы для работы с таймером камеры
@@ -217,19 +262,17 @@ class _MainPageLayoutState extends State<MainPageLayout> {
     _stopCameraTimer();
     _startCameraTimer();
   }
+
   void handleDetection(Map<String, dynamic> detection) {
     final label = detection['label'];
     final confidence = detection['confidence'];
     // print(label);
   }
 
-
   // Method to switch to upload video mode
   Future<void> _switchToUploadMode() async {
-    // Stop camera timer when switching to upload mode
     _stopCameraTimer();
 
-    // Pick a video file
     FilePickerResult? result = await FilePicker.platform.pickFiles(
       type: FileType.video,
       allowMultiple: false,
@@ -243,10 +286,7 @@ class _MainPageLayoutState extends State<MainPageLayout> {
 
       ApiService.connectToVideoWebSocket(examinationId: widget.examinationId!, videoPath: _currentVideoPath!, onDetection: handleDetection);
 
-      // Dispose previous player if exists
       _disposeVideoPlayer();
-
-      // Initialize new player
       _initializeVideoPlayer();
       flag = false;
     }
@@ -259,22 +299,19 @@ class _MainPageLayoutState extends State<MainPageLayout> {
       _currentVideoPath = null;
     });
     flag = true;
-    // Dispose video player when switching to camera
     _disposeVideoPlayer();
   }
-//
+
   // Method to handle captured video file - opens it immediately
   void _onVideoCaptured(String capturedVideoPath, {List<DetectionBox>? detections}) {
     print('Video captured and saved: $capturedVideoPath');
 
-    // Сначала останавливаем камеру и очищаем ресурсы
     _stopCameraTimer();
 
-    // Обновляем состояние
-    if (mounted) {  // Проверяем, что виджет еще в дереве
+    if (mounted) {
       setState(() {
         if (detections != null) {
-          _allDetections = List.from(detections); // Создаем копию массива
+          _allDetections = List.from(detections);
           _detectionSegments = _processDetectionsIntoSegments(_allDetections);
           print('setState: Детекций установлено: ${_allDetections.length}');
         }
@@ -288,7 +325,6 @@ class _MainPageLayoutState extends State<MainPageLayout> {
       flag = false;
       _disposeVideoPlayer();
 
-      // Добавляем задержку для инициализации плеера
       Future.delayed(Duration(milliseconds: 200), () {
         if (mounted) {
           _initializeVideoPlayer();
@@ -300,7 +336,6 @@ class _MainPageLayoutState extends State<MainPageLayout> {
   List<DetectionSegment> _processDetectionsIntoSegments(List<DetectionBox> detections) {
     if (detections.isEmpty) return [];
 
-    // Группируем детекции по типу (label)
     Map<String, List<DetectionBox>> detectionsByLabel = {};
     for (var detection in detections) {
       detectionsByLabel.putIfAbsent(detection.label, () => []).add(detection);
@@ -312,11 +347,9 @@ class _MainPageLayoutState extends State<MainPageLayout> {
       String label = entry.key;
       List<DetectionBox> labelDetections = entry.value;
 
-      // Сортируем по времени
       labelDetections.sort((a, b) => a.timestamp.compareTo(b.timestamp));
 
-      // Объединяем близкие детекции в сегменты
-      Duration gapThreshold = Duration(seconds: 2); // Если разрыв больше 2 секунд - новый сегмент
+      Duration gapThreshold = Duration(seconds: 2);
 
       Duration? currentSegmentStart;
       Duration? currentSegmentEnd;
@@ -327,22 +360,18 @@ class _MainPageLayoutState extends State<MainPageLayout> {
         DetectionBox detection = labelDetections[i];
 
         if (currentSegmentStart == null) {
-          // Начинаем новый сегмент
           currentSegmentStart = detection.timestamp;
           currentSegmentEnd = detection.timestamp;
           maxConfidence = detection.confidence;
           detectionCount = 1;
         } else {
-          // Проверяем, нужно ли продолжить текущий сегмент или начать новый
           Duration gap = detection.timestamp - currentSegmentEnd!;
 
           if (gap <= gapThreshold) {
-            // Продолжаем текущий сегмент
             currentSegmentEnd = detection.timestamp;
             maxConfidence = math.max(maxConfidence, detection.confidence);
             detectionCount++;
           } else {
-            // Сохраняем текущий сегмент и начинаем новый
             segments.add(DetectionSegment(
               startTime: currentSegmentStart,
               endTime: currentSegmentEnd,
@@ -351,7 +380,6 @@ class _MainPageLayoutState extends State<MainPageLayout> {
               detectionCount: detectionCount,
             ));
 
-            // Начинаем новый сегмент
             currentSegmentStart = detection.timestamp;
             currentSegmentEnd = detection.timestamp;
             maxConfidence = detection.confidence;
@@ -360,7 +388,6 @@ class _MainPageLayoutState extends State<MainPageLayout> {
         }
       }
 
-      // Не забываем сохранить последний сегмент
       if (currentSegmentStart != null && currentSegmentEnd != null) {
         segments.add(DetectionSegment(
           startTime: currentSegmentStart,
@@ -399,8 +426,6 @@ class _MainPageLayoutState extends State<MainPageLayout> {
 
         for (var screenshotData in screenshotsJson) {
           final screenshotItem = ScreenshotItem.fromJson(screenshotData);
-
-          // Загружаем изображение для каждого скриншота
           final imageBytes = await _loadScreenshotImage(screenshotItem.screenshotId);
 
           loadedScreenshots.add(ScreenshotItem(
@@ -408,6 +433,7 @@ class _MainPageLayoutState extends State<MainPageLayout> {
             filename: screenshotItem.filename,
             filePath: screenshotItem.filePath,
             timestampInVideo: screenshotItem.timestampInVideo,
+            timestampDuration: screenshotItem.timestampDuration,
             imageBytes: imageBytes,
           ));
         }
@@ -423,7 +449,7 @@ class _MainPageLayoutState extends State<MainPageLayout> {
     }
   }
 
-  // Метод для загрузки изображения скриншота (возвращает binary data)
+  // Метод для загрузки изображения скриншота
   Future<Uint8List?> _loadScreenshotImage(String screenshotId) async {
     try {
       final response = await http.get(
@@ -442,7 +468,7 @@ class _MainPageLayoutState extends State<MainPageLayout> {
     }
   }
 
-  // Метод для загрузки скриншота на сервер
+  // Обновленный метод для загрузки скриншота на сервер с точным временем
   Future<String?> _uploadScreenshot(Uint8List imageBytes, String timestampInVideo) async {
     if (widget.examinationId == null) return null;
 
@@ -452,7 +478,6 @@ class _MainPageLayoutState extends State<MainPageLayout> {
 
       var request = http.MultipartRequest('POST', Uri.parse(url));
 
-      // Добавляем файл
       request.files.add(
         http.MultipartFile.fromBytes(
           'file',
@@ -461,7 +486,6 @@ class _MainPageLayoutState extends State<MainPageLayout> {
         ),
       );
 
-      // Добавляем обязательные поля
       request.fields['exam_id'] = widget.examinationId!;
       request.fields['timestamp_in_video'] = timestampInVideo;
 
@@ -515,7 +539,7 @@ class _MainPageLayoutState extends State<MainPageLayout> {
     final outputPath = '${tempDir.path}/${DateTime.now().millisecondsSinceEpoch}.mp4';
 
     final command = '-i "${inputFile.path}" -c copy "$outputPath"';
-//
+
     print('Running FFmpeg command: $command');
     final session = await FFmpegKit.execute(command);
     final returnCode = await session.getReturnCode();
@@ -540,44 +564,58 @@ class _MainPageLayoutState extends State<MainPageLayout> {
 
   void _seekToTimecode(String timeString) {
     if (_currentMode == VideoMode.uploaded && _player != null) {
-      final duration = _parseDuration(timeString);
+      final duration = _parseDurationWithMs(timeString);
       _player!.seek(duration);
     }
-    // В режиме камеры переход по таймкоду не имеет смысла, так как это live stream
   }
 
-  Duration _parseDuration(String timeString) {
-    final parts = timeString.split(":");
-    final minutes = int.parse(parts[0]);
-    final seconds = int.parse(parts[1]);
-    return Duration(minutes: minutes, seconds: seconds);
+  // Обновленный метод парсинга с миллисекундами
+  Duration _parseDurationWithMs(String timeString) {
+    final parts = timeString.split(':');
+    if (parts.length != 2) return Duration.zero;
+
+    final minutes = int.tryParse(parts[0]) ?? 0;
+    final secondsAndMs = parts[1].split('.');
+    final seconds = int.tryParse(secondsAndMs[0]) ?? 0;
+    final milliseconds = secondsAndMs.length > 1 ? int.tryParse(secondsAndMs[1]) ?? 0 : 0;
+
+    return Duration(minutes: minutes, seconds: seconds, milliseconds: milliseconds);
   }
 
-  // Обновленный метод получения текущего таймкода
+  // Обновленный метод получения текущего таймкода с миллисекундами
   String _getCurrentTimeCode() {
     if (_currentMode == VideoMode.uploaded && _player != null) {
-      // Для загруженного видео используем позицию плеера
       final position = _player!.state.position;
       final minutes = position.inMinutes;
       final seconds = position.inSeconds % 60;
-      return "${minutes.toString()}:${seconds.toString().padLeft(2, '0')}";
+      final milliseconds = position.inMilliseconds % 1000;
+      return "${minutes.toString()}:${seconds.toString().padLeft(2, '0')}.${milliseconds.toString().padLeft(3, '0')}";
     } else if (_currentMode == VideoMode.camera) {
-      // Для камеры используем таймер
       final minutes = _currentCameraDuration.inMinutes;
       final seconds = _currentCameraDuration.inSeconds % 60;
-      return "${minutes.toString()}:${seconds.toString().padLeft(2, '0')}";
+      final milliseconds = _currentCameraDuration.inMilliseconds % 1000;
+      return "${minutes.toString()}:${seconds.toString().padLeft(2, '0')}.${milliseconds.toString().padLeft(3, '0')}";
     }
-    return "0:00";
+    return "0:00.000";
   }
+
+  // Получение текущего времени как Duration
+  Duration _getCurrentDuration() {
+    if (_currentMode == VideoMode.uploaded && _player != null) {
+      return _player!.state.position;
+    } else if (_currentMode == VideoMode.camera) {
+      return _currentCameraDuration;
+    }
+    return Duration.zero;
+  }
+
   void exportText() {}
 
-
-  //-------------------Time Line--------------------------//
   // Метод для преобразования скриншотов в пометки для таймлайна
   List<ScreenshotMarker> _getScreenshotMarkers() {
     return screenshots.map((screenshot) {
       return ScreenshotMarker(
-        timestamp: _parseDuration(screenshot.timestampInVideo),
+        timestamp: screenshot.timestampDuration,
         screenshotId: screenshot.screenshotId,
       );
     }).toList();
@@ -590,19 +628,20 @@ class _MainPageLayoutState extends State<MainPageLayout> {
         endTime: segment.endTime,
         label: segment.label,
         confidence: segment.maxConfidence,
-        detectionCount: segment.detectionCount, type: 'detection',
+        detectionCount: segment.detectionCount,
+        type: 'detection',
       );
     }).toList();
   }
 
-// Обработчик клика по пометке на таймлайне
+  // Обработчик клика по пометке на таймлайне
   void _onMarkerTap(Duration timestamp) {
     if (_currentMode == VideoMode.uploaded && _player != null) {
       _player!.seek(timestamp);
     }
   }
 
-// Обновленный метод _buildVideoArea()
+  // Обновленный метод _buildVideoArea с кнопками покадровой навигации
   Widget _buildVideoArea() {
     switch (_currentMode) {
       case VideoMode.uploaded:
@@ -621,16 +660,55 @@ class _MainPageLayoutState extends State<MainPageLayout> {
             ),
           );
         }
-        print("все детекции перед отдачей плееру $_allDetections");
-        return _player != null
-            ? VideoPlayerWidget(
-          player: _player!,
-          screenshotMarkers: _getScreenshotMarkers(),
-          detections: _allDetections, // Передаем все детекции
-          onMarkerTap: _onMarkerTap,
-          onDetectionIntervalTap: _onDetectionIntervalTap, // Добавляем обработчик
-        )
-            : const Center(child: Text("Video player not initialized"));
+        return Stack(
+          children: [
+            _player != null
+                ? VideoPlayerWidget(
+              player: _player!,
+              screenshotMarkers: _getScreenshotMarkers(),
+              detections: _allDetections,
+              onMarkerTap: _onMarkerTap,
+              onDetectionIntervalTap: _onDetectionIntervalTap,
+            )
+                : const Center(child: Text("Video player not initialized")),
+
+            // Кнопки покадровой навигации
+            if (_player != null)
+              Positioned(
+                bottom: 80,
+                left: 0,
+                right: 0,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    // Кнопка "кадр назад"
+                    Container(
+                      margin: const EdgeInsets.symmetric(horizontal: 8),
+                      child: FloatingActionButton(
+                        mini: true,
+                        backgroundColor: const Color(0xFF00ACAB),
+                        onPressed: _seekFrameBackward,
+                        child: const Icon(Icons.skip_previous, color: Colors.white),
+                        tooltip: "Кадр назад",
+                      ),
+                    ),
+
+                    // Кнопка "кадр вперед"
+                    Container(
+                      margin: const EdgeInsets.symmetric(horizontal: 8),
+                      child: FloatingActionButton(
+                        mini: true,
+                        backgroundColor: const Color(0xFF00ACAB),
+                        onPressed: _seekFrameForward,
+                        child: const Icon(Icons.skip_next, color: Colors.white),
+                        tooltip: "Кадр вперед",
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+          ],
+        );
 
       case VideoMode.camera:
         return Stack(
@@ -668,17 +746,15 @@ class _MainPageLayoutState extends State<MainPageLayout> {
     }
   }
 
-
   void _onDetectionIntervalTap(DetectionSegment segment) {
     if (_currentMode == VideoMode.uploaded && _player != null) {
       _player!.seek(segment.startTime);
 
-      // Показываем информацию о детекции
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
               'Детекция: ${segment.label}\n'
-                  'Время: ${_formatDuration(segment.startTime)} - ${_formatDuration(segment.endTime)}\n'
+                  'Время: ${_formatDurationWithMs(segment.startTime)} - ${_formatDurationWithMs(segment.endTime)}\n'
                   'Количество: ${segment.detectionCount}, Уверенность: ${(segment.maxConfidence * 100).toStringAsFixed(1)}%'
           ),
           backgroundColor: const Color(0xFF00ACAB),
@@ -688,40 +764,34 @@ class _MainPageLayoutState extends State<MainPageLayout> {
     }
   }
 
-  String _formatDuration(Duration duration) {
+  // Обновленный метод форматирования времени с миллисекундами
+  String _formatDurationWithMs(Duration duration) {
     final minutes = duration.inMinutes.toString().padLeft(2, '0');
     final seconds = (duration.inSeconds % 60).toString().padLeft(2, '0');
-    return '$minutes:$seconds';
+    final milliseconds = (duration.inMilliseconds % 1000).toString().padLeft(3, '0');
+    return '$minutes:$seconds.$milliseconds';
   }
 
-// Также обновите метод _addScreenshot для автоматического обновления UI
+  // Обновленный метод _addScreenshot с точным временем
   Future<void> _addScreenshot(Uint8List imageBytes) async {
     final currentTimestamp = _getCurrentTimeCode();
+    final currentDuration = _getCurrentDuration();
 
-    // Сначала добавляем скриншот в локальный список
     setState(() {
       screenshots.add(ScreenshotItem(
         screenshotId: DateTime.now().millisecondsSinceEpoch.toString(),
         filename: 'screenshot_${DateTime.now().millisecondsSinceEpoch}.png',
         filePath: '',
         timestampInVideo: currentTimestamp,
+        timestampDuration: currentDuration,
         imageBytes: imageBytes,
       ));
     });
 
-    // ScaffoldMessenger.of(context).showSnackBar(
-    //   SnackBar(
-    //     content: Text('Screenshot added at $currentTimestamp'),
-    //     backgroundColor: const Color(0xFF00ACAB),
-    //   ),
-    // );
-
-    // Параллельно отправляем на сервер (без блокировки UI)
     if (widget.examinationId != null) {
       _uploadScreenshot(imageBytes, currentTimestamp).then((screenshotId) {
         if (screenshotId != null) {
           print('Screenshot successfully uploaded with ID: $screenshotId');
-          // Обновляем ID скриншота после успешной загрузки
           setState(() {
             final index = screenshots.length - 1;
             if (index >= 0) {
@@ -730,6 +800,7 @@ class _MainPageLayoutState extends State<MainPageLayout> {
                 filename: screenshots[index].filename,
                 filePath: screenshots[index].filePath,
                 timestampInVideo: screenshots[index].timestampInVideo,
+                timestampDuration: screenshots[index].timestampDuration,
                 imageBytes: screenshots[index].imageBytes,
               );
             }
@@ -741,13 +812,11 @@ class _MainPageLayoutState extends State<MainPageLayout> {
     }
   }
 
-
-//----------------------------------------------------------------------------
   // Build the control buttons in the sidebar
   Widget _buildControlButtons() {
     return Column(
       children: [
-        // Screenshot button (only available when video is loaded)
+        // Screenshot button
         if (_currentMode == VideoMode.uploaded || _currentMode == VideoMode.camera)
           ScreenshotButton(
             key: screenshotButtonKey,
