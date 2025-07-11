@@ -7,15 +7,16 @@ from typing import List
 from starlette.websockets import WebSocket
 import asyncio
 import queue
+from skimage.metrics import structural_similarity as ssim
 
 
 class FreezeDetector:
-    def __init__(self, camera_source=0, threshold=5.0, interval=1.0):
+    def __init__(self, camera_source=0, threshold=1.0, interval=0.5):
         self.camera_source = camera_source
         self.threshold = threshold
         self.interval = interval
         self.running = False
-        self.freeze_detected = None  # Track last status
+        self.freeze_detected = False  # Track last status
         self.last_screenshot = None
         self.lock = threading.Lock()
         self.thread = None
@@ -124,11 +125,10 @@ class FreezeDetector:
         cap.release()
 
     def _is_frozen(self, frame1, frame2):
-        diff = cv2.absdiff(frame1, frame2)
-        non_zero = np.count_nonzero(diff)
-        total = frame1.size
-        percent_diff = (non_zero / total) * 100
-        return percent_diff < self.threshold
+        gray1 = cv2.cvtColor(frame1, cv2.COLOR_BGR2GRAY)
+        gray2 = cv2.cvtColor(frame2, cv2.COLOR_BGR2GRAY)
+        score, _ = ssim(gray1, gray2, full=True)
+        return score > 0.97  # tune threshold
 
     def _encode_frame(self, frame):
         _, buffer = cv2.imencode('.jpg', frame)

@@ -1,5 +1,4 @@
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
-from fastapi.responses import JSONResponse
 from videoQueries.utils.freeze_detector import FreezeDetector
 
 router = APIRouter()
