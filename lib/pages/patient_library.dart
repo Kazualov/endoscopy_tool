@@ -2,11 +2,11 @@ import 'dart:async';
 
 import 'package:endoscopy_tool/pages/main_page.dart';
 import 'package:endoscopy_tool/pages/settings.dart';
-import 'package:endoscopy_tool/widgets/SettingsStorage.dart';
-import 'package:endoscopy_tool/widgets/VoiceCommandService.dart';
+import 'package:endoscopy_tool/modules/SettingsStorage.dart';
+import 'package:endoscopy_tool/modules/VoiceCommandService.dart';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
-import '../widgets/ApiService.dart';
+import '../modules/ApiService.dart';
 
 // hello Gleb
 

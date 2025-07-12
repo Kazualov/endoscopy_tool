@@ -4,7 +4,7 @@ import 'dart:io';
 import 'dart:math' as math;
 import 'dart:typed_data';
 
-import 'package:endoscopy_tool/widgets/ApiService.dart';
+import 'package:endoscopy_tool/modules/ApiService.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:http/http.dart' as http;
@@ -19,7 +19,7 @@ import 'package:endoscopy_tool/pages/patient_library.dart';
 import 'package:endoscopy_tool/widgets/screenshot_button_widget.dart';
 import 'package:endoscopy_tool/widgets/video_capturing_widget.dart';
 import '../modules/detection_models.dart';
-import '../widgets/VoiceCommandService.dart';
+import '../modules/VoiceCommandService.dart';
 import '../widgets/ScreenShotsEditorDialog.dart';
 import '../widgets/video_player_widget.dart';
 
@@ -169,6 +169,10 @@ class _MainPageLayoutState extends State<MainPageLayout> {
         print('[MainPageLayout] 🎤 Выполняем скриншот...');
         screenshotButtonKey.currentState?.captureAndSaveScreenshot(context);
       }
+      // if (command.toLowerCase().contains('section') && flag == true) {
+      //
+      // }
+
     });
     // Initialize based on the initial mode
     if (_currentMode == VideoMode.uploaded && _currentVideoPath != null) {
@@ -545,14 +549,12 @@ class _MainPageLayoutState extends State<MainPageLayout> {
     }
     // В режиме камеры переход по таймкоду не имеет смысла, так как это live stream
   }
-
   Duration _parseDuration(String timeString) {
     final parts = timeString.split(":");
     final minutes = int.parse(parts[0]);
     final seconds = int.parse(parts[1]);
     return Duration(minutes: minutes, seconds: seconds);
   }
-
   // Обновленный метод получения текущего таймкода
   String _getCurrentTimeCode() {
     if (_currentMode == VideoMode.uploaded && _player != null) {
@@ -570,7 +572,6 @@ class _MainPageLayoutState extends State<MainPageLayout> {
     return "0:00";
   }
   void exportText() {}
-
 
   //-------------------Time Line--------------------------//
   // Метод для преобразования скриншотов в пометки для таймлайна
