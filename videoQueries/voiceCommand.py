@@ -69,10 +69,11 @@ def voice_command_generator():
     connection_count += 1
     client_id = connection_count
     full_transcript = ""
+    is_recording = False
+    last_save_index = 0
 
     print(f"[SSE] Новое подключение #{client_id}")
 
-    # Отправляем heartbeat каждые 5 секунд
     last_heartbeat = time.time()
 
     try:
@@ -87,50 +88,64 @@ def voice_command_generator():
 
             while True:
                 try:
-                    # Проверяем heartbeat
                     current_time = time.time()
                     if current_time - last_heartbeat > 5:
-                        # print(f"[SSE] Клиент #{client_id}: Отправляем heartbeat")
                         yield f"data: {json.dumps({'type': 'heartbeat', 'timestamp': current_time})}\n\n"
                         last_heartbeat = current_time
 
-                    # Проверяем очередь аудио (с таймаутом)
                     try:
                         data = AUDIO_QUEUE.get(timeout=0.1)
-                        # print(f"[AUDIO] Клиент #{client_id}: Получены аудио данные ({len(data)} байт)")
 
                         if recognizer.AcceptWaveform(data):
                             result = json.loads(recognizer.Result())
                             text = result.get("text", "").lower()
-                            if text and not process_command(text):
-                                full_transcript += text + " "
-
                             if text:
-                                # print(f"[SPEECH] Клиент #{client_id}: Распознан текст: '{text}'")
                                 command = process_command(text)
 
-                                if command == "exit":
-                                    message = json.dumps({'command': "exit", 'text': text})
+                                if command == "start":
+                                    is_recording = True
+                                    full_transcript = ""
+                                    last_save_index = 0
+                                    message = json.dumps({'command': "start", 'text': text})
+                                    yield f"data: {message}\n\n"
+
+                                elif command == "save":
+                                    if is_recording:
+                                        words = full_transcript.split()
+                                        new_segment = " ".join(words[last_save_index:])
+                                        last_save_index = len(words)
+                                        message = json.dumps({'command': "save", 'text': new_segment})
+                                        yield f"data: {message}\n\n"
+                                    else:
+                                        message = json.dumps({'command': "save", 'error': "Not recording"})
+                                        yield f"data: {message}\n\n"
+
+                                elif command == "exit":
+                                    message = json.dumps({'command': "exit", 'text': full_transcript.strip()})
                                     yield f"data: {message}\n\n"
                                     break
-                                else:
-                                    message = json.dumps({'command': command, 'text': text})
-                                    # print(f"[SSE] Клиент #{client_id}: Отправляем команду: {message}")
+                                elif command == "stop":
+                                    is_recording = False
+                                    message = json.dumps({'command': "stop", 'text': text})
                                     yield f"data: {message}\n\n"
-                                    # print(f"[SSE] Клиент #{client_id}: Текст не содержит команд")
-                            else:
-                                pass
-                                # print(f"[SPEECH] Клиент #{client_id}: Пустой результат распознавания")
+
+                                else:
+                                    # Накопление текста только если запись включена и это не команда
+                                    if not command:
+                                        if is_recording:
+                                            full_transcript += text + " "
+                                    # Отправляем команду, если она есть (например, стоп, скриншот и т.д.)
+                                    if command:
+                                        message = json.dumps({'command': command, 'text': text})
+                                        yield f"data: {message}\n\n"
+
                         else:
-                            # Промежуточный результат
                             partial = json.loads(recognizer.PartialResult())
                             partial_text = partial.get("partial", "")
                             if partial_text:
-                                pass
-                                # print(f"[SPEECH] Клиент #{client_id}: Промежуточный текст: '{partial_text}'")
+                                pass  # можно отправлять частичный текст, если нужно
 
                     except queue.Empty:
-                        # Нет новых аудио данных, продолжаем
                         continue
 
                 except Exception as e:
@@ -144,6 +159,7 @@ def voice_command_generator():
 
         if full_transcript.strip():
             yield f"data: {json.dumps({'type': 'transcript', 'text': full_transcript.strip()})}\n\n"
+
 
 
 @router.get("/voiceCommand")
