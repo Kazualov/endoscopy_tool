@@ -12,8 +12,6 @@ router = APIRouter()
 SAMPLE_RATE = 16000
 CHANNELS = 1
 AUDIO_QUEUE = queue.Queue()
-FULL_TRANSCRIPT = ""
-force_stop = False
 
 def get_model_path():
     if getattr(sys, 'frozen', False):
@@ -66,8 +64,7 @@ def process_command(text):
 
 
 def voice_command_generator():
-    global connection_count, force_stop
-    force_stop = False
+    global connection_count
     connection_count += 1
     client_id = connection_count
     full_transcript = ""
@@ -89,10 +86,6 @@ def voice_command_generator():
             print(f"[SSE] Клиент #{client_id}: Микрофон активирован")
 
             while True:
-                global FULL_TRANSCRIPT
-                if force_stop:
-                    print(f"[SSE] Клиент #{client_id}: Принудительное завершение через getTranscript")
-                    break
                 try:
                     current_time = time.time()
                     if current_time - last_heartbeat > 5:
@@ -105,9 +98,6 @@ def voice_command_generator():
                         if recognizer.AcceptWaveform(data):
                             result = json.loads(recognizer.Result())
                             text = result.get("text", "").lower()
-                            if text and not process_command(text):
-                                FULL_TRANSCRIPT += text + " "
-
                             if text:
                                 command = process_command(text)
 
@@ -132,7 +122,7 @@ def voice_command_generator():
                                 elif command == "exit":
                                     message = json.dumps({'command': "exit", 'text': full_transcript.strip()})
                                     yield f"data: {message}\n\n"
-                
+                                    break
                                 elif command == "stop":
                                     is_recording = False
                                     message = json.dumps({'command': "stop", 'text': text})
@@ -183,19 +173,3 @@ def voice_command():
             "Access-Control-Allow-Headers": "*",
         }
     )
-
-
-@router.get("/getTranscript")
-def get_transcript():
-    global FULL_TRANSCRIPT, force_stop
-    transcript_to_return = FULL_TRANSCRIPT.strip()
-    FULL_TRANSCRIPT = ""  # Сброс после запроса
-    force_stop = True
-    return {"transcript": transcript_to_return}
-
-
-@router.get("/peekTranscript")
-def peek_transcript():
-    global FULL_TRANSCRIPT
-    return {"transcript": FULL_TRANSCRIPT.strip()}
-
