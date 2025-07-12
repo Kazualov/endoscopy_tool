@@ -11,7 +11,7 @@ import 'package:path/path.dart' as path;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 
-import 'ApiService.dart';
+import '../modules/ApiService.dart';
 
 // Класс для хранения данных о детекции
 class DetectionBox {
