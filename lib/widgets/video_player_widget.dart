@@ -139,7 +139,6 @@ class VideoPlayerWidget extends StatefulWidget {
     this.onDetectionIntervalTap,
   });
 
-
   @override
   State<VideoPlayerWidget> createState() => _VideoPlayerWidgetState();
 }
@@ -164,10 +163,10 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
       _updateDetectionSegments();
     }
   }
+
   void _updateDetectionSegments() {
     print(widget.detections);
     _detectionSegments = _processDetectionsIntoSegments(widget.detections);
-
     print('Обновлены сегменты детекций: ${_detectionSegments.length}');
   }
 
@@ -284,8 +283,8 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
         const double sliderHorizontalPadding = 24.0;
         final double trackWidth = constraints.maxWidth - (sliderHorizontalPadding * 2);
 
-        return Container(
-          height: 80, // Увеличиваем высоту для лучшего отображения
+        return SizedBox(
+          height: 60, // Уменьшаем высоту
           child: Stack(
             children: [
               // Интервалы детекций
@@ -301,7 +300,7 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
 
                 return Positioned(
                   left: startPosition,
-                  top: 10,
+                  top: 5,
                   child: GestureDetector(
                     onTap: () {
                       print('Клик по сегменту: ${segment.label} в ${segment.startTime}');
@@ -310,10 +309,10 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
                     },
                     child: Container(
                       width: intervalWidth,
-                      height: 12,
+                      height: 10,
                       decoration: BoxDecoration(
                         color: _getDetectionColor(segment.label).withOpacity(0.8),
-                        borderRadius: BorderRadius.circular(6),
+                        borderRadius: BorderRadius.circular(5),
                         border: Border.all(color: Colors.white, width: 1),
                         boxShadow: [
                           BoxShadow(
@@ -338,12 +337,12 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
               Positioned(
                 left: 0,
                 right: 0,
-                top: 35,
+                top: 20,
                 child: SliderTheme(
                   data: SliderTheme.of(context).copyWith(
-                    trackHeight: 6.0,
-                    thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 8.0),
-                    overlayShape: const RoundSliderOverlayShape(overlayRadius: 16.0),
+                    trackHeight: 4.0,
+                    thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6.0),
+                    overlayShape: const RoundSliderOverlayShape(overlayRadius: 12.0),
                   ),
                   child: Slider(
                     activeColor: const Color(0xFF00ACAB),
@@ -363,26 +362,26 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
                 if (duration.inMilliseconds == 0) return const SizedBox.shrink();
 
                 final double markerRatio = marker.timestamp.inMilliseconds / duration.inMilliseconds;
-                final double markerLeftPosition = sliderHorizontalPadding + (trackWidth * markerRatio) - 2;
+                final double markerLeftPosition = sliderHorizontalPadding + (trackWidth * markerRatio) - 1;
 
                 return Positioned(
                   left: markerLeftPosition,
-                  top: 41,
+                  top: 22,
                   child: GestureDetector(
                     onTap: () {
                       _player.seek(marker.timestamp);
                       widget.onMarkerTap?.call(marker.timestamp);
                     },
                     child: Container(
-                      width: 4,
-                      height: 20,
+                      width: 2,
+                      height: 16,
                       decoration: BoxDecoration(
                         color: const Color(0xFF01a3a2),
-                        borderRadius: BorderRadius.circular(2),
+                        borderRadius: BorderRadius.circular(1),
                         boxShadow: [
                           BoxShadow(
                             color: Colors.black26,
-                            blurRadius: 2,
+                            blurRadius: 1,
                             offset: const Offset(0, 1),
                           ),
                         ],
@@ -407,36 +406,55 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
         final duration = _player.state.duration;
 
         return Column(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            AspectRatio(
-              aspectRatio: 16 / 10,
-              child: Video(controller: _videoController, controls: NoVideoControls),
-            ),
-
-            IconButton(
-              icon: Icon(
-                color: const Color(0xFF00ACAB),
-                _player.state.playing ? Icons.pause : Icons.play_arrow_rounded,
-                size: 60,
+            // Видео - занимает основную часть доступного пространства
+            Expanded(
+              child: AspectRatio(
+                aspectRatio: 16 / 10,
+                child: Video(controller: _videoController, controls: NoVideoControls),
               ),
-              onPressed: () {
-                setState(() {
-                  _player.state.playing ? _player.pause() : _player.play();
-                });
-              },
             ),
 
-            // Кастомный таймлайн с пометками и интервалами детекций
-            _buildTimelineSlider(position, duration),
-
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20.0),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            // Фиксированные элементы управления
+            Container(
+              padding: const EdgeInsets.symmetric(vertical: 8.0),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(_formatDuration(position)),
-                  Text(_formatDuration(duration)),
+                  // Кнопка воспроизведения
+                  IconButton(
+                    icon: Icon(
+                      color: const Color(0xFF00ACAB),
+                      _player.state.playing ? Icons.pause : Icons.play_arrow_rounded,
+                      size: 48,
+                    ),
+                    onPressed: () {
+                      setState(() {
+                        _player.state.playing ? _player.pause() : _player.play();
+                      });
+                    },
+                  ),
+
+                  // Кастомный таймлайн с пометками и интервалами детекций
+                  _buildTimelineSlider(position, duration),
+
+                  // Время
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 4.0),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          _formatDuration(position),
+                          style: const TextStyle(fontSize: 12),
+                        ),
+                        Text(
+                          _formatDuration(duration),
+                          style: const TextStyle(fontSize: 12),
+                        ),
+                      ],
+                    ),
+                  ),
                 ],
               ),
             ),

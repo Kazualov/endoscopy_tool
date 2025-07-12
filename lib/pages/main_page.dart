@@ -169,10 +169,6 @@ class _MainPageLayoutState extends State<MainPageLayout> {
         print('[MainPageLayout] 🎤 Выполняем скриншот...');
         screenshotButtonKey.currentState?.captureAndSaveScreenshot(context);
       }
-      // if (command.toLowerCase().contains('section') && flag == true) {
-      //
-      // }
-
     });
     // Initialize based on the initial mode
     if (_currentMode == VideoMode.uploaded && _currentVideoPath != null) {
@@ -805,14 +801,15 @@ class _MainPageLayoutState extends State<MainPageLayout> {
           tooltip: "Capture Video",
         ),
 
-        IconButton(
-          onPressed: exportText,
-          icon: const Icon(
-            Icons.download_rounded,
-            color: Color(0xFF00ACAB),
+        if (_currentMode == VideoMode.uploaded)
+          IconButton(
+            onPressed: exportText,
+            icon: const Icon(
+              Icons.download_rounded,
+              color: Color(0xFF00ACAB),
+            ),
+            tooltip: "Download voice notes",
           ),
-          tooltip: "Download voice notes",
-        ),
         IconButton(
           onPressed: () {
             Navigator.push(

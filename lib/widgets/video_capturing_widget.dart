@@ -855,117 +855,133 @@ class _CameraStreamWidgetState extends State<CameraStreamWidget> {
         children: [
           // Video preview с наложением детекции
           Expanded(
-            child: AspectRatio(
-              aspectRatio: widget.aspectRatio,
-              child: Container(
-                decoration: BoxDecoration(
-                  color: Colors.black,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
-                  child: Stack(
-                    children: [
-                      // Основное видео
-                      RTCVideoView(
-                        _renderer,
-                        objectFit: RTCVideoViewObjectFit.RTCVideoViewObjectFitCover,
-                      ),
-                      // Наложение детекции
-                      if (_isDetectionEnabled && _currentDetections.isNotEmpty)
-                        Positioned.fill(
-                          child: CustomPaint(
-                            painter: DetectionOverlayPainter(
-                              detections: _currentDetections,
-                              videoSize: Size(
-                                widget.videoWidth.toDouble(),
-                                widget.videoHeight.toDouble(),
+            flex: 1,
+            child: Container(
+              width: double.infinity,
+              constraints: BoxConstraints(
+                maxHeight: widget.height != null ? widget.height! - 80 : double.infinity,
+              ),
+              child: AspectRatio(
+                aspectRatio: widget.aspectRatio,
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.black,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: Stack(
+                      children: [
+                        // Основное видео
+                        RTCVideoView(
+                          _renderer,
+                          objectFit: RTCVideoViewObjectFit.RTCVideoViewObjectFitCover,
+                        ),
+                        // Наложение детекции
+                        if (_isDetectionEnabled && _currentDetections.isNotEmpty)
+                          Positioned.fill(
+                            child: CustomPaint(
+                              painter: DetectionOverlayPainter(
+                                detections: _currentDetections,
+                                videoSize: Size(
+                                  widget.videoWidth.toDouble(),
+                                  widget.videoHeight.toDouble(),
+                                ),
                               ),
                             ),
                           ),
-                        ),
-                      // Индикатор статуса детекции
-                      if (widget.examinationId != null)
-                        Positioned(
-                          top: 8,
-                          right: 8,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: _isDetectionEnabled ? Colors.green : Colors.grey,
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  _isDetectionEnabled ? Icons.visibility : Icons.visibility_off,
-                                  color: Colors.white,
-                                  size: 16,
-                                ),
-                                const SizedBox(width: 4),
-                                Text(
-                                  _isDetectionEnabled ? 'AI ON' : 'AI OFF',
-                                  style: const TextStyle(
+                        // Индикатор статуса детекции
+                        if (widget.examinationId != null)
+                          Positioned(
+                            top: 8,
+                            right: 8,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: _isDetectionEnabled ? Colors.green : Colors.grey,
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    _isDetectionEnabled ? Icons.visibility : Icons.visibility_off,
                                     color: Colors.white,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.bold,
+                                    size: 16,
                                   ),
-                                ),
-                              ],
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    _isDetectionEnabled ? 'AI ON' : 'AI OFF',
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
-                        ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               ),
             ),
           ),
-          const SizedBox(height: 1),
+          const SizedBox(height: 8),
           // Элементы управления
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              ElevatedButton.icon(
-                icon: Icon(_isRecording ? Icons.radio_button_checked : Icons.fiber_manual_record),
-                label: Text(_isRecording ? "Recording..." : "Start Recording"),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: _isRecording ? Color(0xFFD9D9D9) : Color(0xFF00ACAB),
-                  foregroundColor: Colors.white,
-                ),
-                onPressed: _isRecording ? null : _startRecording,
-              ),
-              const SizedBox(width: 16),
-              ElevatedButton.icon(
-                icon: const Icon(Icons.stop),
-                label: const Text("Stop Recording"),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.grey.shade800,
-                  foregroundColor: Colors.white,
-                ),
-                onPressed: _isRecording ? _stopRecording : null,
-              ),
-              const SizedBox(width: 16),
-              // Кнопка переключения детекции
-              if (widget.examinationId != null)
-                ElevatedButton.icon(
-                  icon: Icon(_isDetectionEnabled ? Icons.visibility : Icons.visibility_off),
-                  label: Text(_isDetectionEnabled ? "AI ON" : "AI OFF"),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: _isDetectionEnabled ? Colors.green : Colors.grey,
-                    foregroundColor: Colors.white,
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  ElevatedButton.icon(
+                    icon: Icon(_isRecording ? Icons.radio_button_checked : Icons.fiber_manual_record),
+                    label: Text(_isRecording ? "Recording..." : "Start Recording"),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: _isRecording ? Color(0xFFD9D9D9) : Color(0xFF00ACAB),
+                      foregroundColor: Colors.white,
+                      minimumSize: const Size(120, 36),
+                    ),
+                    onPressed: _isRecording ? null : _startRecording,
                   ),
-                  onPressed: _toggleDetection,
-                ),
-              const SizedBox(width: 16),
-              IconButton(
-                color: Color(0xFF00ACAB),
-                icon: const Icon(Icons.settings),
-                onPressed: _showSettingsDialog,
-                tooltip: 'Settings',
+                  const SizedBox(width: 12),
+                  ElevatedButton.icon(
+                    icon: const Icon(Icons.stop),
+                    label: const Text("Stop Recording"),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.grey.shade800,
+                      foregroundColor: Colors.white,
+                      minimumSize: const Size(120, 36),
+                    ),
+                    onPressed: _isRecording ? _stopRecording : null,
+                  ),
+                  const SizedBox(width: 12),
+                  // Кнопка переключения детекции
+                  if (widget.examinationId != null)
+                    ElevatedButton.icon(
+                      icon: Icon(_isDetectionEnabled ? Icons.visibility : Icons.visibility_off),
+                      label: Text(_isDetectionEnabled ? "AI ON" : "AI OFF"),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: _isDetectionEnabled ? Colors.green : Colors.grey,
+                        foregroundColor: Colors.white,
+                        minimumSize: const Size(80, 36),
+                      ),
+                      onPressed: _toggleDetection,
+                    ),
+                  const SizedBox(width: 12),
+                  IconButton(
+                    color: Color(0xFF00ACAB),
+                    icon: const Icon(Icons.settings),
+                    onPressed: _showSettingsDialog,
+                    tooltip: 'Settings',
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
         ],
       ),
