@@ -56,8 +56,6 @@ Each test links to the related acceptance criteria (AC) for traceability and cla
 
 ---
 
-## New Acceptance Tests
-
 ### Test 4: Draw a circle and an arrow on a screenshot
 
 **Steps:**
@@ -93,3 +91,41 @@ Each test links to the related acceptance criteria (AC) for traceability and cla
 
 ---
 
+## New Acceptance Tests
+
+### Test 6: Display anomaly markers on the video timeline and enable navigation
+
+**Steps:**
+1. Open a video that has known anomaly detection results.
+2. Look at the timeline bar below the video.
+3. Observe whether one or more highlighted segments are displayed on the timeline.
+4. Hover over one of the segments.
+
+**Verify:**
+- A tooltip or label appears
+- Clicking on the segment seeks the video to the anomaly start
+- Video playback continues correctly from that position
+- The highlighted timeline segments match the real timestamps (check model output if needed)
+
+**Linked acceptance criteria:**
+[Add area on the video timeline indicating anomalies detected by model]([https://github.com/yourteam/repo/issues/XYZ](https://github.com/Kazualov/endoscopy_tool/issues/70))
+
+--- 
+
+### Test 7: View the full speech transcript for a patient session in the application
+
+**Steps:**
+1. Open the application and go to the list of past patient sessions.
+2. Select a session where voice commands or dictation were used.
+3. Click the "Transcript" or "Speech history" tab in the session screen.
+
+**Verify:**
+- You can see all the spoken phrases in text format.
+- Each phrase includes a timestamp showing when it was said.
+- The text accurately reflects what was said during the session.
+- You can scroll, copy, or export the transcript if needed (e.g., to patient record or summary).
+
+**Linked acceptance criteria:**
+[Create functionality to get all the speech](https://github.com/Kazualov/endoscopy_tool/issues/61)
+
+---
