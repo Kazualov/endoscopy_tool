@@ -12,7 +12,8 @@ router = APIRouter()
 SAMPLE_RATE = 16000
 CHANNELS = 1
 AUDIO_QUEUE = queue.Queue()
-
+FULL_TRANSCRIPT = ""
+force_stop = False
 
 def get_model_path():
     if getattr(sys, 'frozen', False):
@@ -65,7 +66,8 @@ def process_command(text):
 
 
 def voice_command_generator():
-    global connection_count
+    global connection_count, force_stop
+    force_stop = False
     connection_count += 1
     client_id = connection_count
     full_transcript = ""
@@ -86,6 +88,10 @@ def voice_command_generator():
             print(f"[SSE] Клиент #{client_id}: Микрофон активирован")
 
             while True:
+                global FULL_TRANSCRIPT
+                if force_stop:
+                    print(f"[SSE] Клиент #{client_id}: Принудительное завершение через getTranscript")
+                    break
                 try:
                     # Проверяем heartbeat
                     current_time = time.time()
@@ -103,16 +109,16 @@ def voice_command_generator():
                             result = json.loads(recognizer.Result())
                             text = result.get("text", "").lower()
                             if text and not process_command(text):
-                                full_transcript += text + " "
+                                FULL_TRANSCRIPT += text + " "
 
                             if text:
                                 # print(f"[SPEECH] Клиент #{client_id}: Распознан текст: '{text}'")
                                 command = process_command(text)
 
                                 if command == "exit":
-                                    message = json.dumps({'command': "exit", 'text': text})
-                                    yield f"data: {message}\n\n"
-                                    break
+                                    # message = json.dumps({'command': "exit", 'text': text})
+                                    # yield f"data: {message}\n\n"
+                                    pass
                                 else:
                                     message = json.dumps({'command': command, 'text': text})
                                     # print(f"[SSE] Клиент #{client_id}: Отправляем команду: {message}")
@@ -159,3 +165,19 @@ def voice_command():
             "Access-Control-Allow-Headers": "*",
         }
     )
+
+
+@router.get("/getTranscript")
+def get_transcript():
+    global FULL_TRANSCRIPT, force_stop
+    transcript_to_return = FULL_TRANSCRIPT.strip()
+    FULL_TRANSCRIPT = ""  # Сброс после запроса
+    force_stop = True
+    return {"transcript": transcript_to_return}
+
+
+@router.get("/peekTranscript")
+def peek_transcript():
+    global FULL_TRANSCRIPT
+    return {"transcript": FULL_TRANSCRIPT.strip()}
+
