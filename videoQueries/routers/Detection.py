@@ -99,7 +99,7 @@ async def process_video(
         if not ret:
             break
 
-        results = model(frame)[0]
+        results = model(frame, verbose=False)[0]
         current_time = time.time() - start_time
 
         for box in results.boxes:
