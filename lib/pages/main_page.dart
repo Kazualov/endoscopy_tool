@@ -151,6 +151,11 @@ class _MainPageLayoutState extends State<MainPageLayout> {
   DateTime? _cameraStartTime;
   Duration _currentCameraDuration = Duration.zero;
 
+  // Добавить после других переменных состояния
+  String? _fullTranscript; // Для хранения полной расшифровки
+  StreamSubscription<String>? _transcriptSubscription; // Подписка на транскрипцию
+  String? transcript;
+
   // Voice command subscription
   StreamSubscription<String>? _voiceSubscription;
 
@@ -161,7 +166,7 @@ class _MainPageLayoutState extends State<MainPageLayout> {
     _currentMode = widget.initialMode;
     _currentVideoPath = widget.videoPath;
 
-    // Initialize voice command subscription
+    // Существующая подписка на команды
     _voiceSubscription = voiceService.commandStream.listen((command) {
       print('[MainPageLayout] 🎤 Получена команда: $command');
 
@@ -169,7 +174,20 @@ class _MainPageLayoutState extends State<MainPageLayout> {
         print('[MainPageLayout] 🎤 Выполняем скриншот...');
         screenshotButtonKey.currentState?.captureAndSaveScreenshot(context);
       }
+    }, onError: (error) {
+      print('[MainPageLayout] ❌ Ошибка в потоке команд: $error');
     });
+
+// Подписка на транскрипцию
+    _transcriptSubscription = voiceService.transcriptStream.listen((transcript) {
+      print('[MainPageLayout] 📝 Получена полная транскрипция: ${transcript.length} символов');
+      setState(() {
+        _fullTranscript = transcript;
+      });
+    }, onError: (error) {
+      print('[MainPageLayout] ❌ Ошибка в потоке транскрипции: $error');
+    });
+
     // Initialize based on the initial mode
     if (_currentMode == VideoMode.uploaded && _currentVideoPath != null) {
       _initializeVideoPlayer();
@@ -268,7 +286,9 @@ class _MainPageLayoutState extends State<MainPageLayout> {
     print('Video captured and saved: $capturedVideoPath');
 
     // Сначала останавливаем камеру и очищаем ресурсы
+    transcript = voiceService.latestTranscript;
     _stopCameraTimer();
+
 
     // Обновляем состояние
     if (mounted) {  // Проверяем, что виджет еще в дереве
@@ -296,6 +316,7 @@ class _MainPageLayoutState extends State<MainPageLayout> {
       });
     }
   }
+
 
   List<DetectionSegment> _processDetectionsIntoSegments(List<DetectionBox> detections) {
     if (detections.isEmpty) return [];
@@ -567,7 +588,49 @@ class _MainPageLayoutState extends State<MainPageLayout> {
     }
     return "0:00";
   }
-  void exportText() {}
+  Future<void> exportText() async {
+    if (_fullTranscript == null || _fullTranscript!.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Расшифровка обследования еще не готова'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    try {
+      // Получаем директорию для сохранения
+      final directory = await getApplicationDocumentsDirectory();
+      final fileName = 'voice_transcript_${DateTime.now().millisecondsSinceEpoch}.txt';
+      final file = File('${directory.path}/$fileName');
+
+      // Сохраняем транскрипцию в файл
+      await file.writeAsString(_fullTranscript!);
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Расшифровка сохранена: $fileName'),
+          backgroundColor: const Color(0xFF00ACAB),
+          action: SnackBarAction(
+            label: 'Открыть папку',
+            onPressed: () {
+              // Можно добавить функцию для открытия папки
+              print('Файл сохранен: ${file.path}');
+            },
+          ),
+        ),
+      );
+    } catch (e) {
+      print('Ошибка при сохранении транскрипции: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Ошибка при сохранении расшифровки'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
 
   //-------------------Time Line--------------------------//
   // Метод для преобразования скриншотов в пометки для таймлайна
@@ -706,13 +769,6 @@ class _MainPageLayoutState extends State<MainPageLayout> {
       ));
     });
 
-    // ScaffoldMessenger.of(context).showSnackBar(
-    //   SnackBar(
-    //     content: Text('Screenshot added at $currentTimestamp'),
-    //     backgroundColor: const Color(0xFF00ACAB),
-    //   ),
-    // );
-
     // Параллельно отправляем на сервер (без блокировки UI)
     if (widget.examinationId != null) {
       _uploadScreenshot(imageBytes, currentTimestamp).then((screenshotId) {
@@ -801,7 +857,7 @@ class _MainPageLayoutState extends State<MainPageLayout> {
           tooltip: "Capture Video",
         ),
 
-        if (_currentMode == VideoMode.uploaded)
+        if (_currentMode == VideoMode.uploaded && _fullTranscript != null && _fullTranscript!.isNotEmpty)
           IconButton(
             onPressed: exportText,
             icon: const Icon(
@@ -838,7 +894,8 @@ class _MainPageLayoutState extends State<MainPageLayout> {
   @override
   void dispose() {
     _voiceSubscription?.cancel();
-    _stopCameraTimer(); // Останавливаем таймер при dispose
+    _stopCameraTimer();
+    _transcriptSubscription?.cancel();
     _disposeVideoPlayer();
     super.dispose();
   }
