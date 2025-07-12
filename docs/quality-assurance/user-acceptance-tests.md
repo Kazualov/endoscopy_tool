@@ -108,7 +108,7 @@ Each test links to the related acceptance criteria (AC) for traceability and cla
 - The highlighted timeline segments match the real timestamps (check model output if needed)
 
 **Linked acceptance criteria:**
-[Add area on the video timeline indicating anomalies detected by model]([https://github.com/yourteam/repo/issues/XYZ](https://github.com/Kazualov/endoscopy_tool/issues/70))
+[Add area on the video timeline indicating anomalies detected by model](https://github.com/Kazualov/endoscopy_tool/issues/61)
 
 --- 
 
