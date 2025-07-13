@@ -8,6 +8,7 @@ class ScreenshotResponse(BaseModel):
     filename: str
     file_path: str
     timestamp_in_video: str
+    timestamp_in_seconds: int
     created_at: datetime
     annotated_filename: str | None = None
     annotated_file_path: str | None = None
