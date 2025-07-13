@@ -171,7 +171,15 @@ This guide walks you through how to use the application for creating examination
 
 ---
 
-## 🧱 [Architecture](https://github.com/Kazualov/endoscopy_tool/new/main/docs/architecture)
+## 🧱 Architecture
+
+---
+
+### [Deployment view](https://github.com/Kazualov/endoscopy_tool/blob/main/docs/architecture/deployment-view/deployment-diagram.png)
+
+### [Dynamic view](https://github.com/Kazualov/endoscopy_tool/blob/main/docs/architecture/dynamic-view/sequence-diagram.png)
+
+### [Static view](https://github.com/Kazualov/endoscopy_tool/blob/main/docs/architecture/static-view/component-diagram.png)
 
 ---
 
