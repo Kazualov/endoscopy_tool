@@ -1,7 +1,7 @@
 <h1 align="left">About the project</h1>
 
 <p align="center">
-  <img src="./horizontal.png" alt="Project Logo" width="750"/>
+  <img src="./logo.png" alt="Project Logo" width="750"/>
 </p>
 
 <h1 align="left">EndoAssist</h1>
