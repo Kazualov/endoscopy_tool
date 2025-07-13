@@ -2,6 +2,10 @@
   <img src="./logo.png" alt="Project Logo" width="550"/>
 </p>
 
+<h3 align="center">
+  AI-powered local endoscopy software with anomaly detection and voice control.
+</h3>
+
 ## 🧠 Project Goal(s) and Description
 
 EndoAssist is a standalone desktop application that helps doctors conduct and review endoscopy sessions with enhanced convenience and precision. It provides AI-based polyp detection, voice control features, and a powerful interface for recording, annotating, and browsing medical sessions.
