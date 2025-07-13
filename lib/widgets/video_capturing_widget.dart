@@ -10,6 +10,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:path/path.dart' as path;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
+// Add this import
 
 import '../modules/ApiService.dart';
 
@@ -409,10 +410,10 @@ class _CameraStreamWidgetState extends State<CameraStreamWidget> {
         '-video_size ${widget.videoWidth}x${widget.videoHeight} '
         '-i "$videoInput" -c:v libx264 -preset ultrafast -crf 23 '
         '-pix_fmt yuv420p "$tempPath"'
-
-        : '-f dshow -i video="$videoInput" '
+        : '-f dshow -i video="$videoInput" -nostdin '
         '-c:v libx264 -preset ultrafast -crf 23 '
         '-r ${widget.frameRate} "$tempPath"';
+
 
     print('Running FFmpeg command:\n$command');
 
@@ -446,32 +447,39 @@ class _CameraStreamWidgetState extends State<CameraStreamWidget> {
           print('Delete failed: $e');
         }
       }
-    });
-  }
+    });}
 
+// Replace _stopRecording with:
   Future<void> _stopRecording() async {
     if (!_isRecording || _ffmpegSession == null) return;
 
-    print('Stopping recording...');
-
-    // Update UI immediately - don't wait for FFmpeg to finish
-    setState(() {
-      _isRecording = false;
-    });
+    print('🟥 Attempting to stop recording...');
+    setState(() => _isRecording = false);
 
     try {
-      final sessionToCancel = _ffmpegSession;
-      _ffmpegSession = null; // Clear reference immediately
+      final session = _ffmpegSession;
+      _ffmpegSession = null; // prevent reentrance
 
-      // Cancel the session
-      await sessionToCancel!.cancel();
-      print('Recording cancelled successfully.');
+      // Cancel FFmpeg session
+      await session!.cancel();
+      print('✅ FFmpeg session cancel called');
+
+      // On Windows, force kill ffmpeg.exe if needed
+      if (Platform.isWindows) {
+        await Future.delayed(const Duration(seconds: 1)); // allow graceful shutdown
+        final result = await Process.run('taskkill', ['/F', '/IM', 'ffmpeg.exe']);
+        if (result.exitCode == 0) {
+          print('✅ Fallback: ffmpeg.exe force-killed');
+        } else {
+          print('⚠️ Fallback taskkill failed: ${result.stderr}');
+        }
+      }
 
     } catch (e) {
-      print('Error stopping recording: $e');
+      print('❌ Error stopping recording: $e');
     }
 
-    print('Recording stop completed.');
+    print('🟩 Recording stop complete.');
   }
 
   Future<void> _saveRecordedFile(String tempFilePath) async {
