@@ -1,6 +1,9 @@
 # EndoAssist – AI-Powered Endoscopy Session Assistant
 
-![Project Logo](./logo.png)
+<p align="center">
+  <img src="./logo.png" alt="Project Logo" width="100"/>
+</p>
+
 ### Description AI-powered local endoscopy software with anomaly detection and voice control.
 
 ## 🧠 Project Goal(s) and Description
