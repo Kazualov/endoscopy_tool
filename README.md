@@ -142,32 +142,29 @@ This guide walks you through how to use the application for creating examination
   - Or export screenshots and data (if supported).
 
 
-## Development
+## 🛠️ Development
 
 ---
 
-### [Kanban board](https://github.com/Kazualov/endoscopy_tool/blob/main/docs/Contributing.md)
+### 📌 [Kanban board](https://github.com/Kazualov/endoscopy_tool/blob/main/docs/Contributing.md)
 
+### 🌳 [Git workflow](https://github.com/Kazualov/endoscopy_tool/blob/main/docs/Contributing.md)
 
-### [Git workflow](https://github.com/Kazualov/endoscopy_tool/blob/main/docs/Contributing.md)
-
-
-### [Secrets management](https://github.com/Kazualov/endoscopy_tool/blob/main/docs/Contributing.md)
+### 🔑 [Secrets management](https://github.com/Kazualov/endoscopy_tool/blob/main/docs/Contributing.md)
 
 ---
 
-## [Quality assurance](https://github.com/Kazualov/endoscopy_tool/blob/main/docs/quality_assurance.md)
+## ✅ [Quality assurance](https://github.com/Kazualov/endoscopy_tool/blob/main/docs/quality_assurance.md)
 
 ---
 
-## Build and deployment
+## 🚀 Build and deployment
 
 ---
 
-### [Continuous Integration](https://github.com/Kazualov/endoscopy_tool/tree/main/docs/automation/continuous-integration.md)
+### 🔄 [Continuous Integration](https://github.com/Kazualov/endoscopy_tool/tree/main/docs/automation/continuous-integration.md)
 
-
-### [Continuous Deployment](https://github.com/Kazualov/endoscopy_tool/blob/main/docs/automation/continuous-delivery.md)
+### 📦 [Continuous Deployment](https://github.com/Kazualov/endoscopy_tool/blob/main/docs/automation/continuous-delivery.md)
 
 ---
 
@@ -175,15 +172,15 @@ This guide walks you through how to use the application for creating examination
 
 ---
 
-### [Deployment View](https://github.com/Kazualov/endoscopy_tool/blob/main/docs/architecture/deployment-view/deployment-diagram.png)
+### 🌐 [Deployment View](https://github.com/Kazualov/endoscopy_tool/blob/main/docs/architecture/deployment-view/deployment-diagram.png)
 
-### [Dynamic View](https://github.com/Kazualov/endoscopy_tool/blob/main/docs/architecture/dynamic-view/sequence-diagram.png)
+### 🔁 [Dynamic View](https://github.com/Kazualov/endoscopy_tool/blob/main/docs/architecture/dynamic-view/sequence-diagram.png)
 
-### [Static View](https://github.com/Kazualov/endoscopy_tool/blob/main/docs/architecture/static-view/component-diagram.png)
+### 🧩 [Static View](https://github.com/Kazualov/endoscopy_tool/blob/main/docs/architecture/static-view/component-diagram.png)
 
-### [Deployment View (deployment-diagram.puml)](docs/architecture/deployment-view/deployment-diagram.puml)
-### [Dynamic View (sequence-diagram.puml)](docs/architecture/dynamic-view/sequence-diagram.puml)
-### [Static View (component-diagram.puml)](docs/architecture/static-view/static-diagram.puml)
+### 📄 [Deployment View (deployment-diagram.puml)](docs/architecture/deployment-view/deployment-diagram.puml)  
+### 📄 [Dynamic View (sequence-diagram.puml)](docs/architecture/dynamic-view/sequence-diagram.puml)  
+### 📄 [Static View (component-diagram.puml)](docs/architecture/static-view/static-diagram.puml)
 
 ---
 
