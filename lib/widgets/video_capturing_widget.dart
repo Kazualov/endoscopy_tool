@@ -385,15 +385,18 @@ class _CameraStreamWidgetState extends State<CameraStreamWidget> {
     return null;
   }
 
+  // Also consider updating your _startRecording method for better Windows compatibility:
+
   Future<void> _startRecording() async {
     if (_isRecording) return;
-    if (widget.startCaptured != null){
+
+    if (widget.startCaptured != null) {
       widget.startCaptured!();
     }
 
-    // Сохраняем время начала записи
+    // Save recording start time
     _recordingStartTime = DateTime.now();
-    _allDetections.clear(); // Очищаем предыдущие детекции
+    _allDetections.clear();
 
     final tempPath = await _getTempOutputFilePath();
     _outputPath = tempPath;
@@ -405,56 +408,78 @@ class _CameraStreamWidgetState extends State<CameraStreamWidget> {
       return;
     }
 
+    // Improved Windows command with better compatibility
     final command = Platform.isMacOS
         ? '-f avfoundation -framerate ${widget.frameRate} '
         '-video_size ${widget.videoWidth}x${widget.videoHeight} '
         '-i "$videoInput" -c:v libx264 -preset ultrafast -crf 23 '
         '-pix_fmt yuv420p "$tempPath"'
-
         : '-f dshow -i video="$videoInput" -nostdin '
+        '-hide_banner -loglevel error ' // Reduce verbose output on Windows
         '-c:v libx264 -preset ultrafast -crf 23 '
-        '-r ${widget.frameRate} "$tempPath"';
-
+        '-r ${widget.frameRate} -y "$tempPath"'; // -y to overwrite existing files
 
     print('Running FFmpeg command:\n$command');
 
     setState(() => _isRecording = true);
 
-    _ffmpegSession = await FFmpegKit.executeAsync(command, (session) async {
-      final returnCode = await session.getReturnCode();
-      print('FFmpeg finished with code: $returnCode');
+    try {
+      _ffmpegSession = await FFmpegKit.executeAsync(command, (session) async {
+        final returnCode = await session.getReturnCode();
+        print('FFmpeg finished with code: $returnCode');
 
+        // Always update UI state
+        if (mounted) {
+          setState(() {
+            _isRecording = false;
+            _ffmpegSession = null;
+          });
+        }
+
+        if (!File(tempPath).existsSync()) {
+          print("⚠️ FFmpeg did not produce a file at: $tempPath");
+          return;
+        }
+
+        print("✅ File created: $tempPath");
+
+        // Check if recording was successful
+        if (returnCode != null && (ReturnCode.isSuccess(returnCode) || returnCode.getValue() == 255)) {
+          if (File(tempPath).existsSync()) {
+            print('Saving captured recording...');
+            await _saveRecordedFile(tempPath);
+          } else {
+            print('Temp file not found after capture.');
+          }
+        } else {
+          print('Recording failed with code: $returnCode');
+          try {
+            if (File(tempPath).existsSync()) {
+              await File(tempPath).delete();
+            }
+          } catch (e) {
+            print('Delete failed: $e');
+          }
+        }
+      });
+    } catch (e) {
+      print('❌ Error starting recording: $e');
       setState(() {
         _isRecording = false;
         _ffmpegSession = null;
       });
-      if (!File(tempPath).existsSync()) {
-        print("⚠️ FFmpeg did not produce a file at: $tempPath");
-      } else {
-        print("✅ File created: $tempPath");
-      }
-      if (returnCode != null && (ReturnCode.isSuccess(returnCode) || returnCode.getValue() == 255)) {
-        if (File(tempPath).existsSync()) {
-          print('Saving captured recording...');
-          await _saveRecordedFile(tempPath);
-        } else {
-          print('Temp file not found after capture.');
-        }
-      } else {
-        print('Recording failed with code: $returnCode');
-        try {
-          if (File(tempPath).existsSync()) await File(tempPath).delete();
-        } catch (e) {
-          print('Delete failed: $e');
-        }
-      }
-    });}
+      _showErrorSnackbar('Failed to start recording: $e');
+    }
+  }
 
-// Replace _stopRecording with:
+  // Replace your current _stopRecording method with this improved version:
+
   Future<void> _stopRecording() async {
     if (!_isRecording || _ffmpegSession == null) return;
 
     print('Stopping recording...');
+
+    // Set recording state to false immediately to prevent UI issues
     setState(() {
       _isRecording = false;
     });
@@ -463,28 +488,78 @@ class _CameraStreamWidgetState extends State<CameraStreamWidget> {
       final session = _ffmpegSession;
       _ffmpegSession = null;
 
-      // Try to cancel first
-      await session!.cancel();
-      print('FFmpeg session cancel attempted.');
-
       if (Platform.isWindows) {
-        // Give FFmpeg some time to react
-        await Future.delayed(Duration(seconds: 2));
+        // Windows-specific approach
+        print('Windows: Attempting to cancel FFmpeg session...');
 
-        // Fallback: kill ffmpeg.exe manually (requires it's named this way)
-        final result = await Process.run('taskkill', ['/F', '/IM', 'ffmpeg.exe']);
-        if (result.exitCode == 0) {
-          print('✅ Fallback: ffmpeg.exe force-killed');
-        } else {
-          print('⚠️ Fallback taskkill failed: ${result.stderr}');
+        // Try to cancel the session first
+        await session!.cancel();
+
+        // Give FFmpeg time to process the cancel signal
+        await Future.delayed(const Duration(milliseconds: 1500));
+
+        // Force kill ffmpeg processes on Windows
+        try {
+          // Kill all ffmpeg.exe processes
+          await Process.run('taskkill', ['/F', '/IM', 'ffmpeg.exe'], runInShell: true);
+          print('✅ Windows: FFmpeg processes terminated');
+        } catch (e) {
+          print('⚠️ Windows: Could not kill ffmpeg processes: $e');
+        }
+
+        // Also try to kill any hanging processes
+        try {
+          await Process.run('taskkill', ['/F', '/IM', 'ffmpeg_kit_flutter.exe'], runInShell: true);
+        } catch (e) {
+          // Ignore this error as the process might not exist
+        }
+
+      } else if (Platform.isMacOS) {
+        // macOS-specific approach
+        print('macOS: Attempting to cancel FFmpeg session...');
+        await session!.cancel();
+
+        // Give some time for graceful shutdown
+        await Future.delayed(const Duration(milliseconds: 500));
+
+        // Optional: kill ffmpeg processes on macOS if needed
+        try {
+          await Process.run('pkill', ['-f', 'ffmpeg'], runInShell: true);
+          print('✅ macOS: FFmpeg processes terminated');
+        } catch (e) {
+          print('⚠️ macOS: Could not kill ffmpeg processes: $e');
         }
       }
 
+      print('✅ Recording stopped successfully');
+
     } catch (e) {
       print('❌ Error while stopping FFmpeg session: $e');
+
+      // Fallback: Force kill on any platform
+      if (Platform.isWindows) {
+        try {
+          await Process.run('taskkill', ['/F', '/IM', 'ffmpeg.exe'], runInShell: true);
+        } catch (fallbackError) {
+          print('❌ Fallback kill failed: $fallbackError');
+        }
+      } else {
+        try {
+          await Process.run('pkill', ['-f', 'ffmpeg'], runInShell: true);
+        } catch (fallbackError) {
+          print('❌ Fallback kill failed: $fallbackError');
+        }
+      }
+    }
+
+    // Ensure UI is updated
+    if (mounted) {
+      setState(() {
+        _isRecording = false;
+        _ffmpegSession = null;
+      });
     }
   }
-
 
   Future<void> _saveRecordedFile(String tempFilePath) async {
     try {
