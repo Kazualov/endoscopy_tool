@@ -175,11 +175,11 @@ This guide walks you through how to use the application for creating examination
 
 ---
 
-### [Deployment view](https://github.com/Kazualov/endoscopy_tool/blob/main/docs/architecture/deployment-view/deployment-diagram.png)
+### [Deployment View](https://github.com/Kazualov/endoscopy_tool/blob/main/docs/architecture/deployment-view/deployment-diagram.png)
 
-### [Dynamic view](https://github.com/Kazualov/endoscopy_tool/blob/main/docs/architecture/dynamic-view/sequence-diagram.png)
+### [Dynamic View](https://github.com/Kazualov/endoscopy_tool/blob/main/docs/architecture/dynamic-view/sequence-diagram.png)
 
-### [Static view](https://github.com/Kazualov/endoscopy_tool/blob/main/docs/architecture/static-view/component-diagram.png)
+### [Static View](https://github.com/Kazualov/endoscopy_tool/blob/main/docs/architecture/static-view/component-diagram.png)
 
 ### [Deployment View (deployment-diagram.puml)](docs/architecture/deployment-view/deployment-diagram.puml)
 ### [Dynamic View (sequence-diagram.puml)](docs/architecture/dynamic-view/sequence-diagram.puml)
