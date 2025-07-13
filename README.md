@@ -181,9 +181,9 @@ This guide walks you through how to use the application for creating examination
 
 ### [Static view](https://github.com/Kazualov/endoscopy_tool/blob/main/docs/architecture/static-view/component-diagram.png)
 
-- [Static View (component-diagram.puml)](docs/architecture/static-view/static-diagram.puml)
-- [Dynamic View (sequence-diagram.puml)](docs/architecture/dynamic-view/sequence-diagram.puml)
-- [Deployment View (deployment-diagram.puml)](docs/architecture/deployment-view/deployment-diagram.puml)
+### [Static View (component-diagram.puml)](docs/architecture/static-view/static-diagram.puml)
+### [Dynamic View (sequence-diagram.puml)](docs/architecture/dynamic-view/sequence-diagram.puml)
+### [Deployment View (deployment-diagram.puml)](docs/architecture/deployment-view/deployment-diagram.puml)
 
 ---
 
