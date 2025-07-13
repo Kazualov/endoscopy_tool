@@ -501,13 +501,11 @@ class _CameraStreamWidgetState extends State<CameraStreamWidget> {
     // 2.  Brutal but reliable kill on Windows
     if (Platform.isWindows) {
       try {
-        await Process.run(
-          'taskkill',
-          ['/F', '/IM', 'ffmpeg.exe'],
-          runInShell: true,
-        );
-      } catch (_) {
-        /* ignore */
+        final result = await Process.run('taskkill', ['/F', '/IM', 'ffmpeg.exe'], runInShell: true);
+        print('taskkill result: ${result.stdout}, errors: ${result.stderr}');
+        await Future.delayed(const Duration(seconds: 2)); // Allow FFmpeg to flush the file
+      } catch (e) {
+        print('Error terminating FFmpeg on Windows: $e');
       }
     }
 
