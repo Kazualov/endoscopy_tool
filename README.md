@@ -1,194 +1,290 @@
-# EndoAssist – AI-Powered Endoscopy Session Assistant
+<!-- Improved README inspired by Best-README-Template -->
 
-<p align="center">
-  <img src="./logo.png" alt="Project Logo" width="550"/>
-</p>
+<!-- PROJECT SHIELDS -->
+[![Contributors][contributors-shield]][contributors-url]
+[![Forks][forks-shield]][forks-url]
+[![Stargazers][stars-shield]][stars-url]
+[![Issues][issues-shield]][issues-url]
+[![MIT License][license-shield]][license-url]
+[![LinkedIn][linkedin-shield]][linkedin-url]
 
-### Description AI-powered local endoscopy software with anomaly detection and voice control.
+<!-- PROJECT LOGO -->
+<br />
+<div align="center">
+  <a href="https://github.com/Kazualov/endoscopy_tool">
+    <img src="logo.png" alt="Logo" width="80" height="80">
+  </a>
 
-## 🧠 Project Goal(s) and Description
+  <h3 align="center">EndoAssist</h3>
 
-EndoAssist is a standalone desktop application that helps doctors conduct and review endoscopy sessions with enhanced convenience and precision. It provides AI-based polyp detection, voice control features, and a powerful interface for recording, annotating, and browsing medical sessions.
+  <p align="center">
+    AI-Powered Endoscopy Session Assistant
+    <br />
+    <a href="https://github.com/Kazualov/endoscopy_tool/docs"><strong>Explore the docs »</strong></a>
+    <br />
+    <br />
+    <a href="https://github.com/Kazualov/endoscopy_tool">View Demo</a>
+    ·
+    <a href="https://github.com/Kazualov/endoscopy_tool/issues/new?labels=bug&template=bug-report---.md">Report Bug</a>
+    ·
+    <a href="https://github.com/Kazualov/endoscopy_tool/issues/new?labels=enhancement&template=feature-request---.md">Request Feature</a>
+  </p>
+</div>
 
-### ✨ Key Goals:
-- Goal 1: Assist clinicians during endoscopy by providing real-time AI-based polyp detection to enhance diagnostic accuracy.
-- Goal 2: Enable hands-free operation using voice control for commands like capturing screenshots or starting/stopping recordings.
-- Goal 3: Streamline medical documentation by allowing clinicians to record sessions and automatically annotate findings with AI assistance.
-- Goal 4: Simplify review and navigation of past sessions through a searchable interface with thumbnails, timestamps, and diagnostic tags.
-- Goal 5: Ensure seamless integration of AI-enhanced workflows into existing clinical practices without disrupting current hardware or routines.
+<!-- TABLE OF CONTENTS -->
+<details>
+  <summary>Table of Contents</summary>
+  <ol>
+    <li>
+      <a href="#about-the-project">About The Project</a>
+      <ul>
+        <li><a href="#built-with">Built With</a></li>
+      </ul>
+    </li>
+    <li>
+      <a href="#getting-started">Getting Started</a>
+      <ul>
+        <li><a href="#prerequisites">Prerequisites</a></li>
+        <li><a href="#installation">Installation</a></li>
+      </ul>
+    </li>
+    <li><a href="#usage">Usage</a></li>
+    <li><a href="#roadmap">Roadmap</a></li>
+    <li><a href="#contributing">Contributing</a></li>
+    <li><a href="#license">License</a></li>
+    <li><a href="#contact">Contact</a></li>
+    <li><a href="#acknowledgments">Acknowledgments</a></li>
+  </ol>
+</details>
 
----
+<!-- ABOUT THE PROJECT -->
+## About The Project
 
-## 🧩 Project Context Diagram
+[![EndoAssist Screen Shot][product-screenshot]](https://github.com/Kazualov/endoscopy_tool)
 
-```mermaid
-graph TD
-    Patient -->|provides| Examination
-    Examination -->|uploads| Video
-    Video -->|processed by| AI_Model[YOLOv8 Detector]
-    AI_Model -->|returns| Detections
-    Detections -->|linked to| ScreenshotDB[Screenshots/Annotated Media]
-    Clinician -->|views| Results
-    FrontendApp[Flutter App] -->|fetches from| FastAPI_Backend
-    FastAPI_Backend -->|stores in| Database[(SQLite/PostgreSQL)]
+EndoAssist is a standalone desktop application that revolutionizes endoscopy procedures by providing AI-powered assistance to medical professionals. The system combines real-time polyp detection, voice control capabilities, and comprehensive session management to enhance diagnostic accuracy and streamline medical documentation.
+
+Here's why EndoAssist stands out:
+* **Real-time AI Detection**: Advanced YOLOv8-based polyp detection during live procedures
+* **Voice Control**: Hands-free operation for capturing screenshots and controlling recordings
+* **Comprehensive Documentation**: Automatic session recording and annotation capabilities
+* **Offline Operation**: Complete functionality without internet dependency for maximum privacy and reliability
+
+EndoAssist bridges the gap between cutting-edge AI technology and practical clinical workflow, ensuring that healthcare professionals can leverage advanced detection capabilities without disrupting their established procedures.
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
+### Built With
+
+This section lists the major frameworks and technologies used to build EndoAssist:
+
+* [![Python][Python.py]][Python-url]
+* [![FastAPI][FastAPI.dev]][FastAPI-url]
+* [![Flutter][Flutter.dev]][Flutter-url]
+* [![SQLite][SQLite.org]][SQLite-url]
+* [![OpenCV][OpenCV.org]][OpenCV-url]
+* [![YOLOv8][YOLOv8.com]][YOLOv8-url]
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
+<!-- GETTING STARTED -->
+## Getting Started
+
+To get EndoAssist up and running on your local machine, follow these simple steps.
+
+### Prerequisites
+
+Before installing EndoAssist, ensure your system meets the following requirements:
+
+* **Operating System**: Windows 10+ or macOS 10.15+
+* **RAM**: Minimum 8GB, recommended 16GB
+* **Storage**: At least 5GB free space
+* **Hardware**: Compatible camera/endoscope device
+
+### Installation
+
+1. **Download the Installation Package**
+   
+   Visit our distribution server:
+   ```
+   https://disk.yandex.ru/d/xsm4Hyo1oVTSWA/builds
+   ```
+
+2. **Select Your Operating System**
+   
+   Choose the appropriate folder for your system (Windows or macOS)
+
+3. **Install Backend Service**
+   
+   Download and extract `dist.zip`:
+   ```bash
+   # Extract the archive
+   unzip dist.zip
+   cd dist/
+   
+   # Run the backend service
+   ./main_executable
+   ```
+   
+   **Important**: Keep this terminal window open during application use
+
+4. **Install Main Application**
+   
+   Download and extract the main application archive:
+   ```bash
+   # Extract the application
+   unzip endoscopy_tool.zip
+   cd endoscopy_tool/
+   
+   # Launch the application
+   ./endoskopy_tool.exe  # Windows
+   # or
+   ./endoskopy_tool      # macOS
+   ```
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
+<!-- USAGE EXAMPLES -->
+## Usage
+
+EndoAssist provides an intuitive workflow for conducting and reviewing endoscopy procedures:
+
+### 🏥 Creating a New Examination
+
+1. Launch the application and click the **➕ Plus** button
+2. Fill in the patient information form
+3. You'll be automatically directed to the live camera interface
+
+### 🎥 Live Recording with AI Detection
+
+```bash
+# Voice commands available during recording:
+"Screenshot"  # Captures current frame
+"Start recording"  # Begins video recording
+"Stop recording"   # Ends video recording
 ```
 
-**Stakeholders:**
-- 👨‍⚕️ Clinicians – use the system during and after endoscopy procedures
-- 👨‍💻 Developers – build and maintain the backend, frontend, and AI integration 
-- 🧪 Data Scientists – train, evaluate, and monitor AI models like YOLOv8 and voice recognition  
-- 🧍 Patients – benefit from improved diagnostic accuracy and documentation
-- 🧑‍🏫 Medical Researchers – analyze collected data and use annotated materials for research and publications 
+* Toggle **"AI On"** to enable real-time polyp detection
+* Use voice commands or UI buttons for hands-free operation
+* Access drawing tools for immediate annotation
 
-**External Systems:**
-- **Local YOLOv8 Model** – AI model for polyp detection in endoscopy videos    
-- **SQLite / PostgreSQL** – Database for storing patients, examinations, videos, screenshots and annotations
-- **Flutter Desktop App** – Cross-platform user interface for doctors to interact with the system  
-- **FastAPI Web Server** – Backend REST API for handling all client requests and system logic
-- **Vosk Speech Recognition Engine** – Offline voice recognition for hands-free commands during procedures  
----
+### 📂 Video Upload and Analysis
 
-## 📅 Feature Roadmap
+* Upload pre-recorded videos for AI analysis
+* Automatic polyp detection processing
+* Frame-by-frame review with detection highlights
 
-### ✅ Implemented
-- [x] Create and manage patients  
-- [x] Create and manage examinations  
-- [x] Record and store real-time endoscopy videos  
-- [x] Voice control for capturing screenshots during streaming (using Vosk)  
-- [x] Polyp detection model analyzing videos (YOLOv8)  
-- [x] Drawing tool for annotating screenshots  
-- [x] API server interacting with database to store all necessary data  
-- [x] Basic Flutter UI for managing patients, examinations, and video streaming  
+_For detailed usage instructions, please refer to the [Documentation](https://github.com/Kazualov/endoscopy_tool/docs)_
 
-### 🔜 Planned
-- [ ] Record and store doctor's voice during procedures  
-- [ ] View full voice recordings and transcripts  
-- [ ] Generate short summaries of voice records  
-- [ ] Improve and finalize the user interface for the final version
----
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
 
-## 🔧 Installation and Deployment Instructions
+<!-- ROADMAP -->
+## Roadmap
 
-1. **Download the Necessary Files**  
-   Open the following link in your browser:  
-   [https://disk.yandex.ru/d/xsm4Hyo1oVTSWA/builds](https://disk.yandex.ru/d/xsm4Hyo1oVTSWA/builds)
+### ✅ Completed Features
 
-2. **Choose Your Operating System Folder**  
-   Select either the **macOS** or **Windows** folder, depending on your system.
+- [x] Patient and examination management
+- [x] Real-time video recording and streaming
+- [x] Voice-controlled screenshot capture
+- [x] YOLOv8-based polyp detection
+- [x] Annotation and drawing tools
+- [x] FastAPI backend with SQLite storage
+- [x] Cross-platform Flutter UI
 
-3. **Set Up the Background Service**  
-   - Download and unzip the first archive named `dist.zip`.
-   - Open the extracted main folder.
-   - Launch the main executable file inside this folder.
-   - **Important:** Keep this window open while using the application.
+### 🚀 Upcoming Features
 
-4. **Run the Main Tool**  
-   - Download and unzip the second archive (located in the same OS-specific folder).
-   - Open the extracted folder.
-   - Run the executable named `endoskopy_tool.exe` to start the main application.
+- [ ] **Voice Recording Enhancement**
+  - [ ] Doctor's voice recording during procedures
+  - [ ] Voice transcript generation
+  - [ ] Automated session summaries
+- [ ] **UI/UX Improvements**
+  - [ ] Enhanced user interface design
+  - [ ] Improved workflow optimization
+  - [ ] Accessibility enhancements
+- [ ] **Advanced AI Features**
+  - [ ] Multi-class anomaly detection
+  - [ ] Predictive analytics
+  - [ ] Integration with additional AI models
 
----
-## 📘 Usage Instructions / Short User Guide
+See the [open issues](https://github.com/Kazualov/endoscopy_tool/issues) for a full list of proposed features and known issues.
 
-This guide walks you through how to use the application for creating examinations, recording or uploading procedures, capturing and annotating screenshots, and viewing AI-based detections.
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
 
-### 🏥 1. Creating a New Examination
+<!-- CONTRIBUTING -->
+## Contributing
 
-- Open the application and click the ➕ **Plus** button on the main screen.
-- Fill in the required **patient information** in the form.
-- Once the examination is created, you will be taken to the **live camera screen**.
+Contributions are what make the open source community such an amazing place to learn, inspire, and create. Any contributions you make are **greatly appreciated**.
 
-### 🎥 2. Live Recording and Real-Time AI Detection
+If you have a suggestion that would make this better, please fork the repo and create a pull request. You can also simply open an issue with the tag "enhancement".
+Don't forget to give the project a star! Thanks again!
 
-- On the live camera screen:
-  - Click the **Record** button to start recording the procedure.
-  - Click again to **stop recording**.
-- To enable AI support, toggle the **"AI On"** switch — this activates **real-time detection of polyps** while recording.
-- You can capture screenshots in two ways:
-  - 🔊 Say **"Screenshot"** (voice command).
-  - 🖱️ Click the **Screenshot** button on the right-hand side.
-- After taking a screenshot, you can click **Draw** to open the annotation tools with various drawing options and tooltips.
+1. Fork the Project
+2. Create your Feature Branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your Changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the Branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
 
-### 📂 3. Uploading a Video Instead of Live Recording
+### Development Resources
 
-- Alternatively, on the same live camera screen, you can choose to **upload a pre-recorded video**.
-- After uploading, the system will automatically process the video and apply AI-based **polyp detection**.
-- You will then be redirected to the **video player screen**, where:
-  - The video will display with detected anomalies highlighted.
-  - You can take screenshots using the **button only** (voice commands are disabled for uploaded videos).
-  - Screenshots can also be annotated using the drawing tools.
+* [Kanban Board](https://github.com/Kazualov/endoscopy_tool/blob/main/docs/Contributing.md)
+* [Git Workflow](https://github.com/Kazualov/endoscopy_tool/blob/main/docs/Contributing.md)
+* [Quality Assurance](https://github.com/Kazualov/endoscopy_tool/blob/main/docs/quality_assurance.md)
 
-### 🧭 4. Reviewing and Navigating Results
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
 
-- After completing a real-time recording or uploading a video:
-  - You are automatically taken to a **review screen**.
-  - Here, you can:
-    - Watch the recorded or uploaded video.
-    - View AI detection results.
-    - Browse through and annotate captured screenshots.
+<!-- LICENSE -->
+## License
 
-### 📁 5. Accessing Saved Examinations
+Distributed under the MIT License. See `LICENSE` for more information.
 
-- All completed examinations — whether live or uploaded — are stored on the **main screen**.
-- From here, you can reopen any examination to:
-  - Rewatch videos,
-  - View and edit annotations,
-  - Review AI results,
-  - Or export screenshots and data (if supported).
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
 
+<!-- CONTACT -->
+## Contact
 
-## Development
+Project Maintainer - [@Kazualov](https://github.com/Kazualov)
 
----
+Project Link: [https://github.com/Kazualov/endoscopy_tool](https://github.com/Kazualov/endoscopy_tool)
 
-### [Kanban board](https://github.com/Kazualov/endoscopy_tool/blob/main/docs/Contributing.md)
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
 
+<!-- ACKNOWLEDGMENTS -->
+## Acknowledgments
 
-### [Git workflow](https://github.com/Kazualov/endoscopy_tool/blob/main/docs/Contributing.md)
+Special thanks to the following resources and contributors that made this project possible:
 
+* [YOLOv8 by Ultralytics](https://github.com/ultralytics/ultralytics)
+* [Vosk Speech Recognition](https://alphacephei.com/vosk/)
+* [FastAPI Framework](https://fastapi.tiangolo.com/)
+* [Flutter Framework](https://flutter.dev/)
+* [OpenCV Library](https://opencv.org/)
+* [Best README Template](https://github.com/othneildrew/Best-README-Template)
 
-### [Secrets management](https://github.com/Kazualov/endoscopy_tool/blob/main/docs/Contributing.md)
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
 
----
-
-## [Quality assurance](https://github.com/Kazualov/endoscopy_tool/blob/main/docs/quality_assurance.md)
-
----
-
-## Build and deployment
-
----
-
-### [Continuous Integration](https://github.com/Kazualov/endoscopy_tool/tree/main/docs/automation/continuous-integration.md)
-
-
-### [Continuous Deployment](https://github.com/Kazualov/endoscopy_tool/blob/main/docs/automation/continuous-delivery.md)
-
----
-
-## 🧱 [Architecture](https://github.com/Kazualov/endoscopy_tool/new/main/docs/architecture)
-
----
-
-## 🛠️ Tech Stack
-
-- **Python FastAPI** for backend
-- **Flutter** for GUI
-- **SQLAlchemy** + **SQLite** for local metadata storage
-- **Vosk** for offline voice recognition
-- **OpenCV** for AI-based detection
-- **PlantUML** for documentation diagrams
-
----
-
-## 📄 License
-
-MIT License. See [LICENSE](./LICENSE) for details.
-
----
-
-## 📚 Docs
-
-- [Static View (component-diagram.puml)](docs/architecture/static-view/static-diagram.puml)
-- [Dynamic View (sequence-diagram.puml)](docs/architecture/dynamic-view/sequence-diagram.puml)
-- [Deployment View (deployment-diagram.puml)](docs/architecture/deployment-view/deployment-diagram.puml)
+<!-- MARKDOWN LINKS & IMAGES -->
+[contributors-shield]: https://img.shields.io/github/contributors/Kazualov/endoscopy_tool.svg?style=for-the-badge
+[contributors-url]: https://github.com/Kazualov/endoscopy_tool/graphs/contributors
+[forks-shield]: https://img.shields.io/github/forks/Kazualov/endoscopy_tool.svg?style=for-the-badge
+[forks-url]: https://github.com/Kazualov/endoscopy_tool/network/members
+[stars-shield]: https://img.shields.io/github/stars/Kazualov/endoscopy_tool.svg?style=for-the-badge
+[stars-url]: https://github.com/Kazualov/endoscopy_tool/stargazers
+[issues-shield]: https://img.shields.io/github/issues/Kazualov/endoscopy_tool.svg?style=for-the-badge
+[issues-url]: https://github.com/Kazualov/endoscopy_tool/issues
+[license-shield]: https://img.shields.io/github/license/Kazualov/endoscopy_tool.svg?style=for-the-badge
+[license-url]: https://github.com/Kazualov/endoscopy_tool/blob/main/LICENSE
+[linkedin-shield]: https://img.shields.io/badge/-LinkedIn-black.svg?style=for-the-badge&logo=linkedin&colorB=555
+[linkedin-url]: https://linkedin.com/in/your-linkedin-profile
+[product-screenshot]: images/screenshot.png
+[Python.py]: https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white
+[Python-url]: https://python.org/
+[FastAPI.dev]: https://img.shields.io/badge/FastAPI-005571?style=for-the-badge&logo=fastapi
+[FastAPI-url]: https://fastapi.tiangolo.com/
+[Flutter.dev]: https://img.shields.io/badge/Flutter-02569B?style=for-the-badge&logo=flutter&logoColor=white
+[Flutter-url]: https://flutter.dev/
+[SQLite.org]: https://img.shields.io/badge/sqlite-%2307405e.svg?style=for-the-badge&logo=sqlite&logoColor=white
+[SQLite-url]: https://sqlite.org/
+[OpenCV.org]: https://img.shields.io/badge/opencv-%23white.svg?style=for-the-badge&logo=opencv&logoColor=white
+[OpenCV-url]: https://opencv.org/
+[YOLOv8.com]: https://img.shields.io/badge/YOLOv8-00FFFF?style=for-the-badge&logo=yolo&logoColor=black
+[YOLOv8-url]: https://github.com/ultralytics/ultralytics
