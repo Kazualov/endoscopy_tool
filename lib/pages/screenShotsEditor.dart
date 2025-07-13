@@ -847,8 +847,8 @@ class ScreenshotEditorState extends State<ScreenshotEditor> with TickerProviderS
     const icons = [
       Icons.crop_square,
       Icons.edit,
-      Icons.auto_fix_off,
-      Icons.near_me,
+      Icons.highlight_remove_rounded,
+      Icons.select_all,
       Icons.circle_outlined,
       Icons.arrow_forward,
     ];
@@ -938,7 +938,7 @@ class ScreenshotEditorState extends State<ScreenshotEditor> with TickerProviderS
 
           const Spacer(),
 
-          _ToolBtn(icon: Icons.zoom_out_map, onTap: _resetZoom, subtitle: 'Reset'),
+          _ToolBtn(icon: Icons.delete_forever, onTap: _resetZoom, subtitle: 'Reset'),
 
           // Нижние кнопки в ряд
           Row(
