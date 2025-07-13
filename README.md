@@ -1,5 +1,3 @@
-# <p align = "center"> EndoAssist – AI-Powered Endoscopy Session Assistant </p>
-
 <p align="center">
   <img src="./logo.png" alt="Project Logo" width="550"/>
 </p>
