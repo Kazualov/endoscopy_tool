@@ -410,6 +410,7 @@ class _CameraStreamWidgetState extends State<CameraStreamWidget> {
         '-video_size ${widget.videoWidth}x${widget.videoHeight} '
         '-i "$videoInput" -c:v libx264 -preset ultrafast -crf 23 '
         '-pix_fmt yuv420p "$tempPath"'
+
         : '-f dshow -i video="$videoInput" -nostdin '
         '-c:v libx264 -preset ultrafast -crf 23 '
         '-r ${widget.frameRate} "$tempPath"';
@@ -453,20 +454,24 @@ class _CameraStreamWidgetState extends State<CameraStreamWidget> {
   Future<void> _stopRecording() async {
     if (!_isRecording || _ffmpegSession == null) return;
 
-    print('🟥 Attempting to stop recording...');
-    setState(() => _isRecording = false);
+    print('Stopping recording...');
+    setState(() {
+      _isRecording = false;
+    });
 
     try {
       final session = _ffmpegSession;
-      _ffmpegSession = null; // prevent reentrance
+      _ffmpegSession = null;
 
-      // Cancel FFmpeg session
+      // Try to cancel first
       await session!.cancel();
-      print('✅ FFmpeg session cancel called');
+      print('FFmpeg session cancel attempted.');
 
-      // On Windows, force kill ffmpeg.exe if needed
       if (Platform.isWindows) {
-        await Future.delayed(const Duration(seconds: 1)); // allow graceful shutdown
+        // Give FFmpeg some time to react
+        await Future.delayed(Duration(seconds: 2));
+
+        // Fallback: kill ffmpeg.exe manually (requires it's named this way)
         final result = await Process.run('taskkill', ['/F', '/IM', 'ffmpeg.exe']);
         if (result.exitCode == 0) {
           print('✅ Fallback: ffmpeg.exe force-killed');
@@ -476,11 +481,10 @@ class _CameraStreamWidgetState extends State<CameraStreamWidget> {
       }
 
     } catch (e) {
-      print('❌ Error stopping recording: $e');
+      print('❌ Error while stopping FFmpeg session: $e');
     }
-
-    print('🟩 Recording stop complete.');
   }
+
 
   Future<void> _saveRecordedFile(String tempFilePath) async {
     try {
