@@ -475,90 +475,52 @@ class _CameraStreamWidgetState extends State<CameraStreamWidget> {
   // Replace your current _stopRecording method with this improved version:
 
   Future<void> _stopRecording() async {
-    if (!_isRecording || _ffmpegSession == null) return;
+    if (!_isRecording) return;
 
-    print('Stopping recording...');
+    // 1.  Immediately leave the recording state so the button disables itself
+    setState(() => _isRecording = false);
 
-    // Set recording state to false immediately to prevent UI issues
-    setState(() {
-      _isRecording = false;
-    });
+    final session = _ffmpegSession;
+    _ffmpegSession = null;
+
+    if (session == null) {
+      // Nothing to stop – probably already finished
+      return;
+    }
+
+    print('Stopping recording…');
 
     try {
-      final session = _ffmpegSession;
-      _ffmpegSession = null;
+      // Try graceful cancel on every platform
+      await session.cancel();
+      await Future.delayed(const Duration(milliseconds: 800));
+    } catch (_) {
+      /* ignore */
+    }
 
-      if (Platform.isWindows) {
-        // Windows-specific approach
-        print('Windows: Attempting to cancel FFmpeg session...');
-
-        // Try to cancel the session first
-        await session!.cancel();
-
-        // Give FFmpeg time to process the cancel signal
-        await Future.delayed(const Duration(milliseconds: 1500));
-
-        // Force kill ffmpeg processes on Windows
-        try {
-          // Kill all ffmpeg.exe processes
-          await Process.run('taskkill', ['/F', '/IM', 'ffmpeg.exe'], runInShell: true);
-          print('✅ Windows: FFmpeg processes terminated');
-        } catch (e) {
-          print('⚠️ Windows: Could not kill ffmpeg processes: $e');
-        }
-
-        // Also try to kill any hanging processes
-        try {
-          await Process.run('taskkill', ['/F', '/IM', 'ffmpeg_kit_flutter.exe'], runInShell: true);
-        } catch (e) {
-          // Ignore this error as the process might not exist
-        }
-
-      } else if (Platform.isMacOS) {
-        // macOS-specific approach
-        print('macOS: Attempting to cancel FFmpeg session...');
-        await session!.cancel();
-
-        // Give some time for graceful shutdown
-        await Future.delayed(const Duration(milliseconds: 500));
-
-        // Optional: kill ffmpeg processes on macOS if needed
-        try {
-          await Process.run('pkill', ['-f', 'ffmpeg'], runInShell: true);
-          print('✅ macOS: FFmpeg processes terminated');
-        } catch (e) {
-          print('⚠️ macOS: Could not kill ffmpeg processes: $e');
-        }
-      }
-
-      print('✅ Recording stopped successfully');
-
-    } catch (e) {
-      print('❌ Error while stopping FFmpeg session: $e');
-
-      // Fallback: Force kill on any platform
-      if (Platform.isWindows) {
-        try {
-          await Process.run('taskkill', ['/F', '/IM', 'ffmpeg.exe'], runInShell: true);
-        } catch (fallbackError) {
-          print('❌ Fallback kill failed: $fallbackError');
-        }
-      } else {
-        try {
-          await Process.run('pkill', ['-f', 'ffmpeg'], runInShell: true);
-        } catch (fallbackError) {
-          print('❌ Fallback kill failed: $fallbackError');
-        }
+    // 2.  Brutal but reliable kill on Windows
+    if (Platform.isWindows) {
+      try {
+        await Process.run(
+          'taskkill',
+          ['/F', '/IM', 'ffmpeg.exe'],
+          runInShell: true,
+        );
+      } catch (_) {
+        /* ignore */
       }
     }
 
-    // Ensure UI is updated
-    if (mounted) {
-      setState(() {
-        _isRecording = false;
-        _ffmpegSession = null;
-      });
+    // 3.  Brutal but reliable kill on macOS
+    else if (Platform.isMacOS) {
+      try {
+        await Process.run('pkill', ['-f', 'ffmpeg'], runInShell: true);
+      } catch (_) {
+        /* ignore */
+      }
     }
+
+    print('Recording stopped');
   }
 
   Future<void> _saveRecordedFile(String tempFilePath) async {
@@ -849,35 +811,63 @@ class _CameraStreamWidgetState extends State<CameraStreamWidget> {
             children: [
               const Text('Video Device:', style: TextStyle(fontWeight: FontWeight.bold)),
               const SizedBox(height: 8),
+              // VIDEO DEVICE
               DropdownButton<String>(
                 isExpanded: true,
-                value: _selectedVideoDeviceId,
-                items: _videoDevices.map((device) {
-                  return DropdownMenuItem(
-                    value: device.deviceId,
-                    child: Text(device.label.isNotEmpty ? device.label : 'Camera ${_videoDevices.indexOf(device) + 1}'),
-                  );
-                }).toList(),
-                onChanged: (value) {
-                  setState(() => _selectedVideoDeviceId = value);
-                },
+                value: _videoDevices.any((d) => d.deviceId == _selectedVideoDeviceId)
+                    ? _selectedVideoDeviceId
+                    : null,
+                hint: const Text('Select camera'),
+                items: _videoDevices.isEmpty
+                    ? [
+                  DropdownMenuItem<String>(
+                    value: null,
+                    child: Text('No camera found'),
+                    enabled: false,
+                  ),
+                ]
+                    : _videoDevices
+                    .map(
+                      (d) => DropdownMenuItem<String>(
+                    value: d.deviceId,
+                    child: Text(d.label.isNotEmpty
+                        ? d.label
+                        : 'Camera ${_videoDevices.indexOf(d) + 1}'),
+                  ),
+                )
+                    .toList(),
+                onChanged: (val) => setState(() => _selectedVideoDeviceId = val),
               ),
               const SizedBox(height: 10),
 
               const Text('Audio Device:', style: TextStyle(fontWeight: FontWeight.bold)),
               const SizedBox(height: 8),
+              // AUDIO DEVICE (same pattern)
               DropdownButton<String>(
                 isExpanded: true,
-                value: _selectedAudioDeviceId,
-                items: _audioDevices.map((device) {
-                  return DropdownMenuItem(
-                    value: device.deviceId,
-                    child: Text(device.label.isNotEmpty ? device.label : 'Microphone ${_audioDevices.indexOf(device) + 1}'),
-                  );
-                }).toList(),
-                onChanged: (value) {
-                  setState(() => _selectedAudioDeviceId = value);
-                },
+                value: _audioDevices.any((d) => d.deviceId == _selectedAudioDeviceId)
+                    ? _selectedAudioDeviceId
+                    : null,
+                hint: const Text('Select microphone'),
+                items: _audioDevices.isEmpty
+                    ? [
+                  DropdownMenuItem<String>(
+                    value: null,
+                    child: Text('No microphone found'),
+                    enabled: false,
+                  ),
+                ]
+                    : _audioDevices
+                    .map(
+                      (d) => DropdownMenuItem<String>(
+                    value: d.deviceId,
+                    child: Text(d.label.isNotEmpty
+                        ? d.label
+                        : 'Mic ${_audioDevices.indexOf(d) + 1}'),
+                  ),
+                )
+                    .toList(),
+                onChanged: (val) => setState(() => _selectedAudioDeviceId = val),
               ),
               const SizedBox(height: 16),
 
