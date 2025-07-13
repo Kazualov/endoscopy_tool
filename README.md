@@ -1,9 +1,12 @@
-<p align="center">
-  <img src="./logo.png" alt="Project Logo" width="550"/>
-</p>
+<h1 align="center">EndoAssist</h1>
+
+<h3 align="center">
+  AI-powered local endoscopy software with anomaly detection and voice control.
+</h3>
+
 
 <p align="center">
-  AI-powered local endoscopy software with anomaly detection and voice control.
+  <img src="./logo.png" alt="Project Logo" width="550"/>
 </p>
 
 ## 🧠 Project Goal(s) and Description
