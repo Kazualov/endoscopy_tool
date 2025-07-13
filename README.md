@@ -2,9 +2,9 @@
   <img src="./logo.png" alt="Project Logo" width="550"/>
 </p>
 
-<h3 align="center">
+<p align="center">
   AI-powered local endoscopy software with anomaly detection and voice control.
-</h3>
+</p>
 
 ## 🧠 Project Goal(s) and Description
 
