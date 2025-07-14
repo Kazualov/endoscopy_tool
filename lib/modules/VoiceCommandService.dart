@@ -126,10 +126,14 @@ class VoiceService {
   void _reconnect() {
     if (!_isListening) return;
 
-    print('[VoiceService] Переподключение через 3 секунды...');
-    Future.delayed(const Duration(seconds: 3), () {
+    print('[VoiceService] Переподключение через 1 секунду...');
+    Future.delayed(const Duration(seconds: 1), () {
       if (_isListening) {
+        print("[VoiceService] начинаю слушать заново");
+        _isListening = false;
         startListening();
+      }else{
+        print("[VoiceService] все еще слушаем");
       }
     });
   }
@@ -139,6 +143,7 @@ class VoiceService {
     _isListening = false;
     _client?.close();
     print('[VoiceService] Прослушивание остановлено');
+    _reconnect();
   }
 
   /// Полная очистка ресурсов
