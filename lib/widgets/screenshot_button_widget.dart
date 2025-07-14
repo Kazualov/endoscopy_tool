@@ -51,9 +51,6 @@ class ScreenshotButtonState extends State<ScreenshotButton> {
           dialogTitle: 'Select folder to save screenshots',
         );
         if (folderPath == null) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Screenshot added to timeline')),
-          );
           return; // Не отменяем операцию, просто не сохраняем в файл
         }
         setState(() {
@@ -70,14 +67,9 @@ class ScreenshotButtonState extends State<ScreenshotButton> {
         final file = File(filePath);
         await file.writeAsBytes(pngBytes);
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Screenshot added to timeline and saved to: $filePath')),
-        );
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to take screenshot: $e')),
-      );
+      print('Failed to take screenshot: $e');
     }
   }
 
