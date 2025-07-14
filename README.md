@@ -8,6 +8,8 @@
 
 <h3 align="left">
   AI-powered local endoscopy software with anomaly detection and voice control.
+  Deployed MVP v2.5 - https://disk.yandex.ru/client/disk/SWD_endoscopy_tool/MVP2.5/builds
+  Demo video - https://disk.yandex.ru/d/9Cqbwf-02HCGew/demo
 </h3>
 
 
