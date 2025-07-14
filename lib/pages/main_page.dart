@@ -590,7 +590,6 @@ class _MainPageLayoutState extends State<MainPageLayout> {
         playableFile = mp4File;
         _convertedFile = mp4File;
       } else {
-        _showError('Video conversion failed');
         return;
       }
     }
@@ -619,18 +618,10 @@ class _MainPageLayoutState extends State<MainPageLayout> {
     } else {
       final log = await session.getAllLogsAsString();
       print('FFmpeg failed: $log');
-      _showError("Video conversion failed. Please try a different file.");
       return null;
     }
   }
 
-  void _showError(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(message)));
-    setState(() {
-      _isLoading = false;
-    });
-  }
 
   void _seekToTimecode(String timeString) {
     if (_currentMode == VideoMode.uploaded && _player != null) {
@@ -873,23 +864,6 @@ class _MainPageLayoutState extends State<MainPageLayout> {
     void _onDetectionIntervalTap(DetectionSegment segment) {
       if (_currentMode == VideoMode.uploaded && _player != null) {
         _player!.seek(segment.startTime);
-
-        // Показываем информацию о детекции
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-                'Детекция: ${segment.label}\n'
-                    'Время: ${_formatDurationWithMs(
-                    segment.startTime)} - ${_formatDurationWithMs(
-                    segment.endTime)}\n'
-                    'Количество: ${segment
-                    .detectionCount}, Уверенность: ${(segment.maxConfidence *
-                    100).toStringAsFixed(1)}%'
-            ),
-            backgroundColor: const Color(0xFF00ACAB),
-            duration: const Duration(seconds: 3),
-          ),
-        );
       }
     }
 
