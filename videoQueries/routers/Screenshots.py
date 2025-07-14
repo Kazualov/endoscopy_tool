@@ -5,7 +5,7 @@ from typing import List
 import io
 import zipfile
 from fastapi.responses import StreamingResponse
-from fastapi import APIRouter, UploadFile, File, Depends, HTTPException, status
+from fastapi import APIRouter, UploadFile, File, Depends, HTTPException, status, Form
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 import json
@@ -13,6 +13,7 @@ from videoQueries.database import SessionLocal
 from videoQueries.models.Examination import Examination
 from videoQueries.models.Screenshot import Screenshot
 from videoQueries.schemas.screenshots import ScreenshotResponse
+from datetime import datetime as dt
 
 
 def get_db():
@@ -29,10 +30,20 @@ SCREENSHOT_DIR = Path(__file__).resolve().parent.parent / "data" / "screenshots"
 os.makedirs(SCREENSHOT_DIR, exist_ok=True)
 
 
+
+def parse_timestamp_to_seconds(timestamp: str) -> int:
+    """Преобразует строку формата HH:MM:SS в секунды"""
+    try:
+        t = dt.strptime(timestamp, "%H:%M:%S")
+        return t.hour * 3600 + t.minute * 60 + t.second
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Неверный формат timestamp_in_video. Используйте HH:MM:SS")
+
 @router.post("/exams/{exam_id}/upload_screenshot/")
 async def upload_screenshot(
     exam_id: str,
     file: UploadFile = File(...),
+    timestamp_in_video: str = Form(...),
     db: Session = Depends(get_db)
 ):
     # Получаем осмотр из БД
@@ -40,41 +51,45 @@ async def upload_screenshot(
     if not exam:
         raise HTTPException(status_code=404, detail="Осмотр не найден")
 
-    # Создаем запись для скриншота в БД (без пути пока)
+    # Конвертируем timestamp в секунды
+    timestamp_in_seconds = parse_timestamp_to_seconds(timestamp_in_video)
+
+    # Создаем запись скриншота
     screenshot = Screenshot(
         exam_id=exam_id,
         filename=file.filename,
-        file_path=""
+        file_path="",
+        timestamp_in_video=timestamp_in_video,
+        timestamp_in_seconds=timestamp_in_seconds
     )
     db.add(screenshot)
-    db.flush()  # Получаем ID скриншота до коммита
+    db.flush()
 
-    # Используем путь из БД
     try:
         screenshots_dir = Path(exam.folder_path) / "screenshots"
         screenshots_dir.mkdir(parents=True, exist_ok=True)
 
-        # Уникальное имя скриншота
         filename = f"{exam_id}_screenshot_{screenshot.id:05d}.jpg"
         filepath = screenshots_dir / filename
 
-        # Сохраняем файл
         with open(filepath, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
 
-        # Обновляем путь в объекте Screenshot
         screenshot.file_path = str(filepath)
         screenshot.filename = filename
         db.commit()
 
         return {
             "screenshot_id": screenshot.id,
-            "filename": filename
+            "filename": filename,
+            "timestamp_in_video": timestamp_in_video,
+            "timestamp_in_seconds": timestamp_in_seconds
         }
 
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Ошибка при сохранении скриншота: {e}")
+
 
 
 
@@ -100,10 +115,10 @@ def get_screenshots(exam_id: str, db: Session = Depends(get_db)):
                 "filename": shot.filename,
                 "file_path": shot.file_path,
                 "timestamp_in_video": shot.timestamp_in_video,
+                "timestamp_in_seconds": shot.timestamp_in_seconds,
                 "annotated_filename": shot.annotated_filename,
                 "annotated_file_path": shot.annotated_file_path,
             })
-
     return result
 
 

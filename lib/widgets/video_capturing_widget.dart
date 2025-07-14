@@ -10,6 +10,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:path/path.dart' as path;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
+// Add this import
 
 import '../modules/ApiService.dart';
 
@@ -384,15 +385,18 @@ class _CameraStreamWidgetState extends State<CameraStreamWidget> {
     return null;
   }
 
+  // Also consider updating your _startRecording method for better Windows compatibility:
+
   Future<void> _startRecording() async {
     if (_isRecording) return;
-    if (widget.startCaptured != null){
+
+    if (widget.startCaptured != null) {
       widget.startCaptured!();
     }
 
-    // Сохраняем время начала записи
+    // Save recording start time
     _recordingStartTime = DateTime.now();
-    _allDetections.clear(); // Очищаем предыдущие детекции
+    _allDetections.clear();
 
     final tempPath = await _getTempOutputFilePath();
     _outputPath = tempPath;
@@ -404,74 +408,117 @@ class _CameraStreamWidgetState extends State<CameraStreamWidget> {
       return;
     }
 
+    // Improved Windows command with better compatibility
     final command = Platform.isMacOS
         ? '-f avfoundation -framerate ${widget.frameRate} '
         '-video_size ${widget.videoWidth}x${widget.videoHeight} '
         '-i "$videoInput" -c:v libx264 -preset ultrafast -crf 23 '
         '-pix_fmt yuv420p "$tempPath"'
-
-        : '-f dshow -i video="$videoInput" '
+        : '-f dshow -i video="$videoInput" -nostdin '
+        '-hide_banner -loglevel error ' // Reduce verbose output on Windows
         '-c:v libx264 -preset ultrafast -crf 23 '
-        '-r ${widget.frameRate} "$tempPath"';
+        '-r ${widget.frameRate} -y "$tempPath"'; // -y to overwrite existing files
 
     print('Running FFmpeg command:\n$command');
 
     setState(() => _isRecording = true);
 
-    _ffmpegSession = await FFmpegKit.executeAsync(command, (session) async {
-      final returnCode = await session.getReturnCode();
-      print('FFmpeg finished with code: $returnCode');
+    try {
+      _ffmpegSession = await FFmpegKit.executeAsync(command, (session) async {
+        final returnCode = await session.getReturnCode();
+        print('FFmpeg finished with code: $returnCode');
 
+        // Always update UI state
+        if (mounted) {
+          setState(() {
+            _isRecording = false;
+            _ffmpegSession = null;
+          });
+        }
+
+        if (!File(tempPath).existsSync()) {
+          print("⚠️ FFmpeg did not produce a file at: $tempPath");
+          return;
+        }
+
+        print("✅ File created: $tempPath");
+
+        // Check if recording was successful
+        if (returnCode != null && (ReturnCode.isSuccess(returnCode) || returnCode.getValue() == 255)) {
+          if (File(tempPath).existsSync()) {
+            print('Saving captured recording...');
+            await _saveRecordedFile(tempPath);
+          } else {
+            print('Temp file not found after capture.');
+          }
+        } else {
+          print('Recording failed with code: $returnCode');
+          try {
+            if (File(tempPath).existsSync()) {
+              await File(tempPath).delete();
+            }
+          } catch (e) {
+            print('Delete failed: $e');
+          }
+        }
+      });
+    } catch (e) {
+      print('❌ Error starting recording: $e');
       setState(() {
         _isRecording = false;
         _ffmpegSession = null;
       });
-      if (!File(tempPath).existsSync()) {
-        print("⚠️ FFmpeg did not produce a file at: $tempPath");
-      } else {
-        print("✅ File created: $tempPath");
-      }
-      if (returnCode != null && (ReturnCode.isSuccess(returnCode) || returnCode.getValue() == 255)) {
-        if (File(tempPath).existsSync()) {
-          print('Saving captured recording...');
-          await _saveRecordedFile(tempPath);
-        } else {
-          print('Temp file not found after capture.');
-        }
-      } else {
-        print('Recording failed with code: $returnCode');
-        try {
-          if (File(tempPath).existsSync()) await File(tempPath).delete();
-        } catch (e) {
-          print('Delete failed: $e');
-        }
-      }
-    });
+      _showErrorSnackbar('Failed to start recording: $e');
+    }
   }
 
+  // Replace your current _stopRecording method with this improved version:
+
   Future<void> _stopRecording() async {
-    if (!_isRecording || _ffmpegSession == null) return;
+    if (!_isRecording) return;
 
-    print('Stopping recording...');
+    // 1.  Immediately leave the recording state so the button disables itself
+    setState(() => _isRecording = false);
 
-    // Update UI immediately - don't wait for FFmpeg to finish
-    setState(() {
-      _isRecording = false;
-    });
+    final session = _ffmpegSession;
+    _ffmpegSession = null;
 
-    try {
-      final sessionToCancel = _ffmpegSession;
-      _ffmpegSession = null; // Clear reference immediately
-
-      // Cancel the session
-      await sessionToCancel!.cancel();
-      print('Recording cancelled successfully.');
-
-    } catch (e) {
-      print('Error stopping recording: $e');
+    if (session == null) {
+      // Nothing to stop – probably already finished
+      return;
     }
 
-    print('Recording stop completed.');
+    print('Stopping recording…');
+
+    try {
+      // Try graceful cancel on every platform
+      await session.cancel();
+      await Future.delayed(const Duration(milliseconds: 800));
+    } catch (_) {
+      /* ignore */
+    }
+
+    // 2.  Brutal but reliable kill on Windows
+    if (Platform.isWindows) {
+      try {
+        final result = await Process.run('taskkill', ['/F', '/IM', 'ffmpeg.exe'], runInShell: true);
+        print('taskkill result: ${result.stdout}, errors: ${result.stderr}');
+        await Future.delayed(const Duration(seconds: 2)); // Allow FFmpeg to flush the file
+      } catch (e) {
+        print('Error terminating FFmpeg on Windows: $e');
+      }
+    }
+
+    // 3.  Brutal but reliable kill on macOS
+    else if (Platform.isMacOS) {
+      try {
+        await Process.run('pkill', ['-f', 'ffmpeg'], runInShell: true);
+      } catch (_) {
+        /* ignore */
+      }
+    }
+
+    print('Recording stopped');
   }
 
   Future<void> _saveRecordedFile(String tempFilePath) async {
@@ -762,35 +809,63 @@ class _CameraStreamWidgetState extends State<CameraStreamWidget> {
             children: [
               const Text('Video Device:', style: TextStyle(fontWeight: FontWeight.bold)),
               const SizedBox(height: 8),
+              // VIDEO DEVICE
               DropdownButton<String>(
                 isExpanded: true,
-                value: _selectedVideoDeviceId,
-                items: _videoDevices.map((device) {
-                  return DropdownMenuItem(
-                    value: device.deviceId,
-                    child: Text(device.label.isNotEmpty ? device.label : 'Camera ${_videoDevices.indexOf(device) + 1}'),
-                  );
-                }).toList(),
-                onChanged: (value) {
-                  setState(() => _selectedVideoDeviceId = value);
-                },
+                value: _videoDevices.any((d) => d.deviceId == _selectedVideoDeviceId)
+                    ? _selectedVideoDeviceId
+                    : null,
+                hint: const Text('Select camera'),
+                items: _videoDevices.isEmpty
+                    ? [
+                  DropdownMenuItem<String>(
+                    value: null,
+                    child: Text('No camera found'),
+                    enabled: false,
+                  ),
+                ]
+                    : _videoDevices
+                    .map(
+                      (d) => DropdownMenuItem<String>(
+                    value: d.deviceId,
+                    child: Text(d.label.isNotEmpty
+                        ? d.label
+                        : 'Camera ${_videoDevices.indexOf(d) + 1}'),
+                  ),
+                )
+                    .toList(),
+                onChanged: (val) => setState(() => _selectedVideoDeviceId = val),
               ),
               const SizedBox(height: 10),
 
               const Text('Audio Device:', style: TextStyle(fontWeight: FontWeight.bold)),
               const SizedBox(height: 8),
+              // AUDIO DEVICE (same pattern)
               DropdownButton<String>(
                 isExpanded: true,
-                value: _selectedAudioDeviceId,
-                items: _audioDevices.map((device) {
-                  return DropdownMenuItem(
-                    value: device.deviceId,
-                    child: Text(device.label.isNotEmpty ? device.label : 'Microphone ${_audioDevices.indexOf(device) + 1}'),
-                  );
-                }).toList(),
-                onChanged: (value) {
-                  setState(() => _selectedAudioDeviceId = value);
-                },
+                value: _audioDevices.any((d) => d.deviceId == _selectedAudioDeviceId)
+                    ? _selectedAudioDeviceId
+                    : null,
+                hint: const Text('Select microphone'),
+                items: _audioDevices.isEmpty
+                    ? [
+                  DropdownMenuItem<String>(
+                    value: null,
+                    child: Text('No microphone found'),
+                    enabled: false,
+                  ),
+                ]
+                    : _audioDevices
+                    .map(
+                      (d) => DropdownMenuItem<String>(
+                    value: d.deviceId,
+                    child: Text(d.label.isNotEmpty
+                        ? d.label
+                        : 'Mic ${_audioDevices.indexOf(d) + 1}'),
+                  ),
+                )
+                    .toList(),
+                onChanged: (val) => setState(() => _selectedAudioDeviceId = val),
               ),
               const SizedBox(height: 16),
 
