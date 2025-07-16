@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:endoscopy_tool/pages/main_page.dart';
 import 'package:endoscopy_tool/pages/settings.dart';
@@ -6,7 +7,10 @@ import 'package:endoscopy_tool/modules/SettingsStorage.dart';
 import 'package:endoscopy_tool/modules/VoiceCommandService.dart';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:path_provider/path_provider.dart';
 import '../modules/ApiService.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:path/path.dart' as path;
 
 // hello Gleb
 
@@ -455,6 +459,19 @@ class _ExaminationGridScreenState extends State<ExaminationGridScreen> {
                 onTap: () async {
                   final videoPath = await getVideoPath(examination);
                   print(videoPath);
+                  print("Exists: ${await File(videoPath!.trim()).exists()}");
+                  print('Directory exists: ${await Directory(videoPath).exists()}');
+
+                  final sourceFile = File(videoPath.trim());
+                  if (await sourceFile.exists()) {
+                    final appDir = await getApplicationDocumentsDirectory();
+                    final newPath = path.join(appDir.path, path.basename(videoPath));
+                    await sourceFile.copy(newPath);
+                    print('File copied to: $newPath');
+                  } else {
+                    print('Source file does NOT exist');
+                  }
+
                   Navigator.push(
                     context,
                     MaterialPageRoute(
