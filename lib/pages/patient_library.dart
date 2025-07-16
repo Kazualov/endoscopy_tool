@@ -133,15 +133,15 @@ class _ExaminationGridScreenState extends State<ExaminationGridScreen> {
 
   // получить путь к видео по обследованию
   Future<String?> getVideoPath(Examination examination) async {
-    ApiService.getExamination();
-     if (examination.video_id != null) {
-
+    ApiService.getExamination(); // ← кстати, тут тоже может не хватать await
+    if (examination.video_id != null) {
       final settings = await SettingsStorage.loadSettings();
-      final path = ApiService.loadVideoPath(examination.video_id!);
+      final path = await ApiService.loadVideoPath(examination.video_id!); // ← вот здесь важно
       return "${settings?.path}/$path";
     }
     return "";
   }
+
 
   //отсортировать осмотры по ID
   List<Examination> get filteredExamination {
@@ -162,87 +162,6 @@ class _ExaminationGridScreenState extends State<ExaminationGridScreen> {
     return patient.name;
   }
 
-
-
-  // Future<void> addExaminationWithVideo() async {
-  //   final result = await FilePicker.platform.pickFiles(type: FileType.video);
-  //
-  //   if (result != null && result.files.single.path != null) {
-  //     final filePath = result.files.single.path!;
-  //
-  //     // Показать диалог для ввода данных пациента и обследования
-  //     final registrationData = await showPatientRegistrationDialog();
-  //     if (registrationData != null) {
-  //       // Показать индикатор загрузки
-  //       showDialog(
-  //         context: context,
-  //         barrierDismissible: false,
-  //         builder: (context) => AlertDialog(
-  //           content: Row(
-  //             children: [
-  //               CircularProgressIndicator(),
-  //               SizedBox(width: 20),
-  //               Text('Создание обследования...'),
-  //             ],
-  //           ),
-  //         ),
-  //       );
-  //
-  //       try {
-  //         // 1. Создать пациента
-  //         final patient_id = await ApiService.createPatient(
-  //           registrationData["patient_id"]!,
-  //         );
-  //
-  //         if (patient_id != null) {
-  //
-  //           // 2. Создать обследование
-  //           final examination = await ApiService.createExamination(
-  //               patient_id,
-  //               registrationData["serviceType"] ?? "Обследование"
-  //           );
-  //
-  //           print("Обследование создано");
-  //
-  //           // 3. Загрузить видео
-  //           final video_id = await ApiService.uploadVideoToExamination(examination!.id, filePath);
-  //           examination.video_id = video_id;
-  //
-  //           Navigator.of(context).pop(); // Закрыть индикатор загрузки
-  //
-  //           await loadExamination(); // Обновить список обследований
-  //
-  //           ScaffoldMessenger.of(context).showSnackBar(
-  //             SnackBar(content: Text('Обследование создано успешно')),
-  //           );
-  //
-  //           // Открыть MainPage с видео
-  //           if (video_id != null) {
-  //             Navigator.of(context, rootNavigator: true).pop();
-  //             print("video id exist");
-  //             Navigator.push(
-  //               context,
-  //               MaterialPageRoute(
-  //                 builder: (context) => MainPage(videoPath: filePath, examinationId: examination.id),
-  //               ),
-  //             );
-  //             print("mainPage open");
-  //           }
-  //         } else {
-  //           Navigator.of(context).pop(); // Закрыть индикатор загрузки
-  //           ScaffoldMessenger.of(context).showSnackBar(
-  //             SnackBar(content: Text('Ошибка при создании пациента')),
-  //           );
-  //         }
-  //       } catch (e) {
-  //         Navigator.of(context).pop(); // Закрыть индикатор загрузки
-  //         ScaffoldMessenger.of(context).showSnackBar(
-  //           SnackBar(content: Text('Ошибка: $e')),
-  //         );
-  //       }
-  //     }
-  //   }
-  // }
 
   Future<Map<String, dynamic>?> showPatientRegistrationDialog() async {
     String? patient_id;
