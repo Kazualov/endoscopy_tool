@@ -1,10 +1,9 @@
 import 'dart:io';
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:flutter_webrtc/flutter_webrtc.dart';
-import 'package:ffmpeg_kit_flutter_new/ffmpeg_kit.dart';
-import 'package:ffmpeg_kit_flutter_new/return_code.dart';
-import 'package:ffmpeg_kit_flutter_new/ffmpeg_session.dart';
+import 'package:camera/camera.dart';
+import 'package:video_player/video_player.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:path/path.dart' as path;
@@ -200,18 +199,18 @@ class CameraStreamWidget extends StatefulWidget {
 }
 
 class _CameraStreamWidgetState extends State<CameraStreamWidget> {
-  final RTCVideoRenderer _renderer = RTCVideoRenderer();
-  MediaStream? _mediaStream;
+
   bool _isRecording = false;
   String? _outputPath;
-  FFmpegSession? _ffmpegSession;
 
-  List<MediaDeviceInfo> _videoDevices = [];
-  List<MediaDeviceInfo> _audioDevices = [];
-  String? _selectedVideoDeviceId;
-  String? _selectedAudioDeviceId;
+  CameraController? _cameraController;
+  List<CameraDescription> _cameras = [];
+  int _selectedCameraIndex = 0;
+
   String? _defaultSaveFolder;
   SharedPreferences? _prefs;
+  String? _selectedVideoDeviceId;
+  String? _selectedAudioDeviceId;
 
   // Добавляем переменные для детекции
   WebSocketChannel? _webSocketChannel;
@@ -223,12 +222,90 @@ class _CameraStreamWidgetState extends State<CameraStreamWidget> {
   @override
   void initState() {
     super.initState();
-    _initializeSettings();
-    _listAvailableDevices();
+    _initializeAsync();
+  }
 
-    // Подключаемся к WebSocket если есть examination ID
+  Future<void> _initializeAsync() async {
+    await _initializeSettings();
+    await _initializeCameras();
+
     if (widget.examinationId != null) {
       _connectToCameraStream(widget.examinationId!);
+    }
+  }
+
+  Future<void> _initializeCameras() async {
+    try {
+      // Сначала запрашиваем разрешения
+      final cameraPermission = await Permission.camera.request();
+      final microphonePermission = await Permission.microphone.request();
+
+      if (cameraPermission != PermissionStatus.granted) {
+        print('Camera permission denied');
+        _showErrorSnackbar('Camera permission is required');
+        return;
+      }
+
+      if (microphonePermission != PermissionStatus.granted) {
+        print('Microphone permission denied');
+        _showErrorSnackbar('Microphone permission is required');
+        return;
+      }
+
+      // Получаем доступные камеры
+      _cameras = await availableCameras();
+      print('Available cameras: ${_cameras.length}');
+
+      for (int i = 0; i < _cameras.length; i++) {
+        print('Camera $i: ${_cameras[i].name} - ${_cameras[i].lensDirection}');
+      }
+
+      if (_cameras.isNotEmpty) {
+        // Проверяем сохраненный индекс камеры
+        final savedIndex = _prefs?.getInt('selected_camera_index') ?? 0;
+        _selectedCameraIndex = savedIndex < _cameras.length ? savedIndex : 0;
+
+        await _initializeCamera();
+      } else {
+        print('No cameras available');
+        _showErrorSnackbar('No cameras found');
+      }
+    } catch (e) {
+      print('Error initializing cameras: $e');
+      _showErrorSnackbar('Error initializing cameras: $e');
+    }
+  }
+
+  Future<void> _initializeCamera() async {
+    try {
+      // Освобождаем предыдущий контроллер
+      if (_cameraController != null) {
+        await _cameraController!.dispose();
+        _cameraController = null;
+      }
+
+      if (_cameras.isEmpty) {
+        print('No cameras available for initialization');
+        return;
+      }
+
+      print('Initializing camera ${_selectedCameraIndex}: ${_cameras[_selectedCameraIndex].name}');
+
+      _cameraController = CameraController(
+        _cameras[_selectedCameraIndex],
+        ResolutionPreset.high,
+        enableAudio: true,
+      );
+
+      await _cameraController!.initialize();
+
+      if (mounted) {
+        setState(() {});
+        print('Camera initialized successfully');
+      }
+    } catch (e) {
+      print('Error initializing camera: $e');
+      _showErrorSnackbar('Error initializing camera: $e');
     }
   }
 
@@ -298,65 +375,8 @@ class _CameraStreamWidgetState extends State<CameraStreamWidget> {
     });
   }
 
-  Future<void> _saveSettings() async {
-    await _prefs?.setString('default_save_folder', _defaultSaveFolder ?? '');
-    await _prefs?.setString('selected_video_device_id', _selectedVideoDeviceId ?? '');
-    await _prefs?.setString('selected_audio_device_id', _selectedAudioDeviceId ?? '');
-  }
 
-  Future<void> _listAvailableDevices() async {
-    try {
-      final devices = await navigator.mediaDevices.enumerateDevices();
-      setState(() {
-        _videoDevices = devices.where((device) => device.kind == 'videoinput').toList();
-        _audioDevices = devices.where((device) => device.kind == 'audioinput').toList();
 
-        if (_selectedVideoDeviceId == null && _videoDevices.isNotEmpty) {
-          _selectedVideoDeviceId = _videoDevices.first.deviceId;
-        }
-        if (_selectedAudioDeviceId == null && _audioDevices.isNotEmpty) {
-          _selectedAudioDeviceId = _audioDevices.first.deviceId;
-        }
-      });
-
-      await Future.delayed(const Duration(milliseconds: 300));
-      await _initializeCamera();
-    } catch (e) {
-      print('Error listing devices: $e');
-      setState(() {
-        _selectedVideoDeviceId = null;
-        _selectedAudioDeviceId = null;
-      });
-      await _initializeCamera();
-    }
-  }
-
-  Future<void> _initializeCamera() async {
-    await _renderer.initialize();
-
-    final constraints = {
-      'audio': _selectedAudioDeviceId != null,
-      'video': {
-        'deviceId': _selectedVideoDeviceId,
-        'width': widget.videoWidth,
-        'height': widget.videoHeight,
-        'frameRate': widget.frameRate,
-      },
-    };
-
-    try {
-      _mediaStream?.getTracks().forEach((track) => track.stop());
-      final stream = await navigator.mediaDevices.getUserMedia(constraints);
-      _renderer.srcObject = stream;
-      setState(() => _mediaStream = stream);
-    } catch (e) {
-      print('Error accessing camera: $e');
-      if (_selectedVideoDeviceId != null) {
-        setState(() => _selectedVideoDeviceId = null);
-        await _initializeCamera();
-      }
-    }
-  }
 
   Future<String> _getTempOutputFilePath() async {
     final dir = await getTemporaryDirectory();
@@ -364,161 +384,43 @@ class _CameraStreamWidgetState extends State<CameraStreamWidget> {
     return '${dir.path}/recording_$timestamp.mp4';
   }
 
-  String? _getFFmpegVideoInput() {
-    if (_selectedVideoDeviceId == null) return null;
-
-    final device = _videoDevices.firstWhere(
-          (d) => d.deviceId == _selectedVideoDeviceId,
-      orElse: () => MediaDeviceInfo(deviceId: '', label: '', kind: '', groupId: ''),
-    );
-
-    if (Platform.isWindows) {
-      return device.label;
-    } else if (Platform.isMacOS) {
-      for (int i = 0; i < _videoDevices.length; i++) {
-        if (_videoDevices[i].deviceId == _selectedVideoDeviceId) {
-          return i.toString();
-        }
-      }
-    }
-
-    return null;
-  }
-
-  // Also consider updating your _startRecording method for better Windows compatibility:
 
   Future<void> _startRecording() async {
-    if (_isRecording) return;
+    if (_isRecording || _cameraController == null || !_cameraController!.value.isInitialized) {
+      return;
+    }
 
     if (widget.startCaptured != null) {
       widget.startCaptured!();
     }
 
-    // Save recording start time
     _recordingStartTime = DateTime.now();
     _allDetections.clear();
 
-    final tempPath = await _getTempOutputFilePath();
-    _outputPath = tempPath;
-
-    final videoInput = _getFFmpegVideoInput();
-
-    if (videoInput == null) {
-      print("No valid FFmpeg-compatible camera input.");
-      return;
-    }
-
-    // Improved Windows command with better compatibility
-    final command = Platform.isMacOS
-        ? '-f avfoundation -framerate ${widget.frameRate} '
-        '-video_size ${widget.videoWidth}x${widget.videoHeight} '
-        '-i "$videoInput" -c:v libx264 -preset ultrafast -crf 23 '
-        '-pix_fmt yuv420p "$tempPath"'
-        : '-f dshow -i video="$videoInput" -nostdin '
-        '-hide_banner -loglevel error ' // Reduce verbose output on Windows
-        '-c:v libx264 -preset ultrafast -crf 23 '
-        '-r ${widget.frameRate} -y "$tempPath"'; // -y to overwrite existing files
-
-    print('Running FFmpeg command:\n$command');
-
-    setState(() => _isRecording = true);
-
     try {
-      _ffmpegSession = await FFmpegKit.executeAsync(command, (session) async {
-        final returnCode = await session.getReturnCode();
-        print('FFmpeg finished with code: $returnCode');
-
-        // Always update UI state
-        if (mounted) {
-          setState(() {
-            _isRecording = false;
-            _ffmpegSession = null;
-          });
-        }
-
-        if (!File(tempPath).existsSync()) {
-          print("⚠️ FFmpeg did not produce a file at: $tempPath");
-          return;
-        }
-
-        print("✅ File created: $tempPath");
-
-        // Check if recording was successful
-        if (returnCode != null && (ReturnCode.isSuccess(returnCode) || returnCode.getValue() == 255)) {
-          if (File(tempPath).existsSync()) {
-            print('Saving captured recording...');
-            await _saveRecordedFile(tempPath);
-          } else {
-            print('Temp file not found after capture.');
-          }
-        } else {
-          print('Recording failed with code: $returnCode');
-          try {
-            if (File(tempPath).existsSync()) {
-              await File(tempPath).delete();
-            }
-          } catch (e) {
-            print('Delete failed: $e');
-          }
-        }
-      });
+      await _cameraController!.startVideoRecording();
+      setState(() => _isRecording = true);
+      print('Recording started');
     } catch (e) {
-      print('❌ Error starting recording: $e');
-      setState(() {
-        _isRecording = false;
-        _ffmpegSession = null;
-      });
+      print('Error starting recording: $e');
       _showErrorSnackbar('Failed to start recording: $e');
     }
   }
 
-  // Replace your current _stopRecording method with this improved version:
-
   Future<void> _stopRecording() async {
-    if (!_isRecording) return;
+    if (!_isRecording || _cameraController == null) return;
 
-    // 1.  Immediately leave the recording state so the button disables itself
     setState(() => _isRecording = false);
 
-    final session = _ffmpegSession;
-    _ffmpegSession = null;
-
-    if (session == null) {
-      // Nothing to stop – probably already finished
-      return;
-    }
-
-    print('Stopping recording…');
-
     try {
-      // Try graceful cancel on every platform
-      await session.cancel();
-      await Future.delayed(const Duration(milliseconds: 800));
-    } catch (_) {
-      /* ignore */
-    }
+      final videoFile = await _cameraController!.stopVideoRecording();
+      print('Recording stopped, file: ${videoFile.path}');
 
-    // 2.  Brutal but reliable kill on Windows
-    if (Platform.isWindows) {
-      try {
-        final result = await Process.run('taskkill', ['/F', '/IM', 'ffmpeg.exe'], runInShell: true);
-        print('taskkill result: ${result.stdout}, errors: ${result.stderr}');
-        await Future.delayed(const Duration(seconds: 2)); // Allow FFmpeg to flush the file
-      } catch (e) {
-        print('Error terminating FFmpeg on Windows: $e');
-      }
+      await _saveRecordedFile(videoFile.path);
+    } catch (e) {
+      print('Error stopping recording: $e');
+      _showErrorSnackbar('Failed to stop recording: $e');
     }
-
-    // 3.  Brutal but reliable kill on macOS
-    else if (Platform.isMacOS) {
-      try {
-        await Process.run('pkill', ['-f', 'ffmpeg'], runInShell: true);
-      } catch (_) {
-        /* ignore */
-      }
-    }
-
-    print('Recording stopped');
   }
 
   Future<void> _saveRecordedFile(String tempFilePath) async {
@@ -675,90 +577,40 @@ class _CameraStreamWidgetState extends State<CameraStreamWidget> {
         return;
       }
 
-      print('Processing ${_allDetections.length} detections with precise timing...');
+      print('Processing ${_allDetections.length} detections...');
 
-      // Сортируем детекции по времени
-      _allDetections.sort((a, b) => a.timestamp.compareTo(b.timestamp));
+      // Для кроссплатформенной обработки можно использовать
+      // простое копирование файла и отдельное сохранение метаданных детекций
+      await File(inputPath).copy(outputPath);
 
-      // Рассчитываем продолжительность показа каждой детекции
-      // Если детекции приходят каждые 3 кадра при 30 FPS, то это каждые 0.1 секунды
-      final detectionDuration = 3.0 / widget.frameRate; // ~0.1 секунды для 30 FPS
+      // Сохраняем детекции в отдельный JSON файл для последующей обработки
+      await _saveDetectionsMetadata(outputPath);
 
-      final allFilters = <String>[];
-
-      // Создаем фильтры для каждой детекции с точным временем
-      for (final detection in _allDetections) {
-        final startTime = detection.timestamp.inMilliseconds / 1000.0;
-        final endTime = startTime + detectionDuration;
-
-        // Drawbox фильтр
-        allFilters.add(detection.toFFmpegDrawbox(startTime: startTime, endTime: endTime));
-        // Drawtext фильтр
-        allFilters.add(detection.toFFmpegDrawtext(startTime: startTime, endTime: endTime));
-      }
-
-      final filterComplex = allFilters.join(',');
-      final command = '-i "$inputPath" -vf "$filterComplex" -c:v libx264 -preset ultrafast -crf 23 -c:a copy "$outputPath"';
-
-      print('Running FFmpeg command with ${allFilters.length} filters');
-      print('Detection duration: ${detectionDuration}s');
-
-      final session = await FFmpegKit.execute(command);
-      final returnCode = await session.getReturnCode();
-
-      if (ReturnCode.isSuccess(returnCode)) {
-        print('✅ Video with precise detections processed successfully');
-      } else {
-        final logs = await session.getFailStackTrace();
-        print('❌ FFmpeg error (code ${returnCode?.getValue()}): $logs');
-
-        // Fallback: try without text labels
-        await _addDetectionsToVideoBoxesOnly(inputPath, outputPath);
-      }
+      print('✅ Video saved with detection metadata');
     } catch (e) {
-      print('❌ Error in precise FFmpeg processing: $e');
+      print('❌ Error processing video: $e');
       await File(inputPath).copy(outputPath);
       rethrow;
     }
   }
 
-// Метод только с прямоугольниками (без текста) с точным временем
-  Future<void> _addDetectionsToVideoBoxesOnly(String inputPath, String outputPath) async {
+  Future<void> _saveDetectionsMetadata(String videoPath) async {
     try {
-      print('Trying boxes-only approach with precise timing...');
+      final metadataPath = videoPath.replaceAll('.mp4', '_detections.json');
+      final detectionsData = _allDetections.map((detection) => {
+        'x1': detection.x1,
+        'y1': detection.y1,
+        'x2': detection.x2,
+        'y2': detection.y2,
+        'label': detection.label,
+        'confidence': detection.confidence,
+        'timestamp': detection.timestamp.inMilliseconds,
+      }).toList();
 
-      final detectionDuration = 3.0 / widget.frameRate;
-      final boxFilters = <String>[];
-
-      // Создаем только drawbox фильтры с точным временем
-      for (final detection in _allDetections) {
-        final startTime = detection.timestamp.inMilliseconds / 1000.0;
-        final endTime = startTime + detectionDuration;
-
-        boxFilters.add(detection.toFFmpegDrawbox(startTime: startTime, endTime: endTime));
-      }
-
-      final filterComplex = boxFilters.join(',');
-      final command = '-i "$inputPath" -vf "$filterComplex" -c:v libx264 -preset ultrafast -crf 23 -c:a copy "$outputPath"';
-
-      print('Running boxes-only FFmpeg command with precise timing');
-
-      final session = await FFmpegKit.execute(command);
-      final returnCode = await session.getReturnCode();
-
-      if (ReturnCode.isSuccess(returnCode)) {
-        print('✅ Video with precise detection boxes processed successfully');
-      } else {
-        final logs = await session.getFailStackTrace();
-        print('❌ Boxes-only FFmpeg error (code ${returnCode?.getValue()}): $logs');
-
-        // Final fallback: save without detections
-        await File(inputPath).copy(outputPath);
-      }
+      await File(metadataPath).writeAsString(jsonEncode(detectionsData));
+      print('Detection metadata saved to: $metadataPath');
     } catch (e) {
-      print('❌ Error in boxes-only processing: $e');
-      await File(inputPath).copy(outputPath);
-      rethrow;
+      print('Error saving detection metadata: $e');
     }
   }
 
@@ -807,65 +659,40 @@ class _CameraStreamWidgetState extends State<CameraStreamWidget> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Text('Video Device:', style: TextStyle(fontWeight: FontWeight.bold)),
+              const Text('Camera:', style: TextStyle(fontWeight: FontWeight.bold)),
               const SizedBox(height: 8),
-              // VIDEO DEVICE
-              DropdownButton<String>(
+              _cameras.isEmpty
+                  ? const Text('No cameras available')
+                  : DropdownButton<int>(
                 isExpanded: true,
-                value: _videoDevices.any((d) => d.deviceId == _selectedVideoDeviceId)
-                    ? _selectedVideoDeviceId
-                    : null,
-                hint: const Text('Select camera'),
-                items: _videoDevices.isEmpty
-                    ? [
-                  DropdownMenuItem<String>(
-                    value: null,
-                    child: Text('No camera found'),
-                    enabled: false,
-                  ),
-                ]
-                    : _videoDevices
-                    .map(
-                      (d) => DropdownMenuItem<String>(
-                    value: d.deviceId,
-                    child: Text(d.label.isNotEmpty
-                        ? d.label
-                        : 'Camera ${_videoDevices.indexOf(d) + 1}'),
-                  ),
-                )
-                    .toList(),
-                onChanged: (val) => setState(() => _selectedVideoDeviceId = val),
+                value: _selectedCameraIndex,
+                items: _cameras.asMap().entries.map((entry) {
+                  final camera = entry.value;
+                  final direction = camera.lensDirection == CameraLensDirection.front
+                      ? 'Front'
+                      : camera.lensDirection == CameraLensDirection.back
+                      ? 'Back'
+                      : 'External';
+                  return DropdownMenuItem<int>(
+                    value: entry.key,
+                    child: Text('${camera.name} ($direction)'),
+                  );
+                }).toList(),
+                onChanged: (index) {
+                  if (index != null) {
+                    setState(() => _selectedCameraIndex = index);
+                  }
+                },
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 16),
 
-              const Text('Audio Device:', style: TextStyle(fontWeight: FontWeight.bold)),
-              const SizedBox(height: 8),
-              // AUDIO DEVICE (same pattern)
-              DropdownButton<String>(
-                isExpanded: true,
-                value: _audioDevices.any((d) => d.deviceId == _selectedAudioDeviceId)
-                    ? _selectedAudioDeviceId
-                    : null,
-                hint: const Text('Select microphone'),
-                items: _audioDevices.isEmpty
-                    ? [
-                  DropdownMenuItem<String>(
-                    value: null,
-                    child: Text('No microphone found'),
-                    enabled: false,
-                  ),
-                ]
-                    : _audioDevices
-                    .map(
-                      (d) => DropdownMenuItem<String>(
-                    value: d.deviceId,
-                    child: Text(d.label.isNotEmpty
-                        ? d.label
-                        : 'Mic ${_audioDevices.indexOf(d) + 1}'),
-                  ),
-                )
-                    .toList(),
-                onChanged: (val) => setState(() => _selectedAudioDeviceId = val),
+              // Кнопка для повторного поиска камер
+              ElevatedButton(
+                onPressed: () async {
+                  await _initializeCameras();
+                  setState(() {});
+                },
+                child: const Text('Refresh Cameras'),
               ),
               const SizedBox(height: 16),
 
@@ -901,10 +728,12 @@ class _CameraStreamWidgetState extends State<CameraStreamWidget> {
             child: const Text('Cancel'),
           ),
           ElevatedButton(
-            onPressed: () {
-              _saveSettings();
-              _initializeCamera();
-              Navigator.pop(context);
+            onPressed: () async {
+              await _saveSettings();
+              await _initializeCamera();
+              if (mounted) {
+                Navigator.pop(context);
+              }
             },
             child: const Text('Save'),
           ),
@@ -913,10 +742,21 @@ class _CameraStreamWidgetState extends State<CameraStreamWidget> {
     );
   }
 
+  Future<void> _saveSettings() async {
+    await _prefs?.setString('default_save_folder', _defaultSaveFolder ?? '');
+    await _prefs?.setInt('selected_camera_index', _selectedCameraIndex);
+  }
+
+  Future<bool> _checkPermissions() async {
+    final cameraStatus = await Permission.camera.status;
+    final microphoneStatus = await Permission.microphone.status;
+
+    return cameraStatus.isGranted && microphoneStatus.isGranted;
+  }
+
   @override
   void dispose() {
-    _mediaStream?.getTracks().forEach((track) => track.stop());
-    _renderer.dispose();
+    _cameraController?.dispose();
     _webSocketChannel?.sink.close();
     super.dispose();
   }
@@ -948,10 +788,10 @@ class _CameraStreamWidgetState extends State<CameraStreamWidget> {
                     child: Stack(
                       children: [
                         // Основное видео
-                        RTCVideoView(
-                          _renderer,
-                          objectFit: RTCVideoViewObjectFit.RTCVideoViewObjectFitCover,
-                        ),
+                        if (_cameraController != null && _cameraController!.value.isInitialized)
+                          CameraPreview(_cameraController!)
+                        else
+                          const Center(child: CircularProgressIndicator()),
                         // Наложение детекции
                         if (_isDetectionEnabled && _currentDetections.isNotEmpty)
                           Positioned.fill(

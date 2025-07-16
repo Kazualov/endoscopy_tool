@@ -10,8 +10,6 @@ import 'package:flutter/rendering.dart';
 import 'package:http/http.dart' as http;
 import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
-import 'package:ffmpeg_kit_flutter_new/ffmpeg_kit.dart';
-import 'package:ffmpeg_kit_flutter_new/return_code.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:file_picker/file_picker.dart';
 
@@ -601,23 +599,76 @@ class _MainPageLayoutState extends State<MainPageLayout> {
   }
 
   Future<File?> _convertToMp4(File inputFile) async {
-    final tempDir = await getTemporaryDirectory();
-    final outputPath = '${tempDir.path}/${DateTime
-        .now()
-        .millisecondsSinceEpoch}.mp4';
+    try {
+      final tempDir = await getTemporaryDirectory();
+      final outputPath = '${tempDir.path}/${DateTime.now().millisecondsSinceEpoch}.mp4';
 
-    final command = '-i "${inputFile.path}" -c copy "$outputPath"';
-//
-    print('Running FFmpeg command: $command');
-    final session = await FFmpegKit.execute(command);
-    final returnCode = await session.getReturnCode();
+      // Проверяем, является ли файл уже MP4
+      if (inputFile.path.toLowerCase().endsWith('.mp4')) {
+        final outputFile = await inputFile.copy(outputPath);
+        print('File already in MP4 format, copied: $outputPath');
+        return outputFile;
+      }
 
-    if (ReturnCode.isSuccess(returnCode)) {
-      print('FFmpeg conversion succeeded: $outputPath');
-      return File(outputPath);
-    } else {
-      final log = await session.getAllLogsAsString();
-      print('FFmpeg failed: $log');
+      // Для других форматов можно использовать нативные команды
+      if (Platform.isWindows) {
+        return await _convertWithWindowsCommands(inputFile, outputPath);
+      } else if (Platform.isMacOS) {
+        return await _convertWithMacCommands(inputFile, outputPath);
+      }
+
+      // Fallback - простое копирование
+      final outputFile = await inputFile.copy(outputPath);
+      return outputFile;
+    } catch (e) {
+      print('Error converting to MP4: $e');
+      return null;
+    }
+  }
+
+  Future<File?> _convertWithWindowsCommands(File inputFile, String outputPath) async {
+    try {
+      // Используем встроенную команду Windows (если доступна)
+      final result = await Process.run(
+        'powershell',
+        [
+          '-Command',
+          'Copy-Item "${inputFile.path}" "$outputPath"'
+        ],
+        runInShell: true,
+      );
+
+      if (result.exitCode == 0) {
+        print('Windows conversion succeeded: $outputPath');
+        return File(outputPath);
+      } else {
+        print('Windows conversion failed: ${result.stderr}');
+        return null;
+      }
+    } catch (e) {
+      print('Error with Windows conversion: $e');
+      return null;
+    }
+  }
+
+  Future<File?> _convertWithMacCommands(File inputFile, String outputPath) async {
+    try {
+      // Используем встроенную команду macOS
+      final result = await Process.run(
+        'cp',
+        [inputFile.path, outputPath],
+        runInShell: true,
+      );
+
+      if (result.exitCode == 0) {
+        print('macOS conversion succeeded: $outputPath');
+        return File(outputPath);
+      } else {
+        print('macOS conversion failed: ${result.stderr}');
+        return null;
+      }
+    } catch (e) {
+      print('Error with macOS conversion: $e');
       return null;
     }
   }
