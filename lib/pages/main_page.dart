@@ -836,7 +836,7 @@ class _MainPageLayoutState extends State<MainPageLayout> {
               // Кнопки покадровой навигации
               if (_player != null)
                 Positioned(
-                  bottom: 100,
+                  bottom: 105,
                   left: 0,
                   right: 0,
                   child: Row(
@@ -846,6 +846,7 @@ class _MainPageLayoutState extends State<MainPageLayout> {
                       Container(
                         margin: const EdgeInsets.symmetric(horizontal: 30),
                         child: FloatingActionButton(
+                          elevation: 0,
                           mini: true,
                           backgroundColor: const Color(0xFF00ACAB),
                           onPressed: _seekFrameBackward,
@@ -859,6 +860,7 @@ class _MainPageLayoutState extends State<MainPageLayout> {
                       Container(
                         margin: const EdgeInsets.symmetric(horizontal: 30),
                         child: FloatingActionButton(
+                          elevation: 0,
                           mini: true,
                           backgroundColor: const Color(0xFF00ACAB),
                           onPressed: _seekFrameForward,
