@@ -36,5 +36,11 @@
     <string>This app needs microphone access to record audio</string>
     <key>NSCameraUseContinuityCameraDeviceType</key>
     <true/>
+    <key>AVCaptureDeviceTypeContinuityCamera</key>
+    <true/>
+    <key>NSCameraUseContinuityCameraDeviceType</key>
+    <true/>
+    <key>com.apple.security.app-sandbox</key>
+    <false/>
 </dict>
 </plist>
