@@ -8,9 +8,17 @@
 
 <h3 align="left">
   AI-powered local endoscopy software with anomaly detection and voice control.
-  </h3>
-  - 🔗 **Download deployed MVP v2.5**: (https://disk.yandex.ru/client/disk/SWD_endoscopy_tool/MVP2.5/builds)
-  - 🎥 **Watch demo video**: [Yandex Disk - Demo](https://disk.yandex.ru/d/9Cqbwf-02HCGew/demo)
+</h3>
+
+---
+
+## 🚀 Deployment and Demo (for customer)
+
+> This section provides the customer with direct access to the deployed MVP and demonstration video. Use it to test the product and review its features.
+
+- 🔗 **Download deployed MVP v2.5**: [Yandex Disk - MVP 2.5 builds](https://disk.yandex.ru/client/disk/SWD_endoscopy_tool/MVP2.5/builds)
+- 🎥 **Watch demo video**: [Yandex Disk - Demo](https://disk.yandex.ru/d/9Cqbwf-02HCGew/demo)
+
 
 
 ## 🧠 Project Goal(s) and Description
