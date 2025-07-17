@@ -9,7 +9,9 @@ import 'package:file_picker/file_picker.dart';
 import 'package:path/path.dart' as path;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
+
 // Add this import
+import 'package:endoscopy_tool/widgets/screenshot_button_widget.dart';
 
 import '../modules/ApiService.dart';
 
@@ -180,6 +182,7 @@ class CameraStreamWidget extends StatefulWidget {
   final Function(String, List<DetectionBox>)? onVideoCaptured;
   final Function()? startCaptured;
   final String? examinationId;
+  final GlobalKey screenshotKey;
 
   const CameraStreamWidget({
     super.key,
@@ -192,6 +195,7 @@ class CameraStreamWidget extends StatefulWidget {
     this.onVideoCaptured,
     this.startCaptured,
     this.examinationId,
+    required this.screenshotKey, // Add this
   });
 
   @override
@@ -771,77 +775,80 @@ class _CameraStreamWidgetState extends State<CameraStreamWidget> {
           // Video preview с наложением детекции
           Expanded(
             flex: 1,
-            child: Container(
-              width: double.infinity,
-              constraints: BoxConstraints(
-                maxHeight: widget.height != null ? widget.height! - 80 : double.infinity,
-              ),
-              child: AspectRatio(
-                aspectRatio: widget.aspectRatio,
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: Colors.black,
-                    borderRadius: BorderRadius.circular(8),
+            child: RepaintBoundary(
+              key: widget.screenshotKey,
+              child: Container(
+                  width: double.infinity,
+                  constraints: BoxConstraints(
+                    maxHeight: widget.height != null ? widget.height! - 80 : double.infinity,
                   ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
-                    child: Stack(
-                      children: [
-                        // Основное видео
-                        if (_cameraController != null && _cameraController!.value.isInitialized)
-                          CameraPreview(_cameraController!)
-                        else
-                          const Center(child: CircularProgressIndicator()),
-                        // Наложение детекции
-                        if (_isDetectionEnabled && _currentDetections.isNotEmpty)
-                          Positioned.fill(
-                            child: CustomPaint(
-                              painter: DetectionOverlayPainter(
-                                detections: _currentDetections,
-                                videoSize: Size(
-                                  widget.videoWidth.toDouble(),
-                                  widget.videoHeight.toDouble(),
-                                ),
-                              ),
-                            ),
-                          ),
-                        // Индикатор статуса детекции
-                        if (widget.examinationId != null)
-                          Positioned(
-                            top: 8,
-                            right: 8,
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: _isDetectionEnabled ? Colors.green : Colors.grey,
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(
-                                    _isDetectionEnabled ? Icons.visibility : Icons.visibility_off,
-                                    color: Colors.white,
-                                    size: 16,
-                                  ),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    _isDetectionEnabled ? 'AI ON' : 'AI OFF',
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.bold,
+                  child: AspectRatio(
+                    aspectRatio: widget.aspectRatio,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Colors.black,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: Stack(
+                          children: [
+                            // Основное видео
+                            if (_cameraController != null && _cameraController!.value.isInitialized)
+                              CameraPreview(_cameraController!)
+                            else
+                              const Center(child: CircularProgressIndicator()),
+                            // Наложение детекции
+                            if (_isDetectionEnabled && _currentDetections.isNotEmpty)
+                              Positioned.fill(
+                                child: CustomPaint(
+                                  painter: DetectionOverlayPainter(
+                                    detections: _currentDetections,
+                                    videoSize: Size(
+                                      widget.videoWidth.toDouble(),
+                                      widget.videoHeight.toDouble(),
                                     ),
                                   ),
-                                ],
+                                ),
                               ),
-                            ),
-                          ),
-                      ],
+                            // Индикатор статуса детекции
+                            if (widget.examinationId != null)
+                              Positioned(
+                                top: 8,
+                                right: 8,
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: _isDetectionEnabled ? Colors.green : Colors.grey,
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        _isDetectionEnabled ? Icons.visibility : Icons.visibility_off,
+                                        color: Colors.white,
+                                        size: 16,
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        _isDetectionEnabled ? 'AI ON' : 'AI OFF',
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
                     ),
                   ),
                 ),
-              ),
             ),
           ),
           const SizedBox(height: 8),
