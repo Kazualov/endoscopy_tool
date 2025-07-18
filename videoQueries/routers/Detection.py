@@ -1,6 +1,6 @@
 from fastapi import FastAPI, WebSocket, Depends, HTTPException
 from pathlib import Path
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Query, WebSocketDisconnect
 from videoQueries.models.Detection import Detection
 from videoQueries.models.Examination import Examination
 from ultralytics import YOLO
@@ -9,6 +9,9 @@ import cv2
 from typing import List
 import time
 from sqlalchemy.orm import Session
+import time
+import base64
+import numpy as np
 import asyncio
 import sys
 import os
@@ -43,18 +46,25 @@ model_path = get_model_path()
 model = YOLO(model_path)
 
 
-@router.websocket("/ws/camera/{examination_id}")
-async def websocket_endpoint(websocket: WebSocket, examination_id: str, db: Session = Depends(get_db)):
+@router.websocket("/ws/detect/{examination_id}")
+async def detect_from_client_frames(websocket: WebSocket, examination_id: str, db: Session = Depends(get_db)):
     await websocket.accept()
-    cap = cv2.VideoCapture(0)
     start_time = time.time()
 
     try:
         while True:
-            ret, frame = cap.read()
-            if not ret:
-                break
+            data = await websocket.receive_json()
+            img_data = data.get("image")
 
+            if not img_data:
+                continue
+
+            # Декодируем base64 → numpy
+            image_bytes = base64.b64decode(img_data)
+            nparr = np.frombuffer(image_bytes, np.uint8)
+            frame = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+
+            # YOLO инференс
             results = model(frame)[0]
             current_time = time.time() - start_time
 
@@ -77,18 +87,23 @@ async def websocket_endpoint(websocket: WebSocket, examination_id: str, db: Sess
 
                 detections.append({
                     "x1": x1, "y1": y1, "x2": x2, "y2": y2,
-                    "label": label, "confidence": conf,
+                    "label": label,
+                    "confidence": conf,
                     "timestamp": current_time
                 })
 
             db.commit()
+
+            # Отправляем JSON обратно
             await websocket.send_json({"detections": detections})
             await asyncio.sleep(0.03)
 
+    except WebSocketDisconnect:
+        print("WebSocket disconnected")
     except Exception as e:
-        print(f"WebSocket connection closed: {e}")
+        print(f"Error: {e}")
     finally:
-        cap.release()
+        await websocket.close()
 
 @router.post("/examinations/{examination_id}/process_video/", response_model=dict)
 async def process_video(
