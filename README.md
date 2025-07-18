@@ -209,3 +209,21 @@ This guide walks you through how to use the application for creating examination
 
 MIT License. See [LICENSE](./LICENSE) for details.
 
+---
+
+## 👥 Contributors (for customer)
+
+| Contributor | Role |
+|-------------|------|
+| **Alexandr Kurilenko**<br>📧 `alex@example.com`<br>🐙 [`@alexkurilenko`](https://github.com/alexkurilenko) | 🛠️ Backend Developer <br>🧭 Scrum Master |
+| **Ivan Prikhodko**<br>📧 `ivan@example.com`<br>🐙 [`@ivanprikhodko`](https://github.com/ivanprikhodko) | 🎨 UI/UX Designer |
+| **Danil Elgin**<br>📧 `danil@example.com`<br>🐙 [`@danilelgin`](https://github.com/danilelgin) | 🛠️ Backend Developer <br>📌 Project Owner |
+| **Egor Novokreshchenov**<br>📧 `egor@example.com`<br>🐙 [`@egornovok`](https://github.com/egornovok) | 🧠 AI Engineer <br>🎨 UI Designer |
+| **Azamat Kharisov**<br>📧 `azamat@example.com`<br>🐙 [`@azamatkharisov`](https://github.com/azamatkharisov) | 🛠️ Backend Developer |
+
+
+## 🌐 Language (for customer)
+
+📄 This README is also available in [**Russian** 🇷🇺](README.ru.md)
+
+
