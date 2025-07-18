@@ -1,4 +1,5 @@
 import 'package:endoscopy_tool/widgets/video_capturing_widget.dart';
+
 import 'package:flutter/material.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
@@ -129,6 +130,8 @@ class VideoPlayerWidget extends StatefulWidget {
   final List<DetectionBox> detections; // Принимаем сырые детекции
   final Function(Duration)? onMarkerTap;
   final Function(DetectionSegment)? onDetectionIntervalTap; // Используем DetectionSegment
+  // Add screenshot key parameter
+  final GlobalKey screenshotKey;
 
   const VideoPlayerWidget({
     super.key,
@@ -137,6 +140,7 @@ class VideoPlayerWidget extends StatefulWidget {
     this.detections = const [],
     this.onMarkerTap,
     this.onDetectionIntervalTap,
+    required this.screenshotKey, // Add this
   });
 
   @override
@@ -409,9 +413,12 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
           children: [
             // Видео - занимает основную часть доступного пространства
             Expanded(
-              child: AspectRatio(
-                aspectRatio: 16 / 10,
-                child: Video(controller: _videoController, controls: NoVideoControls),
+              child: RepaintBoundary(
+                key: widget.screenshotKey,
+                child: AspectRatio(
+                    aspectRatio: 16 / 10,
+                    child: Video(controller: _videoController, controls: NoVideoControls),
+                  ),
               ),
             ),
 

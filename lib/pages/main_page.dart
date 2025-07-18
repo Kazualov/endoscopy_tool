@@ -16,6 +16,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:endoscopy_tool/pages/patient_library.dart';
 import 'package:endoscopy_tool/widgets/screenshot_button_widget.dart';
 import 'package:endoscopy_tool/widgets/video_capturing_widget.dart';
+
 import '../modules/detection_models.dart';
 import '../modules/VoiceCommandService.dart';
 import '../widgets/ScreenShotsEditorDialog.dart';
@@ -134,8 +135,10 @@ class MainPageLayout extends StatefulWidget {
 }
 
 class _MainPageLayoutState extends State<MainPageLayout> {
-  final GlobalKey _screenshotKey = GlobalKey();
   final GlobalKey<ScreenshotButtonState> screenshotButtonKey = GlobalKey();
+
+  final GlobalKey _uploadedVideoScreenshotKey = GlobalKey();
+  final GlobalKey _cameraScreenshotKey = GlobalKey();
 
   //Flag to trigger vosk
   bool flag = false;
@@ -340,8 +343,7 @@ class _MainPageLayoutState extends State<MainPageLayout> {
 
 //
   // Method to handle captured video file - opens it immediately
-  void _onVideoCaptured(String capturedVideoPath,
-      {List<DetectionBox>? detections}) {
+  void _onVideoCaptured(String capturedVideoPath, {List<DetectionBox>? detections}) {
     print('Video captured and saved: $capturedVideoPath');
 
     // Сначала останавливаем камеру и очищаем ресурсы
@@ -377,8 +379,7 @@ class _MainPageLayoutState extends State<MainPageLayout> {
     }
   }
 
-  List<DetectionSegment> _processDetectionsIntoSegments(
-      List<DetectionBox> detections) {
+  List<DetectionSegment> _processDetectionsIntoSegments(List<DetectionBox> detections) {
     if (detections.isEmpty) return [];
 
     // Группируем детекции по типу (label)
@@ -525,8 +526,7 @@ class _MainPageLayoutState extends State<MainPageLayout> {
   }
 
   // Обновленный метод для загрузки скриншота на сервер с точным временем
-  Future<String?> _uploadScreenshot(Uint8List imageBytes,
-      String timestampInVideo) async {
+  Future<String?> _uploadScreenshot(Uint8List imageBytes, String timestampInVideo) async {
     if (widget.examinationId == null) return null;
 
     try {
@@ -802,7 +802,6 @@ class _MainPageLayoutState extends State<MainPageLayout> {
       }
     }
 
-// Обновленный метод _buildVideoArea()
     Widget _buildVideoArea() {
       switch (_currentMode) {
         case VideoMode.uploaded:
@@ -825,6 +824,7 @@ class _MainPageLayoutState extends State<MainPageLayout> {
             children: [
               _player != null
                   ? VideoPlayerWidget(
+                screenshotKey: _uploadedVideoScreenshotKey,
                 player: _player!,
                 screenshotMarkers: _getScreenshotMarkers(),
                 detections: _allDetections,
@@ -879,6 +879,7 @@ class _MainPageLayoutState extends State<MainPageLayout> {
           return Stack(
             children: [
               CameraStreamWidget(
+                screenshotKey: _cameraScreenshotKey,
                 aspectRatio: 16 / 9,
                 videoWidth: 1280,
                 videoHeight: 720,
@@ -912,7 +913,6 @@ class _MainPageLayoutState extends State<MainPageLayout> {
           );
       }
     }
-
 
     void _onDetectionIntervalTap(DetectionSegment segment) {
       if (_currentMode == VideoMode.uploaded && _player != null) {
@@ -984,11 +984,17 @@ class _MainPageLayoutState extends State<MainPageLayout> {
       return Column(
         children: [
           // Screenshot button (only available when video is loaded)
-          if (_currentMode == VideoMode.uploaded ||
-              _currentMode == VideoMode.camera)
+          if (_currentMode == VideoMode.uploaded)
             ScreenshotButton(
               key: screenshotButtonKey,
-              screenshotKey: _screenshotKey,
+              screenshotKey: _uploadedVideoScreenshotKey,
+              examId: widget.examinationId,
+              onScreenshotTaken: _addScreenshot,
+            )
+          else if (_currentMode == VideoMode.camera)
+            ScreenshotButton(
+              key: screenshotButtonKey,
+              screenshotKey: _cameraScreenshotKey,
               examId: widget.examinationId,
               onScreenshotTaken: _addScreenshot,
             ),
@@ -1181,24 +1187,21 @@ class _MainPageLayoutState extends State<MainPageLayout> {
               ),
 
             // Video Area
-            RepaintBoundary(
-              key: _screenshotKey,
-              child: Container(
-                height: screenSize.height,
-                width: (_currentMode == VideoMode.uploaded ||
-                    _currentMode == VideoMode.camera)
-                    ? screenSize.width - 260
-                    : screenSize.width - 60,
-                margin: const EdgeInsets.symmetric(vertical: 5),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: const Color(0xFF00ACAB), width: 5),
-                ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(15),
-                  child: _buildVideoArea(),
-                ),
+            Container(
+              height: screenSize.height,
+              width: (_currentMode == VideoMode.uploaded ||
+                  _currentMode == VideoMode.camera)
+                  ? screenSize.width - 260
+                  : screenSize.width - 60,
+              margin: const EdgeInsets.symmetric(vertical: 5),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: const Color(0xFF00ACAB), width: 5),
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(15),
+                child: _buildVideoArea(),
               ),
             ),
 
