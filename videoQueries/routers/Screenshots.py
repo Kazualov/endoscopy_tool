@@ -60,7 +60,7 @@ async def upload_screenshot(
         filename=file.filename,
         file_path="",
         timestamp_in_video=timestamp_in_video,
-        timestamp_in_seconds=timestamp_in_seconds
+        timestamp_in_seconds=timestamp_in_seconds,
     )
     db.add(screenshot)
     db.flush()
