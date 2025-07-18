@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:path/path.dart' as p;
 
 class SettingsStorage {
   static const _fileName = 'settings.json';
@@ -30,7 +31,7 @@ class SettingsStorage {
   static Future<({String resolution, String path, ThemeMode theme})?> loadSettings() async {
     try {
       final dir = await getApplicationDocumentsDirectory();
-      final file = File('${dir.path}/settings.json');
+      final file = File(p.join(dir.path, 'settings.json'));
 
       if (!await file.exists()) return null;
 
@@ -42,10 +43,10 @@ class SettingsStorage {
       final themeString = jsonMap['theme'] as String? ?? 'system';
       final theme = _themeModeFromString(themeString);
 
-      // Удаляем первую папку из пути
-      final parts = path.split('/');
+      // Кроссплатформенно удаляем первую папку из пути
+      final parts = p.split(path);
       if (parts.length > 1) {
-        path = parts.sublist(1).join('/');
+        path = p.joinAll(parts.sublist(1));
       }
 
       return (resolution: resolution, path: path, theme: theme);
