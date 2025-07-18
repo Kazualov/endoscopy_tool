@@ -207,7 +207,6 @@ class ApiService {
     }
   }
 
-
   Future<File?> processVideoOnServer({
     required String examinationId,
     required String videoPath,
@@ -235,8 +234,6 @@ class ApiService {
       return null;
     }
   }
-
-
 
   void connectToCameraStream(String examinationId) {
     final channel = WebSocketChannel.connect(
