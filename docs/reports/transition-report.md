@@ -22,7 +22,7 @@
 
 ### Is the customer using the product?
 > The customer has tested the product weekly and reviewed its functionality.
-  However, they are not the main user—the primary user will be their colleague, a doctor.
+  However, he is not the main user—the primary user will be his colleague, a doctor.
   Since the product is related to medicine, it must be fully completed before being used.
   Until then, preliminary use is limited, as an incomplete product would not be sufficiently useful or safe.
 
@@ -37,10 +37,10 @@
 - [ ] Add maintenance guide to README
 
 ### Future Plans
-> The customer plans to:
-> - ✅ Continue using the product
-> - ✅ Expand functionality internally
-> - ❓ Possibly collaborate on future versions (conditions: [e.g., funding, supervision])
+> The customer plans to:  
+> - ✅ Continue using the product  
+> - ✅ Expand functionality internally, including improvements to training models and execution speed  
+> - ❓ Possibly collaborate on future versions with the development team (under discussion)
 
 ---
 
@@ -55,20 +55,17 @@
 ## 💬 Customer Feedback on README
 
 > We reviewed the README with the customer. Feedback:
-> - ✅ Instructions are mostly clear.
-> - ⚠️ Add troubleshooting section (e.g., common Docker issues).
-> - ⚠️ Add brief overview of architecture (helpful for future devs).
+> - ✅ Instructions are clear.
+> - 📘 README is well-made and contains all the necessary parts
 
 ### ✍️ Two Requested Sections (now added)
-1. **Deployment checklist (for customer)**  
-   Explains final steps required for first-time deployment.
+1. **Russian version section**  
+   Section where the link to the Russian version will be located
 
-2. **Basic maintenance instructions (for customer)**  
-   Contains info on resetting DB, logs, and restarting server.
+2. **Contributors Section**  
+   A section that will indicate who worked on the project
 ## 📼 Customer Meeting Transcript and Recording
 
-**Date**: [Указать дату встречи]  
-**Participants**: [Имена присутствующих от команды и заказчика]  
+**Date**: [18.07.2025]   
 
-**Recording**: [Ссылка на Google Drive/YouTube/Внутренний хостинг]  
-**Transcript**: 
+**Recording**: [https://disk.yandex.ru/client/disk/Recording_for_report] 
