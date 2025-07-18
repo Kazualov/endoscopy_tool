@@ -43,11 +43,8 @@ class SettingsStorage {
       final themeString = jsonMap['theme'] as String? ?? 'system';
       final theme = _themeModeFromString(themeString);
 
-      // Кроссплатформенно удаляем первую папку из пути
-      final parts = p.split(path);
-      if (parts.length > 1) {
-        path = p.joinAll(parts.sublist(1));
-      }
+      // Удаляем последнюю папку из пути
+      path = p.dirname(path);
 
       return (resolution: resolution, path: path, theme: theme);
     } catch (e) {
