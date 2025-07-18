@@ -211,7 +211,7 @@ MIT License. See [LICENSE](./LICENSE) for details.
 
 ---
 
-## 👥 [Contributors (for customer)](#contributors-for-customer)
+## 👥 Contributors (for customer)
 
 | Contributor | Role |
 |-------------|------|
@@ -222,7 +222,7 @@ MIT License. See [LICENSE](./LICENSE) for details.
 | **Azamat Kharisov**<br>📧 `azamat@example.com`<br>🐙 [`@azamatkharisov`](https://github.com/azamatkharisov) | 🛠️ Backend Developer |
 
 
-## 🌐 [Language (for customer)](#language-for-customer)
+## 🌐 Language (for customer)
 
 📄 This README is also available in [**Russian** 🇷🇺](README.ru.md)
 
