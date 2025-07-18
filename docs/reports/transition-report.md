@@ -59,10 +59,10 @@
 > - 📘 README is well-made and contains all the necessary parts
 
 ### ✍️ Two Requested Sections (now added)
-1. **Russian version section**  
+1. **Russian version section (for customer)**  
    Section where the link to the Russian version will be located
 
-2. **Contributors Section**  
+2. **Contributors Section (for customer)**  
    A section that will indicate who worked on the project
 ## 📼 Customer Meeting Transcript and Recording
 
