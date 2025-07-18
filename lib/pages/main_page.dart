@@ -548,6 +548,7 @@ class _MainPageLayoutState extends State<MainPageLayout> {
 
       // Добавляем обязательные поля
       request.fields['exam_id'] = widget.examinationId!;
+      print("timestampInVideo: $timestampInVideo");
       request.fields['timestamp_in_video'] = timestampInVideo;
 
       final response = await request.send();
@@ -704,16 +705,16 @@ class _MainPageLayoutState extends State<MainPageLayout> {
         final seconds = position.inSeconds % 60;
         final milliseconds = position.inMilliseconds % 1000;
         return "${minutes.toString()}:${seconds.toString().padLeft(
-            2, '0')}.${milliseconds.toString().padLeft(3, '0')}";
+            2, '0')}:${milliseconds.toString().padLeft(2, '0')}";
       } else if (_currentMode == VideoMode.camera) {
         // Для камеры используем таймер
         final minutes = _currentCameraDuration.inMinutes;
         final seconds = _currentCameraDuration.inSeconds % 60;
         final milliseconds = _currentCameraDuration.inMilliseconds % 1000;
         return "${minutes.toString()}:${seconds.toString().padLeft(
-            2, '0')}.${milliseconds.toString().padLeft(3, '0')}";
+            2, '0')}:${milliseconds.toString().padLeft(2, '0')}";
       }
-      return "0:00.000";
+      return "0:00:00";
     }
     Future<void> exportText() async {
       if (_fullTranscript == null || _fullTranscript!.isEmpty) {
@@ -926,7 +927,7 @@ class _MainPageLayoutState extends State<MainPageLayout> {
       final seconds = (duration.inSeconds % 60).toString().padLeft(2, '0');
       final milliseconds = (duration.inMilliseconds % 1000).toString().padLeft(
           3, '0');
-      return '$minutes:$seconds.$milliseconds';
+      return '$minutes:$seconds:$milliseconds';
     }
 
     // Обновленный метод _addScreenshot с точным временем
