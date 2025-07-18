@@ -141,7 +141,7 @@ class _ExaminationGridScreenState extends State<ExaminationGridScreen> {
     if (examination.video_id != null) {
       final settings = await SettingsStorage.loadSettings();
       final path = await ApiService.loadVideoPath(examination.video_id!); // ← вот здесь важно
-      return "${settings?.path}/$path";
+      return "${settings?.path}";
     }
     return "";
   }
