@@ -38,9 +38,15 @@ class SettingsStorage {
       final jsonMap = jsonDecode(jsonString);
 
       final resolution = jsonMap['resolution'] as String? ?? '1920x1080';
-      final path = jsonMap['path'] as String? ?? '';
+      var path = jsonMap['path'] as String? ?? '';
       final themeString = jsonMap['theme'] as String? ?? 'system';
       final theme = _themeModeFromString(themeString);
+
+      // Удаляем первую папку из пути
+      final parts = path.split('/');
+      if (parts.length > 1) {
+        path = parts.sublist(1).join('/');
+      }
 
       return (resolution: resolution, path: path, theme: theme);
     } catch (e) {
