@@ -938,7 +938,7 @@ class ScreenshotEditorState extends State<ScreenshotEditor> with TickerProviderS
 
           const Spacer(),
 
-          _ToolBtn(icon: Icons.delete_forever, onTap: _resetZoom, subtitle: 'Reset'),
+          _ToolBtn(icon: Icons.zoom_in_map_rounded, onTap: _resetZoom, subtitle: 'Reset'),
 
           // Нижние кнопки в ряд
           Row(

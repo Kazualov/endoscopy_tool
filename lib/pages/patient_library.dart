@@ -509,7 +509,7 @@ class _ExaminationGridScreenState extends State<ExaminationGridScreen> {
                         ),
                         SizedBox(height: 4),
                         Text(
-                          getPatientName(examination.patientId),
+                          examination.description!,
                           style: TextStyle(fontSize: 10, color: Colors.grey[600]),
                           textAlign: TextAlign.center,
                           maxLines: 1,
