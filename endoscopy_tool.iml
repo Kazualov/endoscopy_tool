@@ -214,7 +214,7 @@
       <excludeFolder url="file://$MODULE_DIR$/windows/flutter/ephemeral/.plugin_symlinks/shared_preferences_windows/example/.pub" />
       <excludeFolder url="file://$MODULE_DIR$/windows/flutter/ephemeral/.plugin_symlinks/shared_preferences_windows/example/build" />
     </content>
-    <orderEntry type="jdk" jdkName="Python 3.11 (endoscopy_tool)" jdkType="Python SDK" />
+    <orderEntry type="jdk" jdkName="Python 3.12 (1)" jdkType="Python SDK" />
     <orderEntry type="sourceFolder" forTests="false" />
     <orderEntry type="library" exported="" name="Dart SDK" level="project" />
     <orderEntry type="library" exported="" name="Flutter Plugins" level="project" />

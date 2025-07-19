@@ -1,3 +1,5 @@
+from typing import Optional
+
 from pydantic import BaseModel
 from datetime import datetime
 
@@ -8,7 +10,8 @@ class ScreenshotResponse(BaseModel):
     filename: str
     file_path: str
     timestamp_in_video: str
-    created_at: datetime
+    timestamp_in_seconds: int
+    created_at: Optional[datetime] = None  # Make it optional
     annotated_filename: str | None = None
     annotated_file_path: str | None = None
     class Config:

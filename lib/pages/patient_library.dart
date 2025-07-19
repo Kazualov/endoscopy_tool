@@ -1,12 +1,16 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:endoscopy_tool/pages/main_page.dart';
 import 'package:endoscopy_tool/pages/settings.dart';
-import 'package:endoscopy_tool/widgets/SettingsStorage.dart';
-import 'package:endoscopy_tool/widgets/VoiceCommandService.dart';
+import 'package:endoscopy_tool/modules/SettingsStorage.dart';
+import 'package:endoscopy_tool/modules/VoiceCommandService.dart';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
-import '../widgets/ApiService.dart';
+import 'package:path_provider/path_provider.dart';
+import '../modules/ApiService.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:path/path.dart' as path;
 
 // hello Gleb
 
@@ -112,7 +116,7 @@ class _ExaminationGridScreenState extends State<ExaminationGridScreen> {
       print('[MainPageLayout] 🎤 Получена команда: $command');
       if (command.toLowerCase().contains('exemination')){
         print('[MainPageLayout] создаем обследование...');
-        addExaminationWithCamera();
+        addExamination();
         }
     });
   }
@@ -133,15 +137,15 @@ class _ExaminationGridScreenState extends State<ExaminationGridScreen> {
 
   // получить путь к видео по обследованию
   Future<String?> getVideoPath(Examination examination) async {
-    ApiService.getExamination();
-     if (examination.video_id != null) {
-
+    ApiService.getExamination(); // ← кстати, тут тоже может не хватать await
+    if (examination.video_id != null) {
       final settings = await SettingsStorage.loadSettings();
-      final path = ApiService.loadVideoPath(examination.video_id!);
-      return "${settings?.path}/$path";
+      final path_ = await ApiService.loadVideoPath(examination.video_id!); // ← вот здесь важно
+      return path.join(settings!.path, path_);// "${settings?.path}/$path";
     }
     return "";
   }
+
 
   //отсортировать осмотры по ID
   List<Examination> get filteredExamination {
@@ -163,169 +167,17 @@ class _ExaminationGridScreenState extends State<ExaminationGridScreen> {
   }
 
 
-
-  // Future<void> addExaminationWithVideo() async {
-  //   final result = await FilePicker.platform.pickFiles(type: FileType.video);
-  //
-  //   if (result != null && result.files.single.path != null) {
-  //     final filePath = result.files.single.path!;
-  //
-  //     // Показать диалог для ввода данных пациента и обследования
-  //     final registrationData = await showPatientRegistrationDialog();
-  //     if (registrationData != null) {
-  //       // Показать индикатор загрузки
-  //       showDialog(
-  //         context: context,
-  //         barrierDismissible: false,
-  //         builder: (context) => AlertDialog(
-  //           content: Row(
-  //             children: [
-  //               CircularProgressIndicator(),
-  //               SizedBox(width: 20),
-  //               Text('Создание обследования...'),
-  //             ],
-  //           ),
-  //         ),
-  //       );
-  //
-  //       try {
-  //         // 1. Создать пациента
-  //         final patient_id = await ApiService.createPatient(
-  //           registrationData["patient_id"]!,
-  //         );
-  //
-  //         if (patient_id != null) {
-  //
-  //           // 2. Создать обследование
-  //           final examination = await ApiService.createExamination(
-  //               patient_id,
-  //               registrationData["serviceType"] ?? "Обследование"
-  //           );
-  //
-  //           print("Обследование создано");
-  //
-  //           // 3. Загрузить видео
-  //           final video_id = await ApiService.uploadVideoToExamination(examination!.id, filePath);
-  //           examination.video_id = video_id;
-  //
-  //           Navigator.of(context).pop(); // Закрыть индикатор загрузки
-  //
-  //           await loadExamination(); // Обновить список обследований
-  //
-  //           ScaffoldMessenger.of(context).showSnackBar(
-  //             SnackBar(content: Text('Обследование создано успешно')),
-  //           );
-  //
-  //           // Открыть MainPage с видео
-  //           if (video_id != null) {
-  //             Navigator.of(context, rootNavigator: true).pop();
-  //             print("video id exist");
-  //             Navigator.push(
-  //               context,
-  //               MaterialPageRoute(
-  //                 builder: (context) => MainPage(videoPath: filePath, examinationId: examination.id),
-  //               ),
-  //             );
-  //             print("mainPage open");
-  //           }
-  //         } else {
-  //           Navigator.of(context).pop(); // Закрыть индикатор загрузки
-  //           ScaffoldMessenger.of(context).showSnackBar(
-  //             SnackBar(content: Text('Ошибка при создании пациента')),
-  //           );
-  //         }
-  //       } catch (e) {
-  //         Navigator.of(context).pop(); // Закрыть индикатор загрузки
-  //         ScaffoldMessenger.of(context).showSnackBar(
-  //           SnackBar(content: Text('Ошибка: $e')),
-  //         );
-  //       }
-  //     }
-  //   }
-  // }
-
-  Future<void> addExaminationWithCamera() async {
-    // Показать диалог для ввода данных пациента и обследования
-    final registrationData = await showPatientRegistrationDialog();
-    if (registrationData != null) {
-      // Показать индикатор загрузки
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (context) => AlertDialog(
-          content: Row(
-            children: [
-              CircularProgressIndicator(),
-              SizedBox(width: 20),
-              Text('Создание обследования...'),
-            ],
-          ),
-        ),
-      );
-
-      try {
-        // 1. Создать пациента
-        final patient_id = await ApiService.createPatient(
-          registrationData["patient_id"]!,
-        );
-
-        if (patient_id != null) {
-          // 2. Создать обследование без видео
-          final examination = await ApiService.createExamination(
-            patient_id,
-            registrationData["serviceType"] ?? "Обследование",
-          );
-
-
-          Navigator.of(context).pop(); // Закрыть индикатор загрузки
-
-          if (examination != null) {
-            await loadExamination(); // Обновить список обследований
-
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Обследование создано успешно')),
-            );
-
-            // Открыть MainPage без видео
-            Navigator.of(context, rootNavigator: true).pop();
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => MainPage(initialMode: VideoMode.camera,  examinationId: examination.id),
-              ),
-            );
-          } else {
-            // ignore: use_build_context_synchronously
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Ошибка при создании обследования')),
-            );
-          }
-        } else {
-          Navigator.of(context).pop(); // Закрыть индикатор загрузки
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Ошибка при создании пациента')),
-          );
-        }
-      } catch (e) {
-        Navigator.of(context).pop(); // Закрыть индикатор загрузки
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Ошибка: $e')),
-        );
-      }
-    }
-  }
-
-  Future<Map<String, String>?> showPatientRegistrationDialog() async {
+  Future<Map<String, dynamic>?> showPatientRegistrationDialog() async {
     String? patient_id;
     String? serviceType;
+    VideoMode selectedMode = VideoMode.camera; // Default selection
 
-    return showDialog<Map<String, String>>(
+    return showDialog<Map<String, dynamic>>(
       context: context,
       builder: (context) {
         return AlertDialog(
           title: Text('Регистрация пациента'),
-          content: Container(
-            width: double.maxFinite,
+          content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -347,6 +199,29 @@ class _ExaminationGridScreenState extends State<ExaminationGridScreen> {
                     suffixIcon: Icon(Icons.medical_services),
                   ),
                 ),
+                SizedBox(height: 16),
+                DropdownButtonFormField<VideoMode>(
+                  value: selectedMode,
+                  decoration: InputDecoration(
+                    labelText: 'Режим видео',
+                    border: OutlineInputBorder(),
+                  ),
+                  items: [
+                    DropdownMenuItem(
+                      value: VideoMode.camera,
+                      child: Text('Снять видео'),
+                    ),
+                    DropdownMenuItem(
+                      value: VideoMode.uploaded,
+                      child: Text('Загрузить видео'),
+                    ),
+                  ],
+                  onChanged: (mode) {
+                    if (mode != null) {
+                      selectedMode = mode;
+                    }
+                  },
+                ),
               ],
             ),
           ),
@@ -357,17 +232,16 @@ class _ExaminationGridScreenState extends State<ExaminationGridScreen> {
             ),
             TextButton(
               onPressed: () {
-                // Проверяем, что обязательные поля заполнены
                 if (patient_id?.isNotEmpty == true) {
                   Navigator.of(context).pop({
                     'patient_id': patient_id ?? '',
                     'serviceType': serviceType ?? '',
+                    'videoMode': selectedMode,
                   });
                 } else {
-                  // Показать ошибку о незаполненных обязательных полях
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: Text('Заполните обязательные поля: Фамилия и Имя'),
+                      content: Text('Заполните обязательные поля: Id пациента'),
                       backgroundColor: Colors.red,
                     ),
                   );
@@ -381,40 +255,150 @@ class _ExaminationGridScreenState extends State<ExaminationGridScreen> {
     );
   }
 
+  Future<void> addExamination() async {
+    final registrationData = await showPatientRegistrationDialog();
+    if (registrationData == null) return;
 
-  // BuildContext? _dialogContext;
-  // void _showAddExaminationDialog(BuildContext context) {
-  //   showDialog(
-  //     context: context,
-  //     builder: (BuildContext context) {
-  //       _dialogContext = context; // сохраняем контекст
-  //       return AlertDialog(
-  //         title: Text("Добавить обследование"),
-  //         content: Column(
-  //           mainAxisSize: MainAxisSize.min,
-  //           children: [
-  //             ListTile(
-  //               leading: Icon(Icons.video_library),
-  //               title: Text("Выбрать видео с компьютера"),
-  //               onTap: () {
-  //                 Navigator.of(context).pop();
-  //                 addExaminationWithVideo();
-  //               },
-  //             ),
-  //             ListTile(
-  //               leading: Icon(Icons.videocam),
-  //               title: Text("Открыть камеру"),
-  //               onTap: () {
-  //                 Navigator.of(context).pop();
-  //                 addExaminationWithCamera();
-  //               },
-  //             ),
-  //           ],
-  //         ),
-  //       );
-  //     },
-  //   );
-  // }
+    final VideoMode mode = registrationData['videoMode'] ?? VideoMode.camera;
+
+    if (mode == VideoMode.camera) {
+      addExaminationWithCamera(registrationData);
+    } else if (mode == VideoMode.uploaded) {
+      addExaminationWithUpload(registrationData);
+    }
+  }
+
+  Future<void> addExaminationWithUpload(Map<String, dynamic> registrationData) async {
+    final result = await FilePicker.platform.pickFiles(type: FileType.video);
+    if (result == null || result.files.single.path == null) return;
+
+    final filePath = result.files.single.path!;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        content: Row(
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(width: 20),
+            Text('Создание обследования...'),
+          ],
+        ),
+      ),
+    );
+
+    try {
+      final patient_id = await ApiService.createPatient(
+        registrationData["patient_id"]!,
+      );
+
+      if (patient_id != null) {
+        final examination = await ApiService.createExamination(
+          patient_id,
+          registrationData["serviceType"] ?? "Обследование",
+        );
+
+        final video_id = await ApiService.uploadVideoToExamination(
+          examination!.id,
+          filePath,
+        );
+        examination.video_id = video_id;
+
+        Navigator.of(context).pop();
+
+        await loadExamination();
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Обследование создано успешно')),
+        );
+
+        Navigator.of(context, rootNavigator: true).pop();
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => MainPage(
+              initialMode: VideoMode.uploaded,
+              videoPath: filePath,
+              examinationId: examination.id,
+            ),
+          ),
+        );
+      } else {
+        Navigator.of(context).pop();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Ошибка при создании пациента')),
+        );
+      }
+    } catch (e) {
+      Navigator.of(context).pop();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Ошибка: $e')),
+      );
+    }
+  }
+
+  Future<void> addExaminationWithCamera(Map<String, dynamic> registrationData) async {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        content: Row(
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(width: 20),
+            Text('Создание обследования...'),
+          ],
+        ),
+      ),
+    );
+
+    try {
+      final patient_id = await ApiService.createPatient(
+        registrationData["patient_id"]!,
+      );
+
+      if (patient_id != null) {
+        final examination = await ApiService.createExamination(
+          patient_id,
+          registrationData["serviceType"] ?? "Обследование",
+        );
+
+        Navigator.of(context).pop(); // close loading
+        if (examination != null) {
+          await loadExamination();
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Обследование создано успешно')),
+          );
+          Navigator.of(context, rootNavigator: true).pop(); // close dialog
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => MainPage(
+                initialMode: VideoMode.camera,
+                examinationId: examination.id,
+              ),
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Ошибка при создании обследования')),
+          );
+        }
+      } else {
+        Navigator.of(context).pop(); // close loading
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Ошибка при создании пациента')),
+        );
+      }
+    } catch (e) {
+      Navigator.of(context).pop();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Ошибка: $e')),
+      );
+    }
+  }
+
 
   @override
   Widget build(BuildContext context) {
@@ -475,6 +459,19 @@ class _ExaminationGridScreenState extends State<ExaminationGridScreen> {
                 onTap: () async {
                   final videoPath = await getVideoPath(examination);
                   print(videoPath);
+                  print("Exists: ${await File(videoPath!.trim()).exists()}");
+                  print('Directory exists: ${await Directory(videoPath).exists()}');
+
+                  final sourceFile = File(videoPath.trim());
+                  if (await sourceFile.exists()) {
+                    final appDir = await getApplicationDocumentsDirectory();
+                    final newPath = path.join(appDir.path, path.basename(videoPath));
+                    await sourceFile.copy(newPath);
+                    print('File copied to: $newPath');
+                  } else {
+                    print('Source file does NOT exist');
+                  }
+
                   Navigator.push(
                     context,
                     MaterialPageRoute(
@@ -518,10 +515,6 @@ class _ExaminationGridScreenState extends State<ExaminationGridScreen> {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
-                        Text(
-                          'Exam ID: ${examination.id}',
-                          style: TextStyle(fontSize: 8, color: Colors.grey),
-                        ),
                       ],
                     ),
                   ),
@@ -530,7 +523,7 @@ class _ExaminationGridScreenState extends State<ExaminationGridScreen> {
             } else {
               return GestureDetector(
                 onTap: () {
-                  addExaminationWithCamera();
+                  addExamination();
                 },
                 child: Container(
                   decoration: BoxDecoration(

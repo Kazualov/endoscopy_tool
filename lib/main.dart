@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:endoscopy_tool/pages/patient_library.dart';
-import 'package:endoscopy_tool/widgets/VoiceCommandService.dart';
+import 'package:endoscopy_tool/modules/VoiceCommandService.dart';
 
 late Process backendProcess;                    // <-- добавлена переменная для процесса бэкенда
 

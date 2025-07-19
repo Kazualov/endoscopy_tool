@@ -14,7 +14,6 @@ from videoQueries.routers import freeze_detector
 import uvicorn
 
 
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
