@@ -52,6 +52,8 @@ def process_command(text):
     elif "создать обследование" in text:
         #print("[COMMAND] Команда: EXEMINATION")
         return "exemination"
+    elif ("завершить" in text) or ("завершить обследование" in text):
+        return "exit"
     elif "выбрать камеру" in text:
         # print("[COMMAND] Команда: C")
         return "choose camera"
@@ -61,10 +63,12 @@ def process_command(text):
     print(f"[COMMAND] Неизвестная команда: '{text}'")
     return None
 
+
 def voice_command_generator():
     global connection_count
     connection_count += 1
     client_id = connection_count
+    full_transcript = ""
 
     print(f"[SSE] Новое подключение #{client_id}")
 
@@ -98,17 +102,21 @@ def voice_command_generator():
                         if recognizer.AcceptWaveform(data):
                             result = json.loads(recognizer.Result())
                             text = result.get("text", "").lower()
+                            if text and not process_command(text):
+                                full_transcript += text + " "
 
                             if text:
                                 # print(f"[SPEECH] Клиент #{client_id}: Распознан текст: '{text}'")
                                 command = process_command(text)
 
-                                if command:
+                                if command == "exit":
+                                    message = json.dumps({'command': "exit", 'text': text})
+                                    yield f"data: {message}\n\n"
+                                    break
+                                else:
                                     message = json.dumps({'command': command, 'text': text})
                                     # print(f"[SSE] Клиент #{client_id}: Отправляем команду: {message}")
                                     yield f"data: {message}\n\n"
-                                else:
-                                    pass
                                     # print(f"[SSE] Клиент #{client_id}: Текст не содержит команд")
                             else:
                                 pass
@@ -133,6 +141,9 @@ def voice_command_generator():
         print(f"[ERROR] Клиент #{client_id}: Ошибка микрофона: {e}")
     finally:
         print(f"[SSE] Клиент #{client_id}: Подключение закрыто")
+
+        if full_transcript.strip():
+            yield f"data: {json.dumps({'type': 'transcript', 'text': full_transcript.strip()})}\n\n"
 
 
 @router.get("/voiceCommand")
