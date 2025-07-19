@@ -378,17 +378,6 @@ class _CameraStreamWidgetState extends State<CameraStreamWidget> {
       _selectedAudioDeviceId = _prefs?.getString('selected_audio_device_id');
     });
   }
-
-
-
-
-  Future<String> _getTempOutputFilePath() async {
-    final dir = await getTemporaryDirectory();
-    final timestamp = DateTime.now().millisecondsSinceEpoch;
-    return '${dir.path}/recording_$timestamp.mp4';
-  }
-
-
   Future<void> _startRecording() async {
     if (_isRecording || _cameraController == null || !_cameraController!.value.isInitialized) {
       return;
@@ -572,7 +561,6 @@ class _CameraStreamWidgetState extends State<CameraStreamWidget> {
     }
   }
 
-
 // Основной метод для добавления детекций с точными временными метками
   Future<void> _addDetectionsToVideo(String inputPath, String outputPath) async {
     try {
@@ -615,29 +603,6 @@ class _CameraStreamWidgetState extends State<CameraStreamWidget> {
       print('Detection metadata saved to: $metadataPath');
     } catch (e) {
       print('Error saving detection metadata: $e');
-    }
-  }
-
-// Метод для улучшения точности временных меток при записи
-  void _recordDetectionWithPreciseTime(DetectionBox detection) {
-    // Получаем текущее время записи относительно начала
-    final recordingStart = _recordingStartTime; // Нужно добавить эту переменную
-    final currentTime = DateTime.now();
-    final relativeTime = currentTime.difference(recordingStart!);
-
-    // Создаем детекцию с точным временем
-    final preciseDetection = DetectionBox(
-      x1: detection.x1,
-      y1: detection.y1,
-      x2: detection.x2,
-      y2: detection.y2,
-      label: detection.label,
-      confidence: detection.confidence,
-      timestamp: relativeTime, // Используем относительное время
-    );
-
-    if (_isRecording) {
-      _allDetections.add(preciseDetection);
     }
   }
 
@@ -749,13 +714,6 @@ class _CameraStreamWidgetState extends State<CameraStreamWidget> {
   Future<void> _saveSettings() async {
     await _prefs?.setString('default_save_folder', _defaultSaveFolder ?? '');
     await _prefs?.setInt('selected_camera_index', _selectedCameraIndex);
-  }
-
-  Future<bool> _checkPermissions() async {
-    final cameraStatus = await Permission.camera.status;
-    final microphoneStatus = await Permission.microphone.status;
-
-    return cameraStatus.isGranted && microphoneStatus.isGranted;
   }
 
   @override
