@@ -258,6 +258,7 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
   void dispose() {
     // DO NOT dispose the player here if it's managed externally.
     super.dispose();
+    _player.pause();
   }
 
   String _formatDuration(Duration duration) {

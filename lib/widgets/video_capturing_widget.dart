@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:convert';
 import 'package:flutter/material.dart';
@@ -9,6 +10,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:path/path.dart' as path;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
+import 'dart:typed_data';
 
 // Add this import
 import 'package:endoscopy_tool/widgets/screenshot_button_widget.dart';
@@ -207,6 +209,9 @@ class _CameraStreamWidgetState extends State<CameraStreamWidget> {
   bool _isRecording = false;
   String? _outputPath;
 
+  Timer? _frameTimer;
+  bool _isDetectionProcessing = false;
+
   CameraController? _cameraController;
   List<CameraDescription> _cameras = [];
   int _selectedCameraIndex = 0;
@@ -317,7 +322,7 @@ class _CameraStreamWidgetState extends State<CameraStreamWidget> {
   void _connectToCameraStream(String examinationId) {
     try {
       _webSocketChannel = WebSocketChannel.connect(
-        Uri.parse('ws://127.0.0.1:8000/ws/camera/$examinationId'),
+        Uri.parse('ws://127.0.0.1:8000/ws/detect/$examinationId'),
       );
 
       _webSocketChannel!.stream.listen((message) {
@@ -331,6 +336,7 @@ class _CameraStreamWidgetState extends State<CameraStreamWidget> {
 
           setState(() {
             _currentDetections = newDetections;
+            _isDetectionProcessing = false; // Обработка завершена
           });
 
           // Сохраняем детекции с точным временем во время записи
@@ -346,26 +352,72 @@ class _CameraStreamWidgetState extends State<CameraStreamWidget> {
                 y2: detection.y2,
                 label: detection.label,
                 confidence: detection.confidence,
-                timestamp: relativeTime, // Точное относительное время
+                timestamp: relativeTime,
               );
               _allDetections.add(preciseDetection);
             }
           }
         } catch (e) {
           print('Error parsing detection data: $e');
+          _isDetectionProcessing = false;
         }
+      }, onError: (error) {
+        print('WebSocket error: $error');
+        _isDetectionProcessing = false;
       });
+
+      // Запускаем периодическую отправку кадров
+      _startFrameCapture();
     } catch (e) {
       print('Failed to connect to WebSocket: $e');
     }
   }
 
-  // Функция для переключения детекции
+  // Добавить новый метод для запуска захвата кадров:
+  void _startFrameCapture() {
+    _frameTimer = Timer.periodic(Duration(milliseconds: 100), (timer) async {
+      if (_isDetectionEnabled &&
+          !_isDetectionProcessing &&
+          _cameraController != null &&
+          _cameraController!.value.isInitialized &&
+          _webSocketChannel != null) {
+        await _captureAndSendFrame();
+      }
+    });
+  }
+
+  // Добавить новый метод для захвата и отправки кадра:
+  Future<void> _captureAndSendFrame() async {
+    try {
+      _isDetectionProcessing = true;
+
+      // Захватываем кадр
+      final XFile imageFile = await _cameraController!.takePicture();
+      final Uint8List imageBytes = await imageFile.readAsBytes();
+
+      // Кодируем в base64
+      final String base64Image = base64Encode(imageBytes);
+
+      // Отправляем через WebSocket
+      _webSocketChannel!.sink.add(jsonEncode({
+        'image': base64Image,
+      }));
+
+      // Удаляем временный файл
+      await File(imageFile.path).delete();
+    } catch (e) {
+      print('Error capturing and sending frame: $e');
+      _isDetectionProcessing = false;
+    }
+  }
+
+// Изменить метод _toggleDetection:
   void _toggleDetection() {
     setState(() {
       _isDetectionEnabled = !_isDetectionEnabled;
       if (!_isDetectionEnabled) {
         _currentDetections.clear();
+        _isDetectionProcessing = false;
       }
     });
   }
@@ -718,6 +770,7 @@ class _CameraStreamWidgetState extends State<CameraStreamWidget> {
 
   @override
   void dispose() {
+    _frameTimer?.cancel();
     _cameraController?.dispose();
     _webSocketChannel?.sink.close();
     super.dispose();
@@ -783,10 +836,31 @@ class _CameraStreamWidgetState extends State<CameraStreamWidget> {
                                   child: Row(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
-                                      Icon(
-                                        _isDetectionEnabled ? Icons.visibility : Icons.visibility_off,
-                                        color: Colors.white,
-                                        size: 16,
+                                      // Добавляем индикатор обработки
+                                      if (_isDetectionEnabled && _isDetectionProcessing)
+                                        SizedBox(
+                                          width: 12,
+                                          height: 12,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                          ),
+                                        )
+                                      else
+                                        Icon(
+                                          _isDetectionEnabled ? Icons.visibility : Icons.visibility_off,
+                                          color: Colors.white,
+                                          size: 16,
+                                        ),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        _isDetectionEnabled ?
+                                        (_isDetectionProcessing ? 'AI...' : 'AI ON') : 'AI OFF',
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.bold,
+                                        ),
                                       ),
                                       const SizedBox(width: 4),
                                       Text(
