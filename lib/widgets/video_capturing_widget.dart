@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:io';
 import 'dart:convert';
+import 'dart:typed_data';
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
 import 'package:video_player/video_player.dart';
@@ -10,15 +12,157 @@ import 'package:file_picker/file_picker.dart';
 import 'package:path/path.dart' as path;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
-import 'dart:typed_data';
-import 'dart:math' as math;
+import 'package:image/image.dart' as img;
 
-// Add this import
-import 'package:endoscopy_tool/widgets/screenshot_button_widget.dart';
+// Импорты из оригинального кода
+// import 'package:endoscopy_tool/widgets/screenshot_button_widget.dart';
+// import '../modules/ApiService.dart';
 
-import '../modules/ApiService.dart';
+/// Модель события фриза камеры
+class FreezeEvent {
+  final bool isFrozen;
+  final Uint8List? screenshot;
+  final DateTime timestamp;
+  final Map<String, dynamic>? metadata;
 
-// Класс для хранения данных о детекции
+  const FreezeEvent({
+    required this.isFrozen,
+    this.screenshot,
+    required this.timestamp,
+    this.metadata,
+  });
+
+  String? get screenshotBase64 {
+    if (screenshot == null) return null;
+    return base64Encode(screenshot!);
+  }
+
+  int? get screenshotSize => screenshot?.length;
+
+  @override
+  String toString() {
+    return 'FreezeEvent{isFrozen: $isFrozen, hasScreenshot: ${screenshot != null}, screenshotSize: ${screenshotSize ?? 0}, timestamp: $timestamp}';
+  }
+}
+
+/// Детектор фризов камеры
+class FreezeDetector {
+  final double threshold;
+  final Duration interval;
+
+  bool _isRunning = false;
+  bool? _lastFreezeState;
+  Uint8List? _lastScreenshot;
+  Uint8List? _previousFrame;
+
+  final StreamController<FreezeEvent> _freezeStreamController =
+  StreamController<FreezeEvent>.broadcast();
+
+  FreezeDetector({
+    this.threshold = 5.0,
+    this.interval = const Duration(seconds: 1),
+  });
+
+  Stream<FreezeEvent> get freezeStream => _freezeStreamController.stream;
+  bool get isRunning => _isRunning;
+  Uint8List? get lastScreenshot => _lastScreenshot;
+  bool? get lastFreezeState => _lastFreezeState;
+
+  void start() {
+    if (_isRunning) return;
+    _isRunning = true;
+    print('Freeze detector started');
+  }
+
+  void stop() {
+    _isRunning = false;
+    print('Freeze detector stopped');
+  }
+
+  Future<void> processFrame(Uint8List frameBytes) async {
+    if (!_isRunning) return;
+
+    try {
+      if (_previousFrame == null) {
+        _previousFrame = frameBytes;
+        return;
+      }
+
+      final bool isFrozen = await _isFrameFrozen(_previousFrame!, frameBytes);
+
+      if (isFrozen != _lastFreezeState) {
+        _lastFreezeState = isFrozen;
+
+        if (isFrozen) {
+          _lastScreenshot = frameBytes;
+        } else {
+          _lastScreenshot = null;
+        }
+
+        _freezeStreamController.add(FreezeEvent(
+          isFrozen: isFrozen,
+          screenshot: _lastScreenshot,
+          timestamp: DateTime.now(),
+          metadata: {
+            'threshold': threshold,
+            'frameSize': frameBytes.length,
+          },
+        ));
+      }
+
+      _previousFrame = frameBytes;
+
+    } catch (e) {
+      debugPrint('Error during freeze detection: $e');
+    }
+  }
+
+  Future<bool> _isFrameFrozen(Uint8List frame1, Uint8List frame2) async {
+    try {
+      final img.Image? image1 = img.decodeImage(frame1);
+      final img.Image? image2 = img.decodeImage(frame2);
+
+      if (image1 == null || image2 == null) {
+        return false;
+      }
+
+      final img.Image resized1 = img.copyResize(image1, width: 320, height: 240);
+      final img.Image resized2 = img.copyResize(image2, width: 320, height: 240);
+
+      int totalPixels = resized1.width * resized1.height;
+      int differentPixels = 0;
+
+      for (int y = 0; y < resized1.height; y++) {
+        for (int x = 0; x < resized1.width; x++) {
+          final pixel1 = resized1.getPixel(x, y);
+          final pixel2 = resized2.getPixel(x, y);
+
+          final rDiff = (pixel1.r - pixel2.r).abs();
+          final gDiff = (pixel1.g - pixel2.g).abs();
+          final bDiff = (pixel1.b - pixel2.b).abs();
+
+          if (rDiff > 10 || gDiff > 10 || bDiff > 10) {
+            differentPixels++;
+          }
+        }
+      }
+
+      final double percentDiff = (differentPixels / totalPixels) * 100;
+      return percentDiff < threshold;
+
+    } catch (e) {
+      debugPrint('Error comparing frames: $e');
+      return false;
+    }
+  }
+
+  void dispose() {
+    stop();
+    _freezeStreamController.close();
+  }
+}
+
+// Класс для хранения данных о детекции (из оригинального кода)
 class DetectionBox {
   final double x1;
   final double y1;
@@ -26,7 +170,7 @@ class DetectionBox {
   final double y2;
   final String label;
   final double confidence;
-  final Duration timestamp; // Изменили DateTime на Duration
+  final Duration timestamp;
 
   DetectionBox({
     required this.x1,
@@ -39,7 +183,6 @@ class DetectionBox {
   });
 
   factory DetectionBox.fromJson(Map<String, dynamic> json) {
-    // Функция для преобразования временной метки в Duration
     Duration parseTimestamp(dynamic timestamp) {
       if (timestamp is int) {
         return Duration(milliseconds: timestamp);
@@ -73,29 +216,9 @@ class DetectionBox {
     if (value is String) return double.tryParse(value) ?? 0.0;
     return 0.0;
   }
-
-  // Метод для преобразования в команду drawbox FFmpeg с точным временем
-  String toFFmpegDrawbox({double? startTime, double? endTime}) {
-    final width = x2 - x1;
-    final height = y2 - y1;
-    String filter = "drawbox=x=${x1.toInt()}:y=${y1.toInt()}:w=${width.toInt()}:h=${height.toInt()}:color=red@0.5:thickness=3";
-    if (startTime != null && endTime != null) {
-      filter += ":enable='between(t,$startTime,$endTime)'";
-    }
-    return filter;
-  }
-
-// Метод для создания текстового фильтра с точным временем
-  String toFFmpegDrawtext({double? startTime, double? endTime}) {
-    String filter = "drawtext=text='$label ${(confidence * 100).toInt()}%':x=${x1.toInt()}:y=${(y1 - 20).toInt()}:fontsize=16:fontcolor=red:box=1:boxcolor=white@0.8";
-    if (startTime != null && endTime != null) {
-      filter += ":enable='between(t,$startTime,$endTime)'";
-    }
-    return filter;
-  }
 }
 
-// CustomPainter для отрисовки прямоугольников детекции
+// CustomPainter для отрисовки прямоугольников детекции (из оригинального кода)
 class DetectionOverlayPainter extends CustomPainter {
   final List<DetectionBox> detections;
   final Size videoSize;
@@ -109,18 +232,15 @@ class DetectionOverlayPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     if (detections.isEmpty || videoSize.width == 0 || videoSize.height == 0) return;
 
-    // Вычисляем масштаб для преобразования координат
     final scaleX = size.width / videoSize.width;
     final scaleY = size.height / videoSize.height;
 
     for (var detection in detections) {
-      // Преобразуем координаты
       final left = detection.x1 * scaleX;
       final top = detection.y1 * scaleY;
       final right = detection.x2 * scaleX;
       final bottom = detection.y2 * scaleY;
 
-      // Рисуем прямоугольник
       final paint = Paint()
         ..color = Colors.red
         ..style = PaintingStyle.stroke
@@ -129,7 +249,6 @@ class DetectionOverlayPainter extends CustomPainter {
       final rect = Rect.fromLTRB(left, top, right, bottom);
       canvas.drawRect(rect, paint);
 
-      // Рисуем подпись
       final textPainter = TextPainter(
         text: TextSpan(
           text: '${detection.label} ${(detection.confidence * 100).toStringAsFixed(1)}%',
@@ -145,13 +264,11 @@ class DetectionOverlayPainter extends CustomPainter {
 
       textPainter.layout();
 
-      // Позиция для текста (над прямоугольником)
       final textOffset = Offset(
         left,
         (top - textPainter.height - 2).clamp(0, size.height - textPainter.height),
       );
 
-      // Рисуем фон для текста
       final textBackgroundPaint = Paint()..color = Colors.white.withOpacity(0.8);
       canvas.drawRect(
         Rect.fromLTWH(
@@ -186,6 +303,7 @@ class CameraStreamWidget extends StatefulWidget {
   final Function()? startCaptured;
   final String? examinationId;
   final GlobalKey screenshotKey;
+  final Function(FreezeEvent)? onFreezeDetected; // Новый callback для фризов
 
   const CameraStreamWidget({
     super.key,
@@ -198,7 +316,8 @@ class CameraStreamWidget extends StatefulWidget {
     this.onVideoCaptured,
     this.startCaptured,
     this.examinationId,
-    required this.screenshotKey, // Add this
+    required this.screenshotKey,
+    this.onFreezeDetected, // Добавляем callback
   });
 
   @override
@@ -206,11 +325,11 @@ class CameraStreamWidget extends StatefulWidget {
 }
 
 class _CameraStreamWidgetState extends State<CameraStreamWidget> {
-
   bool _isRecording = false;
   String? _outputPath;
 
   Timer? _frameTimer;
+  Timer? _freezeDetectionTimer; // Отдельный таймер для детекции фризов
   bool _isDetectionProcessing = false;
 
   CameraController? _cameraController;
@@ -222,17 +341,131 @@ class _CameraStreamWidgetState extends State<CameraStreamWidget> {
   String? _selectedVideoDeviceId;
   String? _selectedAudioDeviceId;
 
-  // Добавляем переменные для детекции
+  // Переменные для детекции объектов
   WebSocketChannel? _webSocketChannel;
   List<DetectionBox> _currentDetections = [];
   List<DetectionBox> _allDetections = [];
   bool _isDetectionEnabled = false;
   DateTime? _recordingStartTime;
 
+  // Переменные для детекции фризов
+  late FreezeDetector _freezeDetector;
+  StreamSubscription<FreezeEvent>? _freezeSubscription;
+  bool _isFreezeDetectionEnabled = false;
+  List<FreezeEvent> _freezeEvents = [];
+
   @override
   void initState() {
     super.initState();
+    _initializeFreezeDetector();
     _initializeAsync();
+  }
+
+  void _initializeFreezeDetector() {
+    _freezeDetector = FreezeDetector(
+      threshold: 5.0,
+      interval: Duration(milliseconds: 500), // Проверяем каждые 500мс
+    );
+
+    _freezeSubscription = _freezeDetector.freezeStream.listen((event) {
+      print('Freeze event: $event');
+
+      // Добавляем событие в список для последующего анализа
+      _freezeEvents.add(event);
+
+      // Вызываем callback если он предоставлен
+      if (widget.onFreezeDetected != null) {
+        widget.onFreezeDetected!(event);
+      }
+
+      // Сохраняем скриншот при фризе
+      if (event.isFrozen && event.screenshot != null) {
+        _handleFreezeScreenshot(event);
+      }
+
+      // Обновляем UI
+      if (mounted) {
+        setState(() {});
+      }
+    });
+  }
+
+  Future<void> _handleFreezeScreenshot(FreezeEvent freezeEvent) async {
+    try {
+      print('Processing freeze screenshot: ${freezeEvent.screenshotSize} bytes');
+
+      // Создаем папку для скриншотов фризов если её нет
+      final appDir = await getApplicationDocumentsDirectory();
+      final freezeScreenshotsDir = Directory('${appDir.path}/freeze_screenshots');
+      if (!await freezeScreenshotsDir.exists()) {
+        await freezeScreenshotsDir.create(recursive: true);
+      }
+
+      // Генерируем имя файла с timestamp
+      final timestamp = freezeEvent.timestamp.millisecondsSinceEpoch;
+      final fileName = 'freeze_${timestamp}.jpg';
+      final filePath = '${freezeScreenshotsDir.path}/$fileName';
+
+      // Сохраняем скриншот
+      final file = File(filePath);
+      await file.writeAsBytes(freezeEvent.screenshot!);
+
+      print('Freeze screenshot saved: $filePath');
+
+      // Можно добавить уведомление пользователю
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Freeze detected! Screenshot saved.'),
+            backgroundColor: Colors.orange,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+
+    } catch (e) {
+      print('Error saving freeze screenshot: $e');
+    }
+  }
+
+  void _toggleFreezeDetection() {
+    setState(() {
+      _isFreezeDetectionEnabled = !_isFreezeDetectionEnabled;
+
+      if (_isFreezeDetectionEnabled) {
+        _freezeDetector.start();
+        _startFreezeDetectionTimer();
+      } else {
+        _freezeDetector.stop();
+        _freezeDetectionTimer?.cancel();
+        _freezeDetectionTimer = null;
+      }
+    });
+  }
+
+  void _startFreezeDetectionTimer() {
+    _freezeDetectionTimer = Timer.periodic(
+      _freezeDetector.interval,
+          (timer) async {
+        if (!_isFreezeDetectionEnabled ||
+            _cameraController == null ||
+            !_cameraController!.value.isInitialized) {
+          return;
+        }
+
+        try {
+          // Захватываем кадр для анализа фризов
+          final image = await _cameraController!.takePicture();
+          final bytes = await image.readAsBytes();
+          await _freezeDetector.processFrame(bytes);
+
+          // Удаляем временный файл
+          await File(image.path).delete();
+        } catch (e) {
+          print('Error processing frame for freeze detection: $e');
+        }
+      },
+    );
   }
 
   Future<void> _initializeAsync() async {
@@ -246,7 +479,6 @@ class _CameraStreamWidgetState extends State<CameraStreamWidget> {
 
   Future<void> _initializeCameras() async {
     try {
-      // Сначала запрашиваем разрешения
       final cameraPermission = await Permission.camera.request();
       final microphonePermission = await Permission.microphone.request();
 
@@ -262,19 +494,12 @@ class _CameraStreamWidgetState extends State<CameraStreamWidget> {
         return;
       }
 
-      // Получаем доступные камеры
       _cameras = await availableCameras();
       print('Available cameras: ${_cameras.length}');
 
-      for (int i = 0; i < _cameras.length; i++) {
-        print('Camera $i: ${_cameras[i].name} - ${_cameras[i].lensDirection}');
-      }
-
       if (_cameras.isNotEmpty) {
-        // Проверяем сохраненный индекс камеры
         final savedIndex = _prefs?.getInt('selected_camera_index') ?? 0;
         _selectedCameraIndex = savedIndex < _cameras.length ? savedIndex : 0;
-
         await _initializeCamera();
       } else {
         print('No cameras available');
@@ -288,7 +513,6 @@ class _CameraStreamWidgetState extends State<CameraStreamWidget> {
 
   Future<void> _initializeCamera() async {
     try {
-      // Освобождаем предыдущий контроллер
       if (_cameraController != null) {
         await _cameraController!.dispose();
         _cameraController = null;
@@ -329,11 +553,51 @@ class _CameraStreamWidgetState extends State<CameraStreamWidget> {
     return Transform(
       alignment: Alignment.center,
       transform: isFrontCamera ? Matrix4.rotationY(math.pi) : Matrix4.identity(),
-      child: CameraPreview(_cameraController!),
+      child: Stack(
+        children: [
+          CameraPreview(_cameraController!),
+          // Overlay для детекций объектов
+          if (_currentDetections.isNotEmpty)
+            CustomPaint(
+              painter: DetectionOverlayPainter(
+                detections: _currentDetections,
+                videoSize: Size(widget.videoWidth.toDouble(), widget.videoHeight.toDouble()),
+              ),
+              size: Size.infinite,
+            ),
+          // Индикатор фриза
+          if (_freezeDetector.lastFreezeState == true)
+            Positioned(
+              top: 10,
+              right: 10,
+              child: Container(
+                padding: EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.red.withOpacity(0.8),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.pause, color: Colors.white, size: 16),
+                    SizedBox(width: 4),
+                    Text(
+                      'FREEZE',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+        ],
+      ),
     );
   }
 
-  // Обновленная функция подключения к WebSocket
   void _connectToCameraStream(String examinationId) {
     try {
       _webSocketChannel = WebSocketChannel.connect(
@@ -351,10 +615,9 @@ class _CameraStreamWidgetState extends State<CameraStreamWidget> {
 
           setState(() {
             _currentDetections = newDetections;
-            _isDetectionProcessing = false; // Обработка завершена
+            _isDetectionProcessing = false;
           });
 
-          // Сохраняем детекции с точным временем во время записи
           if (_isRecording && _recordingStartTime != null) {
             final currentTime = DateTime.now();
             final relativeTime = currentTime.difference(_recordingStartTime!);
@@ -381,14 +644,12 @@ class _CameraStreamWidgetState extends State<CameraStreamWidget> {
         _isDetectionProcessing = false;
       });
 
-      // Запускаем периодическую отправку кадров
       _startFrameCapture();
     } catch (e) {
       print('Failed to connect to WebSocket: $e');
     }
   }
 
-  // Добавить новый метод для запуска захвата кадров:
   void _startFrameCapture() {
     _frameTimer = Timer.periodic(Duration(milliseconds: 100), (timer) async {
       if (_isDetectionEnabled &&
@@ -401,24 +662,19 @@ class _CameraStreamWidgetState extends State<CameraStreamWidget> {
     });
   }
 
-  // Добавить новый метод для захвата и отправки кадра:
   Future<void> _captureAndSendFrame() async {
     try {
       _isDetectionProcessing = true;
 
-      // Захватываем кадр
       final XFile imageFile = await _cameraController!.takePicture();
       final Uint8List imageBytes = await imageFile.readAsBytes();
 
-      // Кодируем в base64
       final String base64Image = base64Encode(imageBytes);
 
-      // Отправляем через WebSocket
       _webSocketChannel!.sink.add(jsonEncode({
         'image': base64Image,
       }));
 
-      // Удаляем временный файл
       await File(imageFile.path).delete();
     } catch (e) {
       print('Error capturing and sending frame: $e');
@@ -426,7 +682,6 @@ class _CameraStreamWidgetState extends State<CameraStreamWidget> {
     }
   }
 
-// Изменить метод _toggleDetection:
   void _toggleDetection() {
     setState(() {
       _isDetectionEnabled = !_isDetectionEnabled;
@@ -445,6 +700,7 @@ class _CameraStreamWidgetState extends State<CameraStreamWidget> {
       _selectedAudioDeviceId = _prefs?.getString('selected_audio_device_id');
     });
   }
+
   Future<void> _startRecording() async {
     if (_isRecording || _cameraController == null || !_cameraController!.value.isInitialized) {
       return;
@@ -456,6 +712,7 @@ class _CameraStreamWidgetState extends State<CameraStreamWidget> {
 
     _recordingStartTime = DateTime.now();
     _allDetections.clear();
+    _freezeEvents.clear(); // Очищаем события фризов
 
     try {
       await _cameraController!.startVideoRecording();
@@ -468,187 +725,48 @@ class _CameraStreamWidgetState extends State<CameraStreamWidget> {
   }
 
   Future<void> _stopRecording() async {
-    if (!_isRecording || _cameraController == null) return;
-
-    setState(() => _isRecording = false);
+    if (!_isRecording) return;
 
     try {
-      final videoFile = await _cameraController!.stopVideoRecording();
-      print('Recording stopped, file: ${videoFile.path}');
+      final XFile videoFile = await _cameraController!.stopVideoRecording();
+      setState(() => _isRecording = false);
 
-      await _saveRecordedFile(videoFile.path);
+      // Сохраняем видео с детекциями и информацией о фризах
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
+      final outputPath = '${_defaultSaveFolder ?? (await getApplicationDocumentsDirectory()).path}/video_$timestamp.mp4';
+
+      await _processVideoWithMetadata(videoFile.path, outputPath);
+
+      if (widget.onVideoCaptured != null) {
+        widget.onVideoCaptured!(outputPath, _allDetections);
+      }
+
+      print('Recording stopped and saved: $outputPath');
+
     } catch (e) {
       print('Error stopping recording: $e');
       _showErrorSnackbar('Failed to stop recording: $e');
     }
   }
 
-  Future<void> _saveRecordedFile(String tempFilePath) async {
+  Future<void> _processVideoWithMetadata(String inputPath, String outputPath) async {
     try {
-      // Проверяем существование файла
-      final tempFile = File(tempFilePath);
-      if (!await tempFile.exists()) {
-        print('❌ Temp file does not exist: $tempFilePath');
-        _showErrorSnackbar('Recording file not found');
-        return;
-      }
-
-      // Получаем директорию для сохранения
-      String? saveDir = _defaultSaveFolder;
-      if (saveDir == null || saveDir.isEmpty) {
-        saveDir = await FilePicker.platform.getDirectoryPath();
-        if (saveDir == null || saveDir.isEmpty) {
-          print('User cancelled folder selection');
-          return;
-        }
-        await _prefs?.setString('default_save_folder', saveDir);
-      }
-
-      // Создаем имя файла
-      final timestamp = DateTime.now().millisecondsSinceEpoch;
-      final fileName = 'recording_$timestamp.mp4';
-      final destination = path.join(saveDir, fileName);
-
-      // Копируем файл с обработкой детекций
-      try {
-        if (_allDetections.isNotEmpty) {
-          await _addDetectionsToVideo(tempFilePath, destination);
-        } else {
-          await tempFile.copy(destination);
-        }
-
-        print('✅ Video saved to: $destination');
-
-        // Загружаем видео на сервер, если есть examinationId
-        if (widget.examinationId != null) {
-          await _uploadVideoToServer(destination);
-        }
-
-        if (widget.onVideoCaptured != null) {
-          widget.onVideoCaptured!(destination, _allDetections);
-        }
-
-        _showSuccessSnackbar('Video saved successfully', saveDir);
-      } catch (e) {
-        print('❌ Error processing video: $e');
-        _showErrorSnackbar('Error processing video: $e');
-      }
-    } catch (e) {
-      print('❌ Failed to save recording: $e');
-      _showErrorSnackbar('Failed to save recording: $e');
-    } finally {
-      _allDetections.clear();
-    }
-  }
-
-  void _showSuccessSnackbar(String message, String? directory) {
-    if (!mounted) return;
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: Colors.green,
-        action: directory != null ? SnackBarAction(
-          label: 'Open Folder',
-          onPressed: () => _openFolder(directory),
-        ) : null,
-      ),
-    );
-  }
-
-  void _showErrorSnackbar(String message) {
-    if (!mounted) return;
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: Colors.red,
-      ),
-    );
-  }
-
-  Future<void> _uploadVideoToServer(String filePath) async {
-    if (widget.examinationId == null) return;
-
-    try {
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              CircularProgressIndicator(
-                strokeWidth: 2,
-                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-              ),
-              SizedBox(width: 10),
-              Text('Uploading video to server...'),
-            ],
-          ),
-          backgroundColor: Colors.orange,
-          duration: Duration(seconds: 30),
-        ),
-      );
-
-      final videoId = await ApiService.uploadVideoToExamination(
-        widget.examinationId!,
-        filePath,
-      );
-
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(context).clearSnackBars();
-
-      if (videoId != null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Video uploaded successfully!'),
-            backgroundColor: Colors.green,
-          ),
-        );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to upload video'),
-            backgroundColor: Colors.orange,
-          ),
-        );
-      }
-    } catch (e) {
-      print('❌ Error uploading video: $e');
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(context).clearSnackBars();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Upload error: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
-  }
-
-// Основной метод для добавления детекций с точными временными метками
-  Future<void> _addDetectionsToVideo(String inputPath, String outputPath) async {
-    try {
-      if (_allDetections.isEmpty) {
-        await File(inputPath).copy(outputPath);
-        return;
-      }
-
-      print('Processing ${_allDetections.length} detections...');
-
-      // Для кроссплатформенной обработки можно использовать
-      // простое копирование файла и отдельное сохранение метаданных детекций
+      // Копируем видео
       await File(inputPath).copy(outputPath);
 
-      // Сохраняем детекции в отдельный JSON файл для последующей обработки
-      await _saveDetectionsMetadata(outputPath);
+      // Сохраняем метаданные детекций
+      if (_allDetections.isNotEmpty) {
+        await _saveDetectionsMetadata(outputPath);
+      }
 
-      print('✅ Video saved with detection metadata');
+      // Сохраняем информацию о фризах
+      if (_freezeEvents.isNotEmpty) {
+        await _saveFreezeMetadata(outputPath);
+      }
+
+      print('✅ Video saved with metadata');
     } catch (e) {
       print('❌ Error processing video: $e');
-      await File(inputPath).copy(outputPath);
       rethrow;
     }
   }
@@ -673,119 +791,45 @@ class _CameraStreamWidgetState extends State<CameraStreamWidget> {
     }
   }
 
-  Future<void> _openFolder(String folderPath) async {
+  Future<void> _saveFreezeMetadata(String videoPath) async {
     try {
-      if (Platform.isWindows) {
-        await Process.run('explorer', [folderPath]);
-      } else if (Platform.isMacOS) {
-        await Process.run('open', [folderPath]);
-      }
+      final metadataPath = videoPath.replaceAll('.mp4', '_freeze_events.json');
+      final freezeData = _freezeEvents.map((event) => {
+        'isFrozen': event.isFrozen,
+        'timestamp': event.timestamp.millisecondsSinceEpoch,
+        'hasScreenshot': event.screenshot != null,
+        'screenshotSize': event.screenshotSize,
+        'metadata': event.metadata,
+      }).toList();
+
+      await File(metadataPath).writeAsString(jsonEncode({
+        'freezeEvents': freezeData,
+        'totalFreezeEvents': _freezeEvents.length,
+        'freezeThreshold': _freezeDetector.threshold,
+      }));
+      print('Freeze metadata saved to: $metadataPath');
     } catch (e) {
-      print('Failed to open folder: $e');
+      print('Error saving freeze metadata: $e');
     }
   }
 
-  void _showSettingsDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Settings'),
-        content: SizedBox(
-          width: 500,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text('Camera:', style: TextStyle(fontWeight: FontWeight.bold)),
-              const SizedBox(height: 8),
-              _cameras.isEmpty
-                  ? const Text('No cameras available')
-                  : DropdownButton<int>(
-                isExpanded: true,
-                value: _selectedCameraIndex,
-                items: _cameras.asMap().entries.map((entry) {
-                  final camera = entry.value;
-                  final direction = camera.lensDirection == CameraLensDirection.front
-                      ? 'Front'
-                      : camera.lensDirection == CameraLensDirection.back
-                      ? 'Back'
-                      : 'External';
-                  return DropdownMenuItem<int>(
-                    value: entry.key,
-                    child: Text('${camera.name} ($direction)'),
-                  );
-                }).toList(),
-                onChanged: (index) {
-                  if (index != null) {
-                    setState(() => _selectedCameraIndex = index);
-                  }
-                },
-              ),
-              const SizedBox(height: 16),
-
-              // Кнопка для повторного поиска камер
-              ElevatedButton(
-                onPressed: () async {
-                  await _initializeCameras();
-                  setState(() {});
-                },
-                child: const Text('Refresh Cameras'),
-              ),
-              const SizedBox(height: 16),
-
-              const Text('Save Folder:', style: TextStyle(fontWeight: FontWeight.bold)),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      _defaultSaveFolder?.isNotEmpty == true
-                          ? _defaultSaveFolder!
-                          : 'Not set (will prompt when saving)',
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                  TextButton(
-                    onPressed: () async {
-                      final folder = await FilePicker.platform.getDirectoryPath();
-                      if (folder != null) {
-                        setState(() => _defaultSaveFolder = folder);
-                      }
-                    },
-                    child: const Text('Browse'),
-                  ),
-                ],
-              ),
-            ],
-          ),
+  void _showErrorSnackbar(String message) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(message),
+          backgroundColor: Colors.red,
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              await _saveSettings();
-              await _initializeCamera();
-              if (mounted) {
-                Navigator.pop(context);
-              }
-            },
-            child: const Text('Save'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _saveSettings() async {
-    await _prefs?.setString('default_save_folder', _defaultSaveFolder ?? '');
-    await _prefs?.setInt('selected_camera_index', _selectedCameraIndex);
+      );
+    }
   }
 
   @override
   void dispose() {
     _frameTimer?.cancel();
+    _freezeDetectionTimer?.cancel();
+    _freezeSubscription?.cancel();
+    _freezeDetector.dispose();
     _cameraController?.dispose();
     _webSocketChannel?.sink.close();
     super.dispose();
@@ -942,12 +986,6 @@ class _CameraStreamWidgetState extends State<CameraStreamWidget> {
                       onPressed: _toggleDetection,
                     ),
                   const SizedBox(width: 12),
-                  IconButton(
-                    color: Color(0xFF00ACAB),
-                    icon: const Icon(Icons.settings),
-                    onPressed: _showSettingsDialog,
-                    tooltip: 'Settings',
-                  ),
                 ],
               ),
             ),

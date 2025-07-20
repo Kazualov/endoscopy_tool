@@ -823,7 +823,6 @@ Duration roundedToFrame(Duration d) {
   }
 
     //-------------------Time Line--------------------------//
-    // Метод для преобразования скриншотов в пометки для таймлайна
     List<ScreenshotMarker> _getScreenshotMarkers() {
       return screenshots.map((screenshot) {
         return ScreenshotMarker(
@@ -852,7 +851,6 @@ Duration roundedToFrame(Duration d) {
         _player!.seek(roundedToFrame(timestamp));
       }
     }
-
 
     Widget _buildVideoArea() {
       switch (_currentMode) {
@@ -971,7 +969,6 @@ Duration roundedToFrame(Duration d) {
         _player!.seek(segment.startTime);
       }
     }
-
     // Обновленный метод форматирования времени с миллисекундами
     String _formatDurationWithMs(Duration duration) {
       final minutes = duration.inMinutes.toString().padLeft(2, '0');
@@ -980,7 +977,6 @@ Duration roundedToFrame(Duration d) {
           3, '0');
       return '$minutes:$seconds:$milliseconds';
     }
-
     // Обновленный метод _addScreenshot с точным временем
     Future<void> _addScreenshot(Uint8List imageBytes) async {
       final currentTimestamp = _getCurrentTimeCode();
