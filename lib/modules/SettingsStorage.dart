@@ -14,21 +14,17 @@ class SettingsStorage {
   }
 
   static Future<void> saveSettings({
-    required String resolution,
     required String path,
-    required ThemeMode theme,
   }) async {
     final file = await getSettingsFile();
     final data = {
-      'resolution': resolution,
       'path': path,
-      'theme': theme.name,
     };
     await file.writeAsString(jsonEncode(data));
   }
 
 
-  static Future<({String resolution, String path, ThemeMode theme})?> loadSettings() async {
+  static Future<({String path})?> loadSettings() async {
     try {
       final dir = await getApplicationDocumentsDirectory();
       final file = File(p.join(dir.path, 'settings.json'));
@@ -38,42 +34,15 @@ class SettingsStorage {
       final jsonString = await file.readAsString();
       final jsonMap = jsonDecode(jsonString);
 
-      final resolution = jsonMap['resolution'] as String? ?? '1920x1080';
       var path = jsonMap['path'] as String? ?? '';
-      final themeString = jsonMap['theme'] as String? ?? 'system';
-      final theme = _themeModeFromString(themeString);
 
       // Удаляем последнюю папку из пути
       path = p.dirname(path);
 
-      return (resolution: resolution, path: path, theme: theme);
+      return (path: path);
     } catch (e) {
       debugPrint('Ошибка загрузки настроек: $e');
       return null;
-    }
-  }
-
-  static String _themeModeToString(ThemeMode mode) {
-    switch (mode) {
-      case ThemeMode.light:
-        return 'light';
-      case ThemeMode.dark:
-        return 'dark';
-      case ThemeMode.system:
-      default:
-        return 'system';
-    }
-  }
-
-  static ThemeMode _themeModeFromString(String value) {
-    switch (value) {
-      case 'light':
-        return ThemeMode.light;
-      case 'dark':
-        return ThemeMode.dark;
-      case 'system':
-      default:
-        return ThemeMode.system;
     }
   }
 }
