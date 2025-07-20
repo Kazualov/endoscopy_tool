@@ -8,12 +8,18 @@ import 'package:path_provider/path_provider.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:path/path.dart' as path;
 import 'package:shared_preferences/shared_preferences.dart';
+
 import 'package:web_socket_channel/web_socket_channel.dart';
+import 'dart:async';
+import 'dart:typed_data';
+import 'package:image/image.dart' as img;
 
 // Add this import
 import 'package:endoscopy_tool/widgets/screenshot_button_widget.dart';
 
 import '../modules/ApiService.dart';
+
+
 
 // Класс для хранения данных о детекции
 class DetectionBox {
@@ -172,6 +178,80 @@ class DetectionOverlayPainter extends CustomPainter {
   }
 }
 
+// <=== МОДИФИЦИРОВАННЫЙ ФАЙЛ С ПОДДЕРЖКОЙ ИЗОБРАЖЕНИЙ ПО WEBSOCKET ===
+
+class CameraWebSocketSender {
+  final CameraController controller;
+  final WebSocketChannel channel;
+  final Duration throttle;
+
+  bool _isStreaming = false;
+  DateTime _lastSent = DateTime.fromMillisecondsSinceEpoch(0);
+
+  CameraWebSocketSender({
+    required this.controller,
+    required this.channel,
+    this.throttle = const Duration(milliseconds: 1000),
+  });
+
+  void start() {
+    if (_isStreaming) return;
+    _isStreaming = true;
+
+    controller.startImageStream((CameraImage image) async {
+      if (!_isStreaming) return;
+      if (DateTime.now().difference(_lastSent) < throttle) return;
+      _lastSent = DateTime.now();
+
+      try {
+        final jpeg = await _convertYUV420toJPEG(image);
+        final base64Image = base64Encode(jpeg);
+        final payload = jsonEncode({"image": base64Image});
+        channel.sink.add(payload);
+      } catch (e) {
+        print('Error sending image: \$e');
+      }
+    });
+  }
+
+  void stop() {
+    _isStreaming = false;
+    controller.stopImageStream();
+  }
+
+  Future<Uint8List> _convertYUV420toJPEG(CameraImage image) async {
+    final width = image.width;
+    final height = image.height;
+
+    final yPlane = image.planes[0];
+    final uPlane = image.planes[1];
+    final vPlane = image.planes[2];
+
+    final uvRowStride = uPlane.bytesPerRow;
+    final uvPixelStride = uPlane.bytesPerPixel ?? 1;
+
+    final imgBuffer = img.Image(width: width, height: height);
+
+    for (int y = 0; y < height; y++) {
+      for (int x = 0; x < width; x++) {
+        final uvIndex = uvPixelStride * (x ~/ 2) + uvRowStride * (y ~/ 2);
+
+        final yVal = yPlane.bytes[y * width + x];
+        final uVal = uPlane.bytes[uvIndex];
+        final vVal = vPlane.bytes[uvIndex];
+
+        final r = (yVal + 1.402 * (vVal - 128)).clamp(0, 255).toInt();
+        final g = (yVal - 0.344136 * (uVal - 128) - 0.714136 * (vVal - 128)).clamp(0, 255).toInt();
+        final b = (yVal + 1.772 * (uVal - 128)).clamp(0, 255).toInt();
+
+        imgBuffer.setPixelRgb(x, y, r, g, b);
+      }
+    }
+
+    return Uint8List.fromList(img.encodeJpg(imgBuffer, quality: 85));
+  }
+}
+
 class CameraStreamWidget extends StatefulWidget {
   final double? width;
   final double? height;
@@ -206,6 +286,7 @@ class _CameraStreamWidgetState extends State<CameraStreamWidget> {
 
   bool _isRecording = false;
   String? _outputPath;
+  late CameraWebSocketSender _sender;
 
   CameraController? _cameraController;
   List<CameraDescription> _cameras = [];
@@ -302,6 +383,15 @@ class _CameraStreamWidgetState extends State<CameraStreamWidget> {
       );
 
       await _cameraController!.initialize();
+      _sender = CameraWebSocketSender(
+        controller: _cameraController!,
+        channel: _webSocketChannel!,
+        throttle: Duration(milliseconds: 1000),
+      );
+      if (_isDetectionEnabled) {
+        _sender.start();
+      }
+
 
       if (mounted) {
         setState(() {});
@@ -364,7 +454,10 @@ class _CameraStreamWidgetState extends State<CameraStreamWidget> {
   void _toggleDetection() {
     setState(() {
       _isDetectionEnabled = !_isDetectionEnabled;
-      if (!_isDetectionEnabled) {
+      if (_isDetectionEnabled) {
+        _sender.start();
+      } else {
+        _sender.stop();
         _currentDetections.clear();
       }
     });
@@ -378,16 +471,6 @@ class _CameraStreamWidgetState extends State<CameraStreamWidget> {
       _selectedAudioDeviceId = _prefs?.getString('selected_audio_device_id');
     });
   }
-
-
-
-
-  Future<String> _getTempOutputFilePath() async {
-    final dir = await getTemporaryDirectory();
-    final timestamp = DateTime.now().millisecondsSinceEpoch;
-    return '${dir.path}/recording_$timestamp.mp4';
-  }
-
 
   Future<void> _startRecording() async {
     if (_isRecording || _cameraController == null || !_cameraController!.value.isInitialized) {
@@ -572,7 +655,6 @@ class _CameraStreamWidgetState extends State<CameraStreamWidget> {
     }
   }
 
-
 // Основной метод для добавления детекций с точными временными метками
   Future<void> _addDetectionsToVideo(String inputPath, String outputPath) async {
     try {
@@ -615,29 +697,6 @@ class _CameraStreamWidgetState extends State<CameraStreamWidget> {
       print('Detection metadata saved to: $metadataPath');
     } catch (e) {
       print('Error saving detection metadata: $e');
-    }
-  }
-
-// Метод для улучшения точности временных меток при записи
-  void _recordDetectionWithPreciseTime(DetectionBox detection) {
-    // Получаем текущее время записи относительно начала
-    final recordingStart = _recordingStartTime; // Нужно добавить эту переменную
-    final currentTime = DateTime.now();
-    final relativeTime = currentTime.difference(recordingStart!);
-
-    // Создаем детекцию с точным временем
-    final preciseDetection = DetectionBox(
-      x1: detection.x1,
-      y1: detection.y1,
-      x2: detection.x2,
-      y2: detection.y2,
-      label: detection.label,
-      confidence: detection.confidence,
-      timestamp: relativeTime, // Используем относительное время
-    );
-
-    if (_isRecording) {
-      _allDetections.add(preciseDetection);
     }
   }
 
@@ -751,15 +810,9 @@ class _CameraStreamWidgetState extends State<CameraStreamWidget> {
     await _prefs?.setInt('selected_camera_index', _selectedCameraIndex);
   }
 
-  Future<bool> _checkPermissions() async {
-    final cameraStatus = await Permission.camera.status;
-    final microphoneStatus = await Permission.microphone.status;
-
-    return cameraStatus.isGranted && microphoneStatus.isGranted;
-  }
-
   @override
   void dispose() {
+    _sender.stop();
     _cameraController?.dispose();
     _webSocketChannel?.sink.close();
     super.dispose();
