@@ -31,14 +31,24 @@ os.makedirs(SCREENSHOT_DIR, exist_ok=True)
 
 
 
-def parse_timestamp_to_seconds(timestamp: str) -> int:
-    """Преобразует строку формата HH:MM:SS в секунды"""
-    try:
-        t = dt.strptime(timestamp, "%H:%M:%S")
-        return t.hour * 3600 + t.minute * 60 + t.second
-    except ValueError:
-        raise HTTPException(status_code=400, detail="Неверный формат timestamp_in_video. Используйте HH:MM:SS")
+from datetime import datetime
+from fastapi import HTTPException
 
+def parse_timestamp_to_seconds(timestamp: str) -> float:
+    """Преобразует строку формата HH:MM:SS или HH:MM:SS.milliseconds в секунды"""
+    try:
+        # Try parsing with milliseconds first
+        try:
+            t = datetime.strptime(timestamp, "%H:%M:%S:%f")
+        except ValueError:
+            # If milliseconds aren't present, try without them
+            t = datetime.strptime(timestamp, "%H:%M:%S")
+        return t.hour * 3600 + t.minute * 60 + t.second + t.microsecond / 1_000_000
+    except ValueError:
+        raise HTTPException(
+            status_code=400,
+            detail="Неверный формат timestamp_in_video. Используйте HH:MM:SS или HH:MM:SS.milliseconds"
+        )
 @router.post("/exams/{exam_id}/upload_screenshot/")
 async def upload_screenshot(
     exam_id: str,

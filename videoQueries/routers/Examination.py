@@ -118,6 +118,8 @@ async def upload_video_to_examination(
     db.commit()
     db.refresh(exam)
 
+    print(f"Saving video to: {save_path.resolve()}")  # Add this before saving
+
     return {"video_id": video_id, "message": "Видео добавлено к осмотру"}
 
 
