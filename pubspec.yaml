@@ -34,7 +34,6 @@ dependencies:
   camera_macos: ^0.0.9
   video_player: ^2.8.1
   permission_handler: ^11.0.1
-  image: ^4.5.4
 
 
 dev_dependencies:
