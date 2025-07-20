@@ -10,6 +10,7 @@ from videoQueries.models.video import Video
 from videoQueries.models.Examination import Examination
 from videoQueries.database import get_db
 from pathlib import Path
+import os
 
 router = APIRouter()
 
@@ -153,6 +154,10 @@ def delete_examination(examination_id: str, db: Session = Depends(get_db)):
     if not examination:
         raise HTTPException(status_code=404, detail="Осмотр не найден")
 
+    if examination.folder_path and os.path.exists(examination.folder_path):
+        shutil.rmtree(examination.folder_path)
+
     db.delete(examination)
     db.commit()
+
     return {"message": "Осмотр удалён"}
