@@ -24,6 +24,7 @@ import '../widgets/ScreenShotsEditorDialog.dart';
 import '../widgets/video_player_widget.dart';
 
 // Enum to define different video modes
+//hello Lex
 enum VideoMode {
   uploaded,    // Video uploaded from file
   camera       // Live camera capture
