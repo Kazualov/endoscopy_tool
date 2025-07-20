@@ -4,6 +4,7 @@ import 'dart:io';
 import 'dart:math' as math;
 import 'dart:typed_data';
 
+import 'package:archive/archive.dart';
 import 'package:endoscopy_tool/modules/ApiService.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
@@ -512,14 +513,29 @@ class _MainPageLayoutState extends State<MainPageLayout> {
   }
 
   // Метод для загрузки изображения скриншота
-  Future<Uint8List?> _loadScreenshotImage(String screenshotId) async {
+  Future<Uint8List?> _loadScreenshotImage(String screenshotId, {bool annotated = false}) async {
     try {
       final response = await http.get(
         Uri.parse('$BASE_URL/screenshots/$screenshotId/file'),
       );
 
       if (response.statusCode == 200) {
-        return response.bodyBytes;
+        // Extract the ZIP file
+        final Archive archive = ZipDecoder().decodeBytes(response.bodyBytes);
+
+        // Look for the desired file in the ZIP
+        final String targetFilename = annotated ? 'annotated.jpg' : 'original.jpg';
+        
+        try {
+          final ArchiveFile imageFile = archive.files.firstWhere(
+            (file) => file.name == targetFilename,
+          );
+
+          return Uint8List.fromList(imageFile.content as List<int>);
+        } catch (e) {
+          print('Image not found in ZIP: $targetFilename');
+          return null;
+        }
       } else {
         print('Failed to load screenshot image: ${response.statusCode}');
         return null;
