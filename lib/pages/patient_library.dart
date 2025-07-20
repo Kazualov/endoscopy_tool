@@ -72,6 +72,44 @@ class Patient {
 }
 
 //______________основной виджет__________________//
+
+
+class HoverDeleteIcon extends StatefulWidget {
+  final VoidCallback onDelete;
+
+  const HoverDeleteIcon({required this.onDelete, Key? key}) : super(key: key);
+
+  @override
+  State<HoverDeleteIcon> createState() => _HoverDeleteIconState();
+}
+
+class _HoverDeleteIconState extends State<HoverDeleteIcon> {
+  bool _hovering = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hovering = true),
+      onExit: (_) => setState(() => _hovering = false),
+      child: AnimatedOpacity(
+        opacity: _hovering ? 1 : 0.2,
+        duration: Duration(milliseconds: 150),
+        child: GestureDetector(
+          onTap: widget.onDelete,
+          child: Container(
+            padding: EdgeInsets.all(4),
+            child: Icon(
+              Icons.delete_forever_rounded,
+              size: 30,
+              color: _hovering ? Colors.red : Colors.grey,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class EndoscopistApp extends StatelessWidget {
   const EndoscopistApp({super.key});
 
@@ -415,6 +453,7 @@ class _ExaminationGridScreenState extends State<ExaminationGridScreen> {
   }
 
 
+  bool _isHovered = false;
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -513,60 +552,68 @@ class _ExaminationGridScreenState extends State<ExaminationGridScreen> {
                       ),
                     );
                   },
-                  child: Container(
-                    decoration: BoxDecoration(
-                      border: Border.all(color: Color(0xFF00ACAB), width: 3),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Container(
-                            child: IconButton(
-                              onPressed:() async {
-                                await _deleteExamination(examination.id.toString());
-                              },
-                              icon: Icon(Icons.delete_forever_rounded),
-                            ),
-                          ),
+                  child: Stack(
+                    children: [
+                      Container(
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Color(0xFF00ACAB), width: 3),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              SizedBox(height: 20), // Spacer to not overlap with the top icon
 
-                          //Icons
-                          Container(
-                            width: 50,
-                            height: 50,
-                            decoration: BoxDecoration(
-                              border: Border.all(color: Colors.black, width: 2),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: examination.video_id != null
-                                ? Icon(Icons.video_library, size: 30, color: Colors.blue)
-                                : Icon(Icons.medical_services, size: 30, color: Colors.grey),
-                          ),
-                          SizedBox(height: 8),
+                              // Icons
+                              Container(
+                                width: 50,
+                                height: 50,
+                                decoration: BoxDecoration(
+                                  border: Border.all(color: Colors.black, width: 2),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: examination.video_id != null
+                                    ? Icon(Icons.video_library, size: 30, color: Colors.blue)
+                                    : Icon(Icons.medical_services, size: 30, color: Colors.grey),
+                              ),
+                              SizedBox(height: 8),
 
-                          //Id
-                          Text(
-                            examination.id,
-                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
-                            textAlign: TextAlign.center,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          SizedBox(height: 4),
+                              // Id
+                              Text(
+                                examination.id,
+                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                                textAlign: TextAlign.center,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              SizedBox(height: 4),
 
-                          // Description
-                          Text(
-                            examination.description!,
-                            style: TextStyle(fontSize: 10, color: Colors.grey[600]),
-                            textAlign: TextAlign.center,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
+                              // Description
+                              Text(
+                                examination.description!,
+                                style: TextStyle(fontSize: 10, color: Colors.grey[600]),
+                                textAlign: TextAlign.center,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
                           ),
-                        ],
+                        ),
                       ),
-                    ),
+
+                      Positioned(
+                        top: 8,
+                        right: 8,
+                        child: HoverDeleteIcon(
+                          onDelete: () async {
+                            await _deleteExamination(examination.id.toString());
+                          },
+                        ),
+                      ),
+                    ],
                   ),
+
                 );
               } else {
                 return GestureDetector(
