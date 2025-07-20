@@ -114,7 +114,7 @@ class VoiceService {
 
         // Обрабатываем heartbeat (для отладки)
         if (type == 'heartbeat') {
-          print('[VoiceService] Heartbeat получен');
+          // print('[VoiceService] Heartbeat получен');
         }
 
       } catch (e) {
