@@ -286,5 +286,19 @@ class ApiService {
   }
 
 
+  static Future<void> deleteExamination(String examinationId) async {
+    final url = Uri.parse('$baseUrl/examinations/$examinationId');
+
+    final response = await http.delete(url);
+    if (response.statusCode == 200) {
+      print('Deleted successfully: ${response.body}');
+      // Optionally show success UI
+    } else {
+      print('Failed to delete: ${response.statusCode}');
+      // Handle errors accordingly
+    }
+  }
+
+
 }
 

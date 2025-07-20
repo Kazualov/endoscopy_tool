@@ -129,6 +129,11 @@ class _ExaminationGridScreenState extends State<ExaminationGridScreen> {
     });
   }
 
+  Future<void> _deleteExamination(String examId) async{
+    await ApiService.deleteExamination(examId);
+    await loadExamination();
+  }
+
   // загрузка осмотров
   Future<void> loadExamination() async {
     setState(() {
@@ -518,6 +523,16 @@ class _ExaminationGridScreenState extends State<ExaminationGridScreen> {
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Container(
+                            child: IconButton(
+                              onPressed:() async {
+                                await _deleteExamination(examination.id.toString());
+                              },
+                              icon: Icon(Icons.delete_forever_rounded),
+                            ),
+                          ),
+
+                          //Icons
+                          Container(
                             width: 50,
                             height: 50,
                             decoration: BoxDecoration(
@@ -529,6 +544,8 @@ class _ExaminationGridScreenState extends State<ExaminationGridScreen> {
                                 : Icon(Icons.medical_services, size: 30, color: Colors.grey),
                           ),
                           SizedBox(height: 8),
+
+                          //Id
                           Text(
                             examination.id,
                             style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
@@ -537,6 +554,8 @@ class _ExaminationGridScreenState extends State<ExaminationGridScreen> {
                             overflow: TextOverflow.ellipsis,
                           ),
                           SizedBox(height: 4),
+
+                          // Description
                           Text(
                             examination.description!,
                             style: TextStyle(fontSize: 10, color: Colors.grey[600]),
