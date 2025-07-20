@@ -11,6 +11,7 @@ import 'package:path/path.dart' as path;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 import 'dart:typed_data';
+import 'dart:math' as math;
 
 // Add this import
 import 'package:endoscopy_tool/widgets/screenshot_button_widget.dart';
@@ -316,6 +317,20 @@ class _CameraStreamWidgetState extends State<CameraStreamWidget> {
       print('Error initializing camera: $e');
       _showErrorSnackbar('Error initializing camera: $e');
     }
+  }
+
+  Widget _buildCameraPreview() {
+    if (_cameraController == null || !_cameraController!.value.isInitialized) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    final isFrontCamera = _cameras[_selectedCameraIndex].lensDirection == CameraLensDirection.front;
+
+    return Transform(
+      alignment: Alignment.center,
+      transform: isFrontCamera ? Matrix4.rotationY(math.pi) : Matrix4.identity(),
+      child: CameraPreview(_cameraController!),
+    );
   }
 
   // Обновленная функция подключения к WebSocket
@@ -806,7 +821,7 @@ class _CameraStreamWidgetState extends State<CameraStreamWidget> {
                           children: [
                             // Основное видео
                             if (_cameraController != null && _cameraController!.value.isInitialized)
-                              CameraPreview(_cameraController!)
+                              _buildCameraPreview()
                             else
                               const Center(child: CircularProgressIndicator()),
                             // Наложение детекции
