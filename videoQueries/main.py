@@ -29,7 +29,7 @@ app.include_router(patient.router)
 app.include_router(Examination.router)
 app.include_router(Screenshots.router)
 app.include_router(Detection.router)
-app.include_router(voiceCommand.router) # discarded for simplicity
+app.include_router(voiceCommand.router)
 
 app.include_router(Set_path.router)
 
