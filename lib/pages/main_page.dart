@@ -48,29 +48,34 @@ class ScreenshotItem {
 
   // Фабричный метод для создания из JSON
   factory ScreenshotItem.fromJson(Map<String, dynamic> json) {
-    final timestampStr = json['timestamp_in_video'] ?? '0:00.000';
-    final timestampDuration = _parseDurationWithMs(timestampStr);
+    final timecodeStr = json['timestamp_in_video'] as String? ?? '00:00:00:000';
+    final timestampDuration = ScreenshotItem._parseDurationWithMs(timecodeStr);
 
     return ScreenshotItem(
       screenshotId: json['screenshot_id'].toString(),
       filename: json['filename'] ?? '',
       filePath: json['file_path'] ?? '',
-      timestampInVideo: timestampStr,
+      timestampInVideo: timecodeStr,
       timestampDuration: timestampDuration,
     );
   }
 
+
   // Статический метод для парсинга времени с миллисекундами
   static Duration _parseDurationWithMs(String timeString) {
     final parts = timeString.split(':');
-    if (parts.length != 2) return Duration.zero;
+    if (parts.length != 4) return Duration.zero;
 
-    final minutes = int.tryParse(parts[0]) ?? 0;
-    final secondsAndMs = parts[1].split('.');
-    final seconds = int.tryParse(secondsAndMs[0]) ?? 0;
-    final milliseconds = secondsAndMs.length > 1 ? int.tryParse(secondsAndMs[1]) ?? 0 : 0;
-
-    return Duration(minutes: minutes, seconds: seconds, milliseconds: milliseconds);
+    final hours = int.tryParse(parts[0]) ?? 0;
+    final minutes = int.tryParse(parts[1]) ?? 0;
+    final seconds = int.tryParse(parts[2]) ?? 0;
+    final ms = int.tryParse(parts[3].padRight(3, '0')) ?? 0;
+    return Duration(
+      hours: hours,
+      minutes: minutes,
+      seconds: seconds,
+      milliseconds: ms,
+    );
   }
 }
 
@@ -675,47 +680,76 @@ class _MainPageLayoutState extends State<MainPageLayout> {
   }
 
 
+Duration roundedToFrame(Duration d) {
+  const frameRate = 30; // or whatever FPS you're using
+  final frameDuration = Duration(milliseconds: (1000 / frameRate).round());
+  final frames = (d.inMilliseconds / frameDuration.inMilliseconds).round();
+  return Duration(milliseconds: frames * frameDuration.inMilliseconds);
+}
+
   void _seekToTimecode(String timeString) {
-    if (_currentMode == VideoMode.uploaded && _player != null) {
-      final duration = _parseDurationWithMs(timeString);
-      _player!.seek(duration);
-    }
-    // В режиме камеры переход по таймкоду не имеет смысла, так как это live stream
+  if (_currentMode == VideoMode.uploaded && _player != null) {
+    final duration = _parseDurationWithMs(timeString);
+    debugPrint("Seeking to: $duration");
+    _player!.seek(roundedToFrame(duration));
   }
+}
+
+
 
   // Обновленный метод парсинга с миллисекундами
   Duration _parseDurationWithMs(String timeString) {
     final parts = timeString.split(':');
-    if (parts.length != 2) return Duration.zero;
+    if (parts.length != 4) return Duration.zero;
 
-    final minutes = int.tryParse(parts[0]) ?? 0;
-    final secondsAndMs = parts[1].split('.');
-    final seconds = int.tryParse(secondsAndMs[0]) ?? 0;
-    final milliseconds = secondsAndMs.length > 1 ? int.tryParse(
-        secondsAndMs[1]) ?? 0 : 0;
+    final hours = int.tryParse(parts[0]) ?? 0;
+    final minutes = int.tryParse(parts[1]) ?? 0;
+    final seconds = int.tryParse(parts[2]) ?? 0;
+    final milliseconds = int.tryParse(parts[3].padRight(3, '0')) ?? 0;
 
     return Duration(
-        minutes: minutes, seconds: seconds, milliseconds: milliseconds);
+      hours: hours,
+      minutes: minutes,
+      seconds: seconds,
+      milliseconds: milliseconds,
+    );
+
   }
-    String _getCurrentTimeCode() {
-      if (_currentMode == VideoMode.uploaded && _player != null) {
-        // Для загруженного видео используем позицию плеера
-        final position = _player!.state.position;
-        final minutes = position.inMinutes;
-        final seconds = position.inSeconds % 60;
-        final milliseconds = position.inMilliseconds % 1000;
-        return "${minutes.toString()}:${seconds.toString().padLeft(
-            2, '0')}:${milliseconds.toString().padLeft(2, '0')}";
-      } else if (_currentMode == VideoMode.camera) {
-        // Для камеры используем таймер
-        final minutes = _currentCameraDuration.inMinutes;
-        final seconds = _currentCameraDuration.inSeconds % 60;
-        final milliseconds = _currentCameraDuration.inMilliseconds % 1000;
-        return "${minutes.toString()}:${seconds.toString().padLeft(
-            2, '0')}:${milliseconds.toString().padLeft(2, '0')}";
-      }
-      return "0:00:00";
-    }
+  String _getCurrentTimeCode() {
+    final duration = (_currentMode == VideoMode.uploaded && _player != null)
+        ? _player!.state.position
+        : _currentCameraDuration;
+
+    final hours = duration.inHours;
+    final minutes = duration.inMinutes % 60;
+    final seconds = duration.inSeconds % 60;
+    final milliseconds = duration.inMilliseconds % 1000;
+
+    return "${hours.toString().padLeft(2, '0')}:"
+          "${minutes.toString().padLeft(2, '0')}:"
+          "${seconds.toString().padLeft(2, '0')}:"
+          "${milliseconds.toString().padLeft(3, '0')}";
+  }
+
+    // String _getCurrentTimeCode() {
+    //   if (_currentMode == VideoMode.uploaded && _player != null) {
+    //     // Для загруженного видео используем позицию плеера
+    //     final position = _player!.state.position;
+    //     final minutes = position.inMinutes;
+    //     final seconds = position.inSeconds % 60;
+    //     final milliseconds = position.inMilliseconds % 1000;
+    //     return "${minutes.toString()}:${seconds.toString().padLeft(
+    //         2, '0')}:${milliseconds.toString().padLeft(2, '0')}";
+    //   } else if (_currentMode == VideoMode.camera) {
+    //     // Для камеры используем таймер
+    //     final minutes = _currentCameraDuration.inMinutes;
+    //     final seconds = _currentCameraDuration.inSeconds % 60;
+    //     final milliseconds = _currentCameraDuration.inMilliseconds % 1000;
+    //     return "${minutes.toString()}:${seconds.toString().padLeft(
+    //         2, '0')}:${milliseconds.toString().padLeft(2, '0')}";
+    //   }
+    //   return "0:00:00";
+    // }
     Future<void> exportText() async {
       if (_fullTranscript == null || _fullTranscript!.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -799,9 +833,10 @@ class _MainPageLayoutState extends State<MainPageLayout> {
 // Обработчик клика по пометке на таймлайне
     void _onMarkerTap(Duration timestamp) {
       if (_currentMode == VideoMode.uploaded && _player != null) {
-        _player!.seek(timestamp);
+        _player!.seek(roundedToFrame(timestamp));
       }
     }
+
 
     Widget _buildVideoArea() {
       switch (_currentMode) {
