@@ -80,7 +80,17 @@ def create_examination(
 
 @router.get("/examinations/", response_model=List[ExaminationResponse])
 def get_examinations(db: Session = Depends(get_db)):
-    return db.query(Examination).order_by(Examination.date.desc()).all()
+    exams = db.query(Examination).order_by(Examination.date.desc()).all()
+    return [
+        {
+            "id": str(e.id),
+            "patient_id": str(e.patient_id),
+            "description": e.description,
+            "date": e.date,
+            "video_id": e.video_id,
+            "folder_path": e.folder_path
+        } for e in exams
+    ]
 
 
 @router.get("/examinations/{exam_id}", response_model=ExaminationResponse)
@@ -88,7 +98,14 @@ def get_examination(exam_id: int, db: Session = Depends(get_db)):
     exam = db.query(Examination).filter(Examination.id == exam_id).first()
     if not exam:
         raise HTTPException(status_code=404, detail="Осмотр не найден")
-    return exam
+    return {
+        "id": str(exam.id),
+        "patient_id": str(exam.patient_id),
+        "description": exam.description,
+        "date": exam.date,
+        "video_id": exam.video_id,
+        "folder_path": exam.folder_path
+    }
 
 
 @router.post("/examinations/{examination_id}/video/")
