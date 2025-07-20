@@ -3,11 +3,12 @@
 from sqlalchemy import Column, String, ForeignKey, DateTime, func
 from sqlalchemy.orm import relationship
 from videoQueries.database import Base  # Импорт единого Base
+from sqlalchemy import Integer, Column, Sequence
 
 
 class Examination(Base):
     __tablename__ = "examinations"
-    id = Column(String, primary_key=True, index=True)
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     patient_id = Column(String, ForeignKey("patients.id"))
     description = Column(String)
     date = Column(DateTime, default=func.now())
@@ -19,4 +20,4 @@ class Examination(Base):
     # связь с видео
     video = relationship("Video", back_populates="examination", uselist=False)
     #связь с детекцией
-    #detections = relationship("Detection", back_populates="examination", cascade="all, delete")
+    detections = relationship("Detection", back_populates="examination", cascade="all, delete")

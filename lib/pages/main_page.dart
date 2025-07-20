@@ -1,26 +1,27 @@
 import 'dart:async';
-import 'dart:io';
-import 'dart:typed_data';
-import 'dart:ui' as ui;
 import 'dart:convert';
+import 'dart:io';
+import 'dart:math' as math;
+import 'dart:typed_data';
 
+import 'package:archive/archive.dart';
+import 'package:endoscopy_tool/modules/ApiService.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:http/http.dart' as http;
 import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
-import 'package:ffmpeg_kit_flutter_new/ffmpeg_kit.dart';
-import 'package:ffmpeg_kit_flutter_new/return_code.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:file_picker/file_picker.dart';
 
 import 'package:endoscopy_tool/pages/patient_library.dart';
-import 'package:endoscopy_tool/widgets/video_player_widget.dart';
 import 'package:endoscopy_tool/widgets/screenshot_button_widget.dart';
 import 'package:endoscopy_tool/widgets/video_capturing_widget.dart';
-import '../main.dart';
-import '../widgets/VoiceCommandService.dart';
+
+import '../modules/detection_models.dart';
+import '../modules/VoiceCommandService.dart';
 import '../widgets/ScreenShotsEditorDialog.dart';
+import '../widgets/video_player_widget.dart';
 
 // Enum to define different video modes
 enum VideoMode {
@@ -30,10 +31,11 @@ enum VideoMode {
 
 // Модель для хранения данных скриншота
 class ScreenshotItem {
-  final String screenshotId; // ID скриншота из базы данных
+  final String screenshotId;
   final String filename;
   final String filePath;
-  final String timestampInVideo;
+  final String timestampInVideo; // Формат: "mm:ss.mmm"
+  final Duration timestampDuration; // Точное время в миллисекундах
   final Uint8List? imageBytes;
 
   ScreenshotItem({
@@ -41,24 +43,66 @@ class ScreenshotItem {
     required this.filename,
     required this.filePath,
     required this.timestampInVideo,
+    required this.timestampDuration,
     this.imageBytes,
   });
 
   // Фабричный метод для создания из JSON
   factory ScreenshotItem.fromJson(Map<String, dynamic> json) {
+    final timecodeStr = json['timestamp_in_video'] as String? ?? '00:00:00:000';
+    final timestampDuration = ScreenshotItem._parseDurationWithMs(timecodeStr);
+
     return ScreenshotItem(
       screenshotId: json['screenshot_id'].toString(),
       filename: json['filename'] ?? '',
       filePath: json['file_path'] ?? '',
-      timestampInVideo: json['timestamp_in_video'] ?? '0:00',
+      timestampInVideo: timecodeStr,
+      timestampDuration: timestampDuration,
     );
   }
+
+
+  // Статический метод для парсинга времени с миллисекундами
+  static Duration _parseDurationWithMs(String timeString) {
+    final parts = timeString.split(':');
+    if (parts.length != 4) return Duration.zero;
+
+    final hours = int.tryParse(parts[0]) ?? 0;
+    final minutes = int.tryParse(parts[1]) ?? 0;
+    final seconds = int.tryParse(parts[2]) ?? 0;
+    final ms = int.tryParse(parts[3].padRight(3, '0')) ?? 0;
+    return Duration(
+      hours: hours,
+      minutes: minutes,
+      seconds: seconds,
+      milliseconds: ms,
+    );
+  }
+}
+
+
+class DetectionSegmentMarker {
+  final Duration startTime;
+  final Duration endTime;
+  final String label;
+  final double confidence;
+  final int detectionCount;
+  final String type;
+
+  DetectionSegmentMarker({
+    required this.startTime,
+    required this.endTime,
+    required this.label,
+    required this.confidence,
+    required this.detectionCount,
+    required this.type,
+  });
 }
 
 class MainPage extends StatelessWidget {
   final String? videoPath;
   final VideoMode initialMode;
-  final String? examinationId; // Добавляем ID осмотра для работы со скриншотами
+  final String? examinationId;
 
   const MainPage({
     super.key,
@@ -97,8 +141,13 @@ class MainPageLayout extends StatefulWidget {
 }
 
 class _MainPageLayoutState extends State<MainPageLayout> {
-  final GlobalKey _screenshotKey = GlobalKey();
   final GlobalKey<ScreenshotButtonState> screenshotButtonKey = GlobalKey();
+
+  final GlobalKey _uploadedVideoScreenshotKey = GlobalKey();
+  final GlobalKey _cameraScreenshotKey = GlobalKey();
+
+  //Flag to trigger vosk
+  bool flag = false;
 
   File? _convertedFile;
   bool _isLoading = false;
@@ -107,8 +156,14 @@ class _MainPageLayoutState extends State<MainPageLayout> {
   // Константы для API
   static const String BASE_URL = 'http://127.0.0.1:8000';
 
+  // Параметры видео для покадровой навигации
+  double _videoFps = 10.0; // FPS по умолчанию
+  Duration get _frameStep => Duration(milliseconds: (1000 / _videoFps).round());
+
   // Screenshot management
   List<ScreenshotItem> screenshots = [];
+  List<DetectionBox> _allDetections = [];
+  List<DetectionSegment> _detectionSegments = [];
 
   // Video mode state
   late VideoMode _currentMode;
@@ -122,6 +177,12 @@ class _MainPageLayoutState extends State<MainPageLayout> {
   Timer? _cameraTimer;
   DateTime? _cameraStartTime;
   Duration _currentCameraDuration = Duration.zero;
+
+  // Добавить после других переменных состояния
+  String? _fullTranscript; // Для хранения полной расшифровки
+  StreamSubscription<
+      String>? _transcriptSubscription; // Подписка на транскрипцию
+  String? transcript;
 
   // Voice command subscription
   StreamSubscription<String>? _voiceSubscription;
@@ -137,12 +198,27 @@ class _MainPageLayoutState extends State<MainPageLayout> {
     _voiceSubscription = voiceService.commandStream.listen((command) {
       print('[MainPageLayout] 🎤 Получена команда: $command');
 
-      if (command.toLowerCase().contains('скриншот') ||
-          command.toLowerCase().contains('screenshot')) {
+      if ((command.toLowerCase().contains('скриншот') ||
+          command.toLowerCase().contains('screenshot')) && flag == true) {
         print('[MainPageLayout] 🎤 Выполняем скриншот...');
         screenshotButtonKey.currentState?.captureAndSaveScreenshot(context);
       }
+    }, onError: (error) {
+      print('[MainPageLayout] ❌ Ошибка в потоке команд: $error');
     });
+
+// Подписка на транскрипцию
+    _transcriptSubscription =
+        voiceService.transcriptStream.listen((transcript) {
+          print('[MainPageLayout] 📝 Получена полная транскрипция: ${transcript
+              .length} символов');
+          setState(() {
+            _fullTranscript = transcript;
+          });
+        }, onError: (error) {
+          print('[MainPageLayout] ❌ Ошибка в потоке транскрипции: $error');
+        });
+
     // Initialize based on the initial mode
     if (_currentMode == VideoMode.uploaded && _currentVideoPath != null) {
       _initializeVideoPlayer();
@@ -154,13 +230,51 @@ class _MainPageLayoutState extends State<MainPageLayout> {
   }
 
   void _initializeVideoPlayer() {
+    print(
+        '_initializeVideoPlayer: детекций перед инициализацией: ${_allDetections
+            .length}');
+
+    flag = false;
     _player = Player();
     _videoController = VideoController(_player!);
     _prepareAndPlay(_currentVideoPath!);
+
+    print(
+        '_initializeVideoPlayer: детекций после инициализации: ${_allDetections
+            .length}');
+  }
+
+  // Покадровая навигация
+  void _seekFrameForward() {
+    if (_currentMode == VideoMode.uploaded && _player != null) {
+      final currentPosition = _player!.state.position;
+      final newPosition = currentPosition + _frameStep;
+      _player!.seek(newPosition);
+    }
+  }
+
+  void _seekFrameBackward() {
+    if (_currentMode == VideoMode.uploaded && _player != null) {
+      final currentPosition = _player!.state.position;
+      final newPosition = currentPosition - _frameStep;
+      if (newPosition >= Duration.zero) {
+        _player!.seek(newPosition);
+      } else {
+        _player!.seek(Duration.zero);
+      }
+    }
+  }
+
+  // Точная навигация по времени (с миллисекундами)
+  void _seekToExactTime(Duration duration) {
+    if (_currentMode == VideoMode.uploaded && _player != null) {
+      _player!.seek(duration);
+    }
   }
 
   // Методы для работы с таймером камеры
   void _startCameraTimer() {
+    flag = true;
     _cameraStartTime = DateTime.now();
     _currentCameraDuration = Duration.zero;
 
@@ -185,6 +299,13 @@ class _MainPageLayoutState extends State<MainPageLayout> {
     _startCameraTimer();
   }
 
+  void handleDetection(Map<String, dynamic> detection) {
+    final label = detection['label'];
+    final confidence = detection['confidence'];
+    // print(label);
+  }
+
+
   // Method to switch to upload video mode
   Future<void> _switchToUploadMode() async {
     // Stop camera timer when switching to upload mode
@@ -202,11 +323,16 @@ class _MainPageLayoutState extends State<MainPageLayout> {
         _currentVideoPath = result.files.single.path;
       });
 
+      ApiService.connectToVideoWebSocket(examinationId: widget.examinationId!,
+          videoPath: _currentVideoPath!,
+          onDetection: handleDetection);
+
       // Dispose previous player if exists
       _disposeVideoPlayer();
 
       // Initialize new player
       _initializeVideoPlayer();
+      flag = false;
     }
   }
 
@@ -216,36 +342,124 @@ class _MainPageLayoutState extends State<MainPageLayout> {
       _currentMode = VideoMode.camera;
       _currentVideoPath = null;
     });
-
+    flag = true;
     // Dispose video player when switching to camera
     _disposeVideoPlayer();
   }
 
+//
   // Method to handle captured video file - opens it immediately
-  void _onVideoCaptured(String capturedVideoPath) {
+  void _onVideoCaptured(String capturedVideoPath, {List<DetectionBox>? detections}) {
     print('Video captured and saved: $capturedVideoPath');
 
-    // Stop camera timer since we're switching to uploaded mode
+    // Сначала останавливаем камеру и очищаем ресурсы
+    transcript = voiceService.latestTranscript;
     _stopCameraTimer();
 
-    setState(() {
-      _currentMode = VideoMode.uploaded;
-      _currentVideoPath = capturedVideoPath;
-    });
 
-    // Dispose previous player if exists
-    _disposeVideoPlayer();
+    // Обновляем состояние
+    if (mounted) { // Проверяем, что виджет еще в дереве
+      setState(() {
+        if (detections != null) {
+          _allDetections = List.from(detections);
+          _detectionSegments = _processDetectionsIntoSegments(_allDetections);
+          print('setState: Детекций установлено: ${_allDetections.length}');
+        }
 
-    // Initialize player with captured video
-    _initializeVideoPlayer();
+        _currentMode = VideoMode.uploaded;
+        _currentVideoPath = capturedVideoPath;
+      });
 
-    // Show success message
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Video captured and loaded: ${capturedVideoPath.split('/').last}'),
-        backgroundColor: const Color(0xFF00ACAB),
-      ),
-    );
+      print('После setState: Детекций в _allDetections: ${_allDetections
+          .length}');
+
+      flag = false;
+      _disposeVideoPlayer();
+
+      // Добавляем задержку для инициализации плеера
+      Future.delayed(Duration(milliseconds: 200), () {
+        if (mounted) {
+          _initializeVideoPlayer();
+        }
+      });
+    }
+  }
+
+  List<DetectionSegment> _processDetectionsIntoSegments(List<DetectionBox> detections) {
+    if (detections.isEmpty) return [];
+
+    // Группируем детекции по типу (label)
+    Map<String, List<DetectionBox>> detectionsByLabel = {};
+    for (var detection in detections) {
+      detectionsByLabel.putIfAbsent(detection.label, () => []).add(detection);
+    }
+
+    List<DetectionSegment> segments = [];
+
+    for (var entry in detectionsByLabel.entries) {
+      String label = entry.key;
+      List<DetectionBox> labelDetections = entry.value;
+
+      // Сортируем по времени
+      labelDetections.sort((a, b) => a.timestamp.compareTo(b.timestamp));
+
+      Duration gapThreshold = Duration(seconds: 2);
+
+      Duration? currentSegmentStart;
+      Duration? currentSegmentEnd;
+      double maxConfidence = 0.0;
+      int detectionCount = 0;
+
+      for (int i = 0; i < labelDetections.length; i++) {
+        DetectionBox detection = labelDetections[i];
+
+        if (currentSegmentStart == null) {
+          // Начинаем новый сегмент
+          currentSegmentStart = detection.timestamp;
+          currentSegmentEnd = detection.timestamp;
+          maxConfidence = detection.confidence;
+          detectionCount = 1;
+        } else {
+          // Проверяем, нужно ли продолжить текущий сегмент или начать новый
+          Duration gap = detection.timestamp - currentSegmentEnd!;
+
+          if (gap <= gapThreshold) {
+            // Продолжаем текущий сегмент
+            currentSegmentEnd = detection.timestamp;
+            maxConfidence = math.max(maxConfidence, detection.confidence);
+            detectionCount++;
+          } else {
+            // Сохраняем текущий сегмент и начинаем новый
+            segments.add(DetectionSegment(
+              startTime: currentSegmentStart,
+              endTime: currentSegmentEnd,
+              label: label,
+              maxConfidence: maxConfidence,
+              detectionCount: detectionCount,
+            ));
+
+            // Начинаем новый сегмент
+            currentSegmentStart = detection.timestamp;
+            currentSegmentEnd = detection.timestamp;
+            maxConfidence = detection.confidence;
+            detectionCount = 1;
+          }
+        }
+      }
+
+      // Не забываем сохранить последний сегмент
+      if (currentSegmentStart != null && currentSegmentEnd != null) {
+        segments.add(DetectionSegment(
+          startTime: currentSegmentStart,
+          endTime: currentSegmentEnd,
+          label: label,
+          maxConfidence: maxConfidence,
+          detectionCount: detectionCount,
+        ));
+      }
+    }
+
+    return segments;
   }
 
   void _disposeVideoPlayer() {
@@ -274,13 +488,15 @@ class _MainPageLayoutState extends State<MainPageLayout> {
           final screenshotItem = ScreenshotItem.fromJson(screenshotData);
 
           // Загружаем изображение для каждого скриншота
-          final imageBytes = await _loadScreenshotImage(screenshotItem.screenshotId);
+          final imageBytes = await _loadScreenshotImage(
+              screenshotItem.screenshotId);
 
           loadedScreenshots.add(ScreenshotItem(
             screenshotId: screenshotItem.screenshotId,
             filename: screenshotItem.filename,
             filePath: screenshotItem.filePath,
             timestampInVideo: screenshotItem.timestampInVideo,
+            timestampDuration: screenshotItem.timestampDuration,
             imageBytes: imageBytes,
           ));
         }
@@ -296,15 +512,30 @@ class _MainPageLayoutState extends State<MainPageLayout> {
     }
   }
 
-  // Метод для загрузки изображения скриншота (возвращает binary data)
-  Future<Uint8List?> _loadScreenshotImage(String screenshotId) async {
+  // Метод для загрузки изображения скриншота
+  Future<Uint8List?> _loadScreenshotImage(String screenshotId, {bool annotated = false}) async {
     try {
       final response = await http.get(
         Uri.parse('$BASE_URL/screenshots/$screenshotId/file'),
       );
 
       if (response.statusCode == 200) {
-        return response.bodyBytes;
+        // Extract the ZIP file
+        final Archive archive = ZipDecoder().decodeBytes(response.bodyBytes);
+
+        // Look for the desired file in the ZIP
+        final String targetFilename = annotated ? 'annotated.jpg' : 'original.jpg';
+        
+        try {
+          final ArchiveFile imageFile = archive.files.firstWhere(
+            (file) => file.name == targetFilename,
+          );
+
+          return Uint8List.fromList(imageFile.content as List<int>);
+        } catch (e) {
+          print('Image not found in ZIP: $targetFilename');
+          return null;
+        }
       } else {
         print('Failed to load screenshot image: ${response.statusCode}');
         return null;
@@ -315,7 +546,7 @@ class _MainPageLayoutState extends State<MainPageLayout> {
     }
   }
 
-  // Метод для загрузки скриншота на сервер
+  // Обновленный метод для загрузки скриншота на сервер с точным временем
   Future<String?> _uploadScreenshot(Uint8List imageBytes, String timestampInVideo) async {
     if (widget.examinationId == null) return null;
 
@@ -330,12 +561,15 @@ class _MainPageLayoutState extends State<MainPageLayout> {
         http.MultipartFile.fromBytes(
           'file',
           imageBytes,
-          filename: 'screenshot_${DateTime.now().millisecondsSinceEpoch}.png',
+          filename: 'screenshot_${DateTime
+              .now()
+              .millisecondsSinceEpoch}.png',
         ),
       );
 
       // Добавляем обязательные поля
       request.fields['exam_id'] = widget.examinationId!;
+      print("timestampInVideo: $timestampInVideo");
       request.fields['timestamp_in_video'] = timestampInVideo;
 
       final response = await request.send();
@@ -343,7 +577,8 @@ class _MainPageLayoutState extends State<MainPageLayout> {
       if (response.statusCode == 200 || response.statusCode == 201) {
         final responseBody = await response.stream.bytesToString();
         final responseData = json.decode(responseBody);
-        return responseData['screenshot_id']?.toString() ?? responseData['id']?.toString();
+        return responseData['screenshot_id']?.toString() ??
+            responseData['id']?.toString();
       } else {
         print('Failed to upload screenshot: ${response.statusCode}');
         return null;
@@ -361,7 +596,10 @@ class _MainPageLayoutState extends State<MainPageLayout> {
     });
 
     final inputFile = File(inputPath);
-    final extension = inputFile.path.split('.').last.toLowerCase();
+    final extension = inputFile.path
+        .split('.')
+        .last
+        .toLowerCase();
 
     File playableFile = inputFile;
 
@@ -372,7 +610,6 @@ class _MainPageLayoutState extends State<MainPageLayout> {
         playableFile = mp4File;
         _convertedFile = mp4File;
       } else {
-        _showError('Video conversion failed');
         return;
       }
     }
@@ -384,359 +621,624 @@ class _MainPageLayoutState extends State<MainPageLayout> {
   }
 
   Future<File?> _convertToMp4(File inputFile) async {
-    final tempDir = await getTemporaryDirectory();
-    final outputPath = '${tempDir.path}/${DateTime.now().millisecondsSinceEpoch}.mp4';
+    try {
+      final tempDir = await getTemporaryDirectory();
+      final outputPath = '${tempDir.path}/${DateTime.now().millisecondsSinceEpoch}.mp4';
 
-    final command = '-i "${inputFile.path}" -c copy "$outputPath"';
+      // Проверяем, является ли файл уже MP4
+      if (inputFile.path.toLowerCase().endsWith('.mp4')) {
+        final outputFile = await inputFile.copy(outputPath);
+        print('File already in MP4 format, copied: $outputPath');
+        return outputFile;
+      }
 
-    print('Running FFmpeg command: $command');
-    final session = await FFmpegKit.execute(command);
-    final returnCode = await session.getReturnCode();
+      // Для других форматов можно использовать нативные команды
+      if (Platform.isWindows) {
+        return await _convertWithWindowsCommands(inputFile, outputPath);
+      } else if (Platform.isMacOS) {
+        return await _convertWithMacCommands(inputFile, outputPath);
+      }
 
-    if (ReturnCode.isSuccess(returnCode)) {
-      print('FFmpeg conversion succeeded: $outputPath');
-      return File(outputPath);
-    } else {
-      final log = await session.getAllLogsAsString();
-      print('FFmpeg failed: $log');
-      _showError("Video conversion failed. Please try a different file.");
+      // Fallback - простое копирование
+      final outputFile = await inputFile.copy(outputPath);
+      return outputFile;
+    } catch (e) {
+      print('Error converting to MP4: $e');
       return null;
     }
   }
 
-  void _showError(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
-    setState(() {
-      _isLoading = false;
-    });
+  Future<File?> _convertWithWindowsCommands(File inputFile, String outputPath) async {
+    try {
+      // Используем встроенную команду Windows (если доступна)
+      final result = await Process.run(
+        'powershell',
+        [
+          '-Command',
+          'Copy-Item "${inputFile.path}" "$outputPath"'
+        ],
+        runInShell: true,
+      );
+
+      if (result.exitCode == 0) {
+        print('Windows conversion succeeded: $outputPath');
+        return File(outputPath);
+      } else {
+        print('Windows conversion failed: ${result.stderr}');
+        return null;
+      }
+    } catch (e) {
+      print('Error with Windows conversion: $e');
+      return null;
+    }
   }
+
+  Future<File?> _convertWithMacCommands(File inputFile, String outputPath) async {
+    try {
+      // Используем встроенную команду macOS
+      final result = await Process.run(
+        'cp',
+        [inputFile.path, outputPath],
+        runInShell: true,
+      );
+
+      if (result.exitCode == 0) {
+        print('macOS conversion succeeded: $outputPath');
+        return File(outputPath);
+      } else {
+        print('macOS conversion failed: ${result.stderr}');
+        return null;
+      }
+    } catch (e) {
+      print('Error with macOS conversion: $e');
+      return null;
+    }
+  }
+
+
+Duration roundedToFrame(Duration d) {
+  const frameRate = 30; // or whatever FPS you're using
+  final frameDuration = Duration(milliseconds: (1000 / frameRate).round());
+  final frames = (d.inMilliseconds / frameDuration.inMilliseconds).round();
+  return Duration(milliseconds: frames * frameDuration.inMilliseconds);
+}
 
   void _seekToTimecode(String timeString) {
-    if (_currentMode == VideoMode.uploaded && _player != null) {
-      final duration = _parseDuration(timeString);
-      _player!.seek(duration);
-    }
-    // В режиме камеры переход по таймкоду не имеет смысла, так как это live stream
+  if (_currentMode == VideoMode.uploaded && _player != null) {
+    final duration = _parseDurationWithMs(timeString);
+    debugPrint("Seeking to: $duration");
+    _player!.seek(roundedToFrame(duration));
   }
+}
 
-  Duration _parseDuration(String timeString) {
-    final parts = timeString.split(":");
-    final minutes = int.parse(parts[0]);
-    final seconds = int.parse(parts[1]);
-    return Duration(minutes: minutes, seconds: seconds);
-  }
 
-  // Обновленный метод получения текущего таймкода
-  String _getCurrentTimeCode() {
-    if (_currentMode == VideoMode.uploaded && _player != null) {
-      // Для загруженного видео используем позицию плеера
-      final position = _player!.state.position;
-      final minutes = position.inMinutes;
-      final seconds = position.inSeconds % 60;
-      return "${minutes.toString()}:${seconds.toString().padLeft(2, '0')}";
-    } else if (_currentMode == VideoMode.camera) {
-      // Для камеры используем таймер
-      final minutes = _currentCameraDuration.inMinutes;
-      final seconds = _currentCameraDuration.inSeconds % 60;
-      return "${minutes.toString()}:${seconds.toString().padLeft(2, '0')}";
-    }
-    return "0:00";
-  }
 
-  // Обновленный метод для добавления скриншота с сохранением на сервер
-  Future<void> _addScreenshot(Uint8List imageBytes) async {
-    final currentTimestamp = _getCurrentTimeCode();
+  // Обновленный метод парсинга с миллисекундами
+  Duration _parseDurationWithMs(String timeString) {
+    final parts = timeString.split(':');
+    if (parts.length != 4) return Duration.zero;
 
-    // Сначала добавляем скриншот в локальный список
-    setState(() {
-      screenshots.add(ScreenshotItem(
-        screenshotId: DateTime.now().millisecondsSinceEpoch.toString(),
-        filename: 'screenshot_${DateTime.now().millisecondsSinceEpoch}.png',
-        filePath: '',
-        timestampInVideo: currentTimestamp,
-        imageBytes: imageBytes,
-      ));
-    });
+    final hours = int.tryParse(parts[0]) ?? 0;
+    final minutes = int.tryParse(parts[1]) ?? 0;
+    final seconds = int.tryParse(parts[2]) ?? 0;
+    final milliseconds = int.tryParse(parts[3].padRight(3, '0')) ?? 0;
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Screenshot added at $currentTimestamp')),
+    return Duration(
+      hours: hours,
+      minutes: minutes,
+      seconds: seconds,
+      milliseconds: milliseconds,
     );
 
-    // Параллельно отправляем на сервер (без блокировки UI)
-    if (widget.examinationId != null) {
-      _uploadScreenshot(imageBytes, currentTimestamp).then((screenshotId) {
-        if (screenshotId != null) {
-          print('Screenshot successfully uploaded with ID: $screenshotId');
-        } else {
-          print('Failed to upload screenshot to server');
-        }
-      });
-    }
+  }
+  String _getCurrentTimeCode() {
+    final duration = (_currentMode == VideoMode.uploaded && _player != null)
+        ? _player!.state.position
+        : _currentCameraDuration;
+
+    final hours = duration.inHours;
+    final minutes = duration.inMinutes % 60;
+    final seconds = duration.inSeconds % 60;
+    final milliseconds = duration.inMilliseconds % 1000;
+
+    return "${hours.toString().padLeft(2, '0')}:"
+          "${minutes.toString().padLeft(2, '0')}:"
+          "${seconds.toString().padLeft(2, '0')}:"
+          "${milliseconds.toString().padLeft(3, '0')}";
   }
 
-  void exportText() {}
+    // String _getCurrentTimeCode() {
+    //   if (_currentMode == VideoMode.uploaded && _player != null) {
+    //     // Для загруженного видео используем позицию плеера
+    //     final position = _player!.state.position;
+    //     final minutes = position.inMinutes;
+    //     final seconds = position.inSeconds % 60;
+    //     final milliseconds = position.inMilliseconds % 1000;
+    //     return "${minutes.toString()}:${seconds.toString().padLeft(
+    //         2, '0')}:${milliseconds.toString().padLeft(2, '0')}";
+    //   } else if (_currentMode == VideoMode.camera) {
+    //     // Для камеры используем таймер
+    //     final minutes = _currentCameraDuration.inMinutes;
+    //     final seconds = _currentCameraDuration.inSeconds % 60;
+    //     final milliseconds = _currentCameraDuration.inMilliseconds % 1000;
+    //     return "${minutes.toString()}:${seconds.toString().padLeft(
+    //         2, '0')}:${milliseconds.toString().padLeft(2, '0')}";
+    //   }
+    //   return "0:00:00";
+    // }
+    Future<void> exportText() async {
+      if (_fullTranscript == null || _fullTranscript!.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Расшифровка обследования еще не готова'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+        return;
+      }
 
-  // Build the video area widget based on current mode
-  Widget _buildVideoArea() {
-    switch (_currentMode) {
-      case VideoMode.uploaded:
-        if (_isLoading) {
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const CircularProgressIndicator(color: Color(0xFF00ACAB)),
-                const SizedBox(height: 5),
-                Text(
-                  _loadingMessage ?? "Loading...",
-                  style: const TextStyle(fontSize: 18),
-                ),
-              ],
+      try {
+        // Получаем директорию для сохранения
+        final directory = await getApplicationDocumentsDirectory();
+        final fileName = 'voice_transcript_${DateTime
+            .now()
+            .millisecondsSinceEpoch}.txt';
+        final file = File('${directory.path}/$fileName');
+
+        // Сохраняем транскрипцию в файл
+        await file.writeAsString(_fullTranscript!);
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Расшифровка сохранена: $fileName'),
+            backgroundColor: const Color(0xFF00ACAB),
+            action: SnackBarAction(
+              label: 'Открыть папку',
+              onPressed: () {
+                // Можно добавить функцию для открытия папки
+                print('Файл сохранен: ${file.path}');
+              },
             ),
+          ),
+        );
+      } catch (e) {
+        print('Ошибка при сохранении транскрипции: $e');
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Ошибка при сохранении расшифровки'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+
+  // Получение текущего времени как Duration
+  Duration _getCurrentDuration() {
+    if (_currentMode == VideoMode.uploaded && _player != null) {
+      return _player!.state.position;
+    } else if (_currentMode == VideoMode.camera) {
+      return _currentCameraDuration;
+    }
+    return Duration.zero;
+  }
+
+    //-------------------Time Line--------------------------//
+    List<ScreenshotMarker> _getScreenshotMarkers() {
+      return screenshots.map((screenshot) {
+        return ScreenshotMarker(
+          timestamp: screenshot.timestampDuration,
+          screenshotId: screenshot.screenshotId,
+        );
+      }).toList();
+    }
+
+    List<DetectionSegmentMarker> _getDetectionMarkers() {
+      return _detectionSegments.map((segment) {
+        return DetectionSegmentMarker(
+          startTime: segment.startTime,
+          endTime: segment.endTime,
+          label: segment.label,
+          confidence: segment.maxConfidence,
+          detectionCount: segment.detectionCount,
+          type: 'detection',
+        );
+      }).toList();
+    }
+
+// Обработчик клика по пометке на таймлайне
+    void _onMarkerTap(Duration timestamp) {
+      if (_currentMode == VideoMode.uploaded && _player != null) {
+        _player!.seek(roundedToFrame(timestamp));
+      }
+    }
+
+    Widget _buildVideoArea() {
+      switch (_currentMode) {
+        case VideoMode.uploaded:
+          if (_isLoading) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const CircularProgressIndicator(color: Color(0xFF00ACAB)),
+                  const SizedBox(height: 5),
+                  Text(
+                    _loadingMessage ?? "Loading...",
+                    style: const TextStyle(fontSize: 18),
+                  ),
+                ],
+              ),
+            );
+          }
+          return Stack(
+            children: [
+              _player != null
+                  ? VideoPlayerWidget(
+                screenshotKey: _uploadedVideoScreenshotKey,
+                player: _player!,
+                screenshotMarkers: _getScreenshotMarkers(),
+                detections: _allDetections,
+                onMarkerTap: _onMarkerTap,
+                onDetectionIntervalTap: _onDetectionIntervalTap,
+              )
+                  : const Center(child: Text("Video player not initialized")),
+
+              // Кнопки покадровой навигации
+              if (_player != null)
+                Positioned(
+                  bottom: 105,
+                  left: 0,
+                  right: 0,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      // Кнопка "кадр назад"
+                      Container(
+                        margin: const EdgeInsets.symmetric(horizontal: 30),
+                        child: FloatingActionButton(
+                          elevation: 0,
+                          mini: true,
+                          backgroundColor: const Color(0xFF00ACAB),
+                          onPressed: _seekFrameBackward,
+                          child: const Icon(
+                              Icons.skip_previous, color: Colors.white),
+                          tooltip: "Кадр назад",
+                        ),
+                      ),
+
+                      // Кнопка "кадр вперед"
+                      Container(
+                        margin: const EdgeInsets.symmetric(horizontal: 30),
+                        child: FloatingActionButton(
+                          elevation: 0,
+                          mini: true,
+                          backgroundColor: const Color(0xFF00ACAB),
+                          onPressed: _seekFrameForward,
+                          child: const Icon(
+                              Icons.skip_next, color: Colors.white),
+                          tooltip: "Кадр вперед",
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+            ],
           );
-        }
-        return _player != null
-            ? VideoPlayerWidget(player: _player!)
-            : const Center(child: Text("Video player not initialized"));
 
-      case VideoMode.camera:
-        return Stack(
-          children: [
-            CameraStreamWidget(
-              aspectRatio: 16 / 9,
-              videoWidth: 1280,
-              videoHeight: 720,
-              frameRate: 30,
-              examinationId: widget.examinationId,
-              onVideoCaptured: _onVideoCaptured,
-              startCaptured: _startCameraTimer,
-            ),
-            // Отображаем текущий таймер в углу для режима камеры
-            Positioned(
-              top: 20,
-              right: 20,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.7),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(
-                  _getCurrentTimeCode(),
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
+        case VideoMode.camera:
+          return Stack(
+            children: [
+              CameraStreamWidget(
+                screenshotKey: _cameraScreenshotKey,
+                aspectRatio: 16 / 9,
+                videoWidth: 1280,
+                videoHeight: 720,
+                frameRate: 30,
+                examinationId: widget.examinationId,
+                onVideoCaptured: (path, detections) =>
+                    _onVideoCaptured(path, detections: detections),
+                startCaptured: _startCameraTimer,
+              ),
+              Positioned(
+                bottom: 20,
+                right: 20,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(0.7),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    _getCurrentTimeCode(),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
               ),
-            ),
-          ],
-        );
+            ],
+          );
+      }
     }
-  }
 
-  // Build the control buttons in the sidebar
-  Widget _buildControlButtons() {
-    return Column(
-      children: [
-        // Screenshot button (only available when video is loaded)
-        if (_currentMode == VideoMode.uploaded || _currentMode == VideoMode.camera)
-          ScreenshotButton(
-            key: screenshotButtonKey,
-            screenshotKey: _screenshotKey,
-            examId: widget.examinationId,
-            onScreenshotTaken: _addScreenshot,
-          ),
+    void _onDetectionIntervalTap(DetectionSegment segment) {
+      if (_currentMode == VideoMode.uploaded && _player != null) {
+        _player!.seek(segment.startTime);
+      }
+    }
+    // Обновленный метод форматирования времени с миллисекундами
+    String _formatDurationWithMs(Duration duration) {
+      final minutes = duration.inMinutes.toString().padLeft(2, '0');
+      final seconds = (duration.inSeconds % 60).toString().padLeft(2, '0');
+      final milliseconds = (duration.inMilliseconds % 1000).toString().padLeft(
+          3, '0');
+      return '$minutes:$seconds:$milliseconds';
+    }
+    // Обновленный метод _addScreenshot с точным временем
+    Future<void> _addScreenshot(Uint8List imageBytes) async {
+      final currentTimestamp = _getCurrentTimeCode();
+      final currentDuration = _getCurrentDuration();
 
-        // Screenshots editor button
-        if (screenshots.isNotEmpty)
-          IconButton(
-            onPressed: () {
-              if (screenshots.isNotEmpty && screenshots.first.imageBytes != null) {
-                showDialog(
-                  context: context,
-                  barrierDismissible: false,
-                  builder: (_) => ScreenShotsEditorDialog(
-                    screenshot: MemoryImage(screenshots.first.imageBytes!),
-                    otherScreenshots: screenshots
-                        .skip(1)
-                        .where((s) => s.imageBytes != null)
-                        .map((s) => MemoryImage(s.imageBytes!))
-                        .toList(),
-                  ),
-                );
-              } else {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Нет доступных скриншотов для редактирования')),
+      // Сначала добавляем скриншот в локальный список
+      setState(() {
+        screenshots.add(ScreenshotItem(
+          screenshotId: DateTime
+              .now()
+              .millisecondsSinceEpoch
+              .toString(),
+          filename: 'screenshot_${DateTime
+              .now()
+              .millisecondsSinceEpoch}.png',
+          filePath: '',
+          timestampInVideo: currentTimestamp,
+          timestampDuration: currentDuration,
+          imageBytes: imageBytes,
+        ));
+      });
+
+      // Параллельно отправляем на сервер (без блокировки UI)
+      if (widget.examinationId != null) {
+        _uploadScreenshot(imageBytes, currentTimestamp).then((screenshotId) {
+          if (screenshotId != null) {
+            print('Screenshot successfully uploaded with ID: $screenshotId');
+            // Обновляем ID скриншота после успешной загрузки
+            setState(() {
+              final index = screenshots.length - 1;
+              if (index >= 0) {
+                screenshots[index] = ScreenshotItem(
+                  screenshotId: screenshotId,
+                  filename: screenshots[index].filename,
+                  filePath: screenshots[index].filePath,
+                  timestampInVideo: screenshots[index].timestampInVideo,
+                  timestampDuration: screenshots[index].timestampDuration,
+                  imageBytes: screenshots[index].imageBytes,
                 );
               }
+            });
+          } else {
+            print('Failed to upload screenshot to server');
+          }
+        });
+      }
+    }
+
+
+//----------------------------------------------------------------------------
+    // Build the control buttons in the sidebar
+    Widget _buildControlButtons() {
+      return Column(
+        children: [
+          // Screenshot button (only available when video is loaded)
+          if (_currentMode == VideoMode.uploaded)
+            ScreenshotButton(
+              key: screenshotButtonKey,
+              screenshotKey: _uploadedVideoScreenshotKey,
+              examId: widget.examinationId,
+              onScreenshotTaken: _addScreenshot,
+            )
+          else if (_currentMode == VideoMode.camera)
+            ScreenshotButton(
+              key: screenshotButtonKey,
+              screenshotKey: _cameraScreenshotKey,
+              examId: widget.examinationId,
+              onScreenshotTaken: _addScreenshot,
+            ),
+
+          // Screenshots editor button
+          if (screenshots.isNotEmpty)
+            IconButton(
+              onPressed: () {
+                if (screenshots.isNotEmpty &&
+                    screenshots.first.imageBytes != null) {
+                  showDialog(
+                    context: context,
+                    barrierDismissible: false,
+                    builder: (_) =>
+                        ScreenShotsEditorDialog(
+                          screenshot: MemoryImage(
+                              screenshots.first.imageBytes!),
+                          otherScreenshots: screenshots
+                              .skip(1)
+                              .where((s) => s.imageBytes != null)
+                              .map((s) => MemoryImage(s.imageBytes!))
+                              .toList(),
+                        ),
+                  );
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text(
+                        'Нет доступных скриншотов для редактирования')),
+                  );
+                }
+              },
+              icon: const Icon(
+                Icons.image,
+                color: Color(0xFF00ACAB),
+              ),
+              tooltip: "Edit Screenshots",
+            ),
+
+          // Mode switch buttons
+          IconButton(
+            onPressed: _switchToUploadMode,
+            icon: const Icon(
+              Icons.video_file,
+              color: Color(0xFF00ACAB),
+            ),
+            tooltip: "Upload Video",
+          ),
+          IconButton(
+            onPressed: _switchToCameraMode,
+            icon: const Icon(
+              Icons.videocam,
+              color: Color(0xFF00ACAB),
+            ),
+            tooltip: "Capture Video",
+          ),
+
+          if (_currentMode == VideoMode.uploaded && _fullTranscript != null &&
+              _fullTranscript!.isNotEmpty)
+            IconButton(
+              onPressed: exportText,
+              icon: const Icon(
+                Icons.download_rounded,
+                color: Color(0xFF00ACAB),
+              ),
+              tooltip: "Download voice notes",
+            ),
+          IconButton(
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => EndoscopistApp()),
+              );
             },
             icon: const Icon(
-              Icons.image,
-              color: Color(0xFF00ACAB),
+                Icons.arrow_back_ios_new_rounded,
+                color: Color(0xFF00ACAB)
             ),
-            tooltip: "Edit Screenshots",
+            tooltip: "Back to menu",
           ),
-
-        // Mode switch buttons
-        IconButton(
-          onPressed: _switchToUploadMode,
-          icon: const Icon(
-            Icons.video_file,
-            color: Color(0xFF00ACAB),
-          ),
-          tooltip: "Upload Video",
-        ),
-        IconButton(
-          onPressed: _switchToCameraMode,
-          icon: const Icon(
-            Icons.videocam,
-            color: Color(0xFF00ACAB),
-          ),
-          tooltip: "Capture Video",
-        ),
-
-        // Reset camera timer button (only in camera mode)
-        if (_currentMode == VideoMode.camera)
-          IconButton(
-            onPressed: _resetCameraTimer,
-            icon: const Icon(
-              Icons.refresh,
-              color: Color(0xFF00ACAB),
-            ),
-            tooltip: "Reset Timer",
-          ),
-
-        IconButton(
-          onPressed: exportText,
-          icon: const Icon(
-            Icons.download_rounded,
-            color: Color(0xFF00ACAB),
-          ),
-        ),
-        IconButton(
-          onPressed: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => EndoscopistApp()),
-            );
-          },
-          icon: const Icon(Icons.arrow_back_ios_new_rounded,
-              color: Color(0xFF00ACAB)),
-        ),
-        IconButton(
+          /*IconButton(
           onPressed: exportText,
           icon: const Icon(
             Icons.settings_rounded,
             color: Color(0xFF00ACAB),
           ),
-        ),
-      ],
-    );
-  }
+          tooltip: "Settings",
+        ),*/ //Settings??
+        ],
+      );
+    }
 
-  @override
-  void dispose() {
-    _voiceSubscription?.cancel();
-    _stopCameraTimer(); // Останавливаем таймер при dispose
-    _disposeVideoPlayer();
-    super.dispose();
-  }
+    @override
+    void dispose() {
+      _voiceSubscription?.cancel();
+      _stopCameraTimer();
+      _transcriptSubscription?.cancel();
+      _disposeVideoPlayer();
+      super.dispose();
+    }
 
-  @override
-  Widget build(BuildContext context) {
-    Size screenSize = MediaQuery.of(context).size;
+    @override
+    Widget build(BuildContext context) {
+      Size screenSize = MediaQuery
+          .of(context)
+          .size;
 
-    return Scaffold(
-      backgroundColor: Colors.white,
-      body: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Sidebar List - Updated to show screenshots instead of timecodes
-          if (_currentMode == VideoMode.uploaded || _currentMode == VideoMode.camera)
-            Container(
-              height: screenSize.height,
-              width: 200,
-              margin: const EdgeInsets.symmetric(vertical: 5, horizontal: 5),
-              decoration: BoxDecoration(
-                color: const Color(0xFFFFFFFF),
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: screenshots.isEmpty
-                  ? const Center(
-                child: Text(
-                  'No screenshots yet',
-                  style: TextStyle(
-                    color: Colors.grey,
-                    fontSize: 16,
-                  ),
+      return Scaffold(
+        backgroundColor: Colors.white,
+        body: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Sidebar List - Updated to show screenshots instead of timecodes
+            if (_currentMode == VideoMode.uploaded ||
+                _currentMode == VideoMode.camera)
+              Container(
+                height: screenSize.height,
+                width: 200,
+                margin: const EdgeInsets.symmetric(vertical: 5, horizontal: 5),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFFFFF),
+                  borderRadius: BorderRadius.circular(20),
                 ),
-              )
-                  : ListView.builder(
-                itemCount: screenshots.length,
-                itemBuilder: (context, index) {
-                  final screenshot = screenshots[index];
-                  return GestureDetector(
-                    onTap: () => _seekToTimecode(screenshot.timestampInVideo),
-                    child: Container(
-                      height: 100,
-                      width: 50,
-                      margin: const EdgeInsets.only(bottom: 10),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF00ACAB),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Row(
-                        children: [
-                          Container(
-                            width: 100,
-                            height: 80,
-                            margin: const EdgeInsets.symmetric(horizontal: 10),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            child: screenshot.imageBytes != null
-                                ? ClipRRect(
-                              borderRadius: BorderRadius.circular(10),
-                              child: Image.memory(
-                                screenshot.imageBytes!,
-                                fit: BoxFit.cover,
+                child: screenshots.isEmpty
+                    ? const Center(
+                  child: Text(
+                    'No screenshots yet',
+                    style: TextStyle(
+                      color: Colors.grey,
+                      fontSize: 16,
+                    ),
+                  ),
+                )
+                    : ListView.builder(
+                  itemCount: screenshots.length,
+                  itemBuilder: (context, index) {
+                    final screenshot = screenshots[index];
+                    return GestureDetector(
+                      onTap: () => _seekToTimecode(screenshot.timestampInVideo),
+                      child: Container(
+                        height: 100,
+                        width: 50,
+                        margin: const EdgeInsets.only(bottom: 10),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF00ACAB),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 100,
+                              height: 80,
+                              margin: const EdgeInsets.symmetric(
+                                  horizontal: 10),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(10),
                               ),
-                            )
-                                : const Icon(
-                              Icons.image,
-                              color: Colors.grey,
-                              size: 40,
+                              child: screenshot.imageBytes != null
+                                  ? ClipRRect(
+                                borderRadius: BorderRadius.circular(10),
+                                child: Image.memory(
+                                  screenshot.imageBytes!,
+                                  fit: BoxFit.cover,
+                                ),
+                              )
+                                  : const Icon(
+                                Icons.image,
+                                color: Colors.grey,
+                                size: 40,
+                              ),
                             ),
-                          ),
-                          Expanded(
-                            child: Center(
-                              child: Text(
-                                screenshot.timestampInVideo,
-                                style: const TextStyle(
-                                  fontSize: 24,
-                                  fontFamily: 'Nunito',
-                                  color: Colors.white,
+                            Expanded(
+                              child: Center(
+                                child: Text(
+                                  screenshot.timestampInVideo,
+                                  style: const TextStyle(
+                                    fontSize: 24,
+                                    fontFamily: 'Nunito',
+                                    color: Colors.white,
+                                  ),
                                 ),
                               ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
-                    ),
-                  );
-                },
+                    );
+                  },
+                ),
               ),
-            ),
 
-          // Video Area
-          RepaintBoundary(
-            key: _screenshotKey,
-            child: Container(
+            // Video Area
+            Container(
               height: screenSize.height,
-              width: (_currentMode == VideoMode.uploaded || _currentMode == VideoMode.camera)
+              width: (_currentMode == VideoMode.uploaded ||
+                  _currentMode == VideoMode.camera)
                   ? screenSize.width - 260
                   : screenSize.width - 60,
               margin: const EdgeInsets.symmetric(vertical: 5),
@@ -750,19 +1252,18 @@ class _MainPageLayoutState extends State<MainPageLayout> {
                 child: _buildVideoArea(),
               ),
             ),
-          ),
 
-          // Navigation & Controls
-          Container(
-            margin: const EdgeInsets.symmetric(vertical: 5, horizontal: 5),
-            decoration: BoxDecoration(
-              color: const Color(0xFFFFFFFF),
-              borderRadius: BorderRadius.circular(20),
+            // Navigation & Controls
+            Container(
+              margin: const EdgeInsets.symmetric(vertical: 5, horizontal: 5),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFFFFF),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: _buildControlButtons(),
             ),
-            child: _buildControlButtons(),
-          ),
-        ],
-      ),
-    );
+          ],
+        ),
+      );
+    }
   }
-}

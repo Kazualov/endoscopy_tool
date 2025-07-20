@@ -1,3 +1,5 @@
+import sys
+
 from fastapi import APIRouter, UploadFile, File, Form, Depends, HTTPException
 from sqlalchemy.orm import Session
 from fastapi.responses import FileResponse
@@ -11,8 +13,8 @@ router = APIRouter()
 
 
 
-VIDEO_DIR = Path(__file__).resolve().parent.parent / "data" / "videos"
-
+#VIDEO_DIR = Path(__file__).resolve().parent.parent / "data" / "videos"
+VIDEO_DIR = Path("./examinations_storage")
 
 @router.post("/upload/")
 async def upload_video(
@@ -67,6 +69,15 @@ def get_video(video_id: str, db: Session = Depends(get_db)):
     if not video:
         raise HTTPException(status_code=404, detail="Video not found")
 
+    print(video.file_path)
+
+    print("FOUND")
+    print(os.path.exists(video.file_path))
+    if not video.file_path.lower().endswith(('.mp4', '.mov', '.avi', '.mkv', '.webm')):
+        raise HTTPException(status_code=400, detail="Неверный формат видеофайла")
+    else:
+        abs_path = Path(video.file_path).resolve()
+
     return {
         "video_id": video.id,
         "filename": video.filename,
@@ -76,6 +87,7 @@ def get_video(video_id: str, db: Session = Depends(get_db)):
         "timestamp": video.timestamp,
         "file_path": video.file_path
     }
+
 
 
 #Получение видео по ID
@@ -108,15 +120,24 @@ def delete_video(video_id: str, db: Session = Depends(get_db)):
 
 @router.get("/examinations/{exam_id}/video")
 def get_video_by_examination(exam_id: str, db: Session = Depends(get_db)):
+    print(f"Looking for examination {exam_id}")  # Debug
     exam = db.query(Examination).filter(Examination.id == exam_id).first()
     if not exam:
+        print("Examination not found")  # Debug
         raise HTTPException(status_code=404, detail="Осмотр не найден")
 
     if not exam.video:
+        print("No video associated with examination")  # Debug
         raise HTTPException(status_code=404, detail="Видео для осмотра не найдено")
 
+    print(f"Video path: {exam.video.file_path}")  # Debug
     if not os.path.exists(exam.video.file_path):
+        print("Video file not found on disk")  # Debug
         raise HTTPException(status_code=404, detail="Файл видео не существует на диске")
 
-    return FileResponse(path=exam.video.file_path, media_type="video/mp4", filename=exam.video.filename)
+    return FileResponse(
+        path=exam.video.file_path,
+        media_type="video/mp4",  # Consider detecting actual type
+        filename=exam.video.filename
+    )
 
