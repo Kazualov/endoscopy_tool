@@ -69,3 +69,4 @@
 **Date**: [18.07.2025]   
 
 **Recording**: [https://disk.yandex.ru/client/disk/Recording_for_report] 
+**Transcription** All the important information from the recording was immediately recorded in the report, so everything is in this report at the top
