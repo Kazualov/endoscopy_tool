@@ -816,7 +816,6 @@ class ScreenshotEditorState extends State<ScreenshotEditor> with TickerProviderS
       margin: const EdgeInsets.all(8),
       child: FloatingActionButton(
         onPressed: save,
-        backgroundColor: theme.colorScheme.primary,
         child: const Icon(Icons.save),
       ),
     );
@@ -825,20 +824,37 @@ class ScreenshotEditorState extends State<ScreenshotEditor> with TickerProviderS
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Scaffold(
-      backgroundColor: theme.colorScheme.surfaceVariant,
-      body: SafeArea(
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            _buildLeft(theme),
-            Expanded(child: _buildStage()),
-            _buildRight(theme),
-          ],
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      theme: ThemeData(
+          brightness: Brightness.light,
+          fontFamily: 'Nunito',
+          colorScheme: ColorScheme.fromSeed(
+            seedColor: Color(0xFF00ACAB),
+            brightness: Brightness.light,
+          ).copyWith(
+            primary: Color(0xFF00ACAB),    // force your exact color
+            secondary: Color(0xFF00ACAB),  // optional, match branding
+            onPrimary: Colors.white,       // for text/icons on primary
+            surface: Colors.white,
+            background: Colors.white,
+          ),
         ),
-      ),
-      floatingActionButton: _buildSaveButton(theme),
-      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
+      home: Scaffold(
+        backgroundColor: theme.colorScheme.surfaceVariant,
+        body: SafeArea(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _buildLeft(theme),
+              Expanded(child: _buildStage()),
+              _buildRight(theme),
+            ],
+          ),
+        ),
+        floatingActionButton: _buildSaveButton(theme),
+        floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
+      )
     );
   }
 
@@ -878,9 +894,6 @@ class ScreenshotEditorState extends State<ScreenshotEditor> with TickerProviderS
                   icon: icons[i],
                   active: _tool.index == i,
                   onTap: () => setState(() => _tool = Tool.values[i]),
-                  subtitle: i == 2 && _tool == Tool.eraser
-                      ? (_eraserMode == EraserMode.shape ? 'Shape' : 'Pixel')
-                      : null,
                 ),
               );
             }),
@@ -891,7 +904,7 @@ class ScreenshotEditorState extends State<ScreenshotEditor> with TickerProviderS
           // Толщина
           Column(
             children: [
-              Text('Width', style: TextStyle(fontSize: 10, color: t.textTheme.bodySmall?.color)),
+              Text('Толщина', style: TextStyle(fontSize: 10, color: t.textTheme.bodySmall?.color)),
               RotatedBox(
                 quarterTurns: 3,
                 child: SliderTheme(
@@ -938,7 +951,7 @@ class ScreenshotEditorState extends State<ScreenshotEditor> with TickerProviderS
 
           const Spacer(),
 
-          _ToolBtn(icon: Icons.zoom_in_map_rounded, onTap: _resetZoom, subtitle: 'Reset'),
+          _ToolBtn(icon: Icons.zoom_in_map_rounded, onTap: _resetZoom, subtitle: 'Сброс'),
 
           // Нижние кнопки в ряд
           Row(
@@ -954,8 +967,6 @@ class ScreenshotEditorState extends State<ScreenshotEditor> with TickerProviderS
       ),
     );
   }
-
-
 
   // ───────────────── Stage ─────────────────
   Widget _buildStage() {

@@ -592,7 +592,7 @@ class _MainPageLayoutState extends State<MainPageLayout> {
   Future<void> _prepareAndPlay(String inputPath) async {
     setState(() {
       _isLoading = true;
-      _loadingMessage = "Checking video format...";
+      _loadingMessage = "Проверка формата видео...";
     });
 
     final inputFile = File(inputPath);
@@ -604,7 +604,7 @@ class _MainPageLayoutState extends State<MainPageLayout> {
     File playableFile = inputFile;
 
     if (extension == 'ts' || extension == 'mkv') {
-      setState(() => _loadingMessage = "Converting video to MP4...");
+      setState(() => _loadingMessage = "Конвертируем в MP4...");
       final mp4File = await _convertToMp4(inputFile);
       if (mp4File != null) {
         playableFile = mp4File;
@@ -865,7 +865,7 @@ Duration roundedToFrame(Duration d) {
                   const CircularProgressIndicator(color: Color(0xFF00ACAB)),
                   const SizedBox(height: 5),
                   Text(
-                    _loadingMessage ?? "Loading...",
+                    _loadingMessage ?? "Загрузка...",
                     style: const TextStyle(fontSize: 18),
                   ),
                 ],
@@ -883,7 +883,7 @@ Duration roundedToFrame(Duration d) {
                 onMarkerTap: _onMarkerTap,
                 onDetectionIntervalTap: _onDetectionIntervalTap,
               )
-                  : const Center(child: Text("Video player not initialized")),
+                  : const Center(child: Text("Видео плеер не инициализирован")),
 
               // Кнопки покадровой навигации
               if (_player != null)
@@ -1035,6 +1035,22 @@ Duration roundedToFrame(Duration d) {
     Widget _buildControlButtons() {
       return Column(
         children: [
+          // Go back button
+          IconButton(
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => EndoscopistApp()),
+              );
+            },
+            icon: const Icon(
+                Icons.arrow_back_ios_new_rounded,
+                color: Color(0xFF00ACAB)
+            ),
+            tooltip: "Вернуться в меню",
+          ),
+
+          SizedBox(height: 0 ,),
           // Screenshot button (only available when video is loaded)
           if (_currentMode == VideoMode.uploaded)
             ScreenshotButton(
@@ -1082,26 +1098,8 @@ Duration roundedToFrame(Duration d) {
                 Icons.image,
                 color: Color(0xFF00ACAB),
               ),
-              tooltip: "Edit Screenshots",
+              tooltip: "Редактировать фото",
             ),
-
-          // Mode switch buttons
-          IconButton(
-            onPressed: _switchToUploadMode,
-            icon: const Icon(
-              Icons.video_file,
-              color: Color(0xFF00ACAB),
-            ),
-            tooltip: "Upload Video",
-          ),
-          IconButton(
-            onPressed: _switchToCameraMode,
-            icon: const Icon(
-              Icons.videocam,
-              color: Color(0xFF00ACAB),
-            ),
-            tooltip: "Capture Video",
-          ),
 
           if (_currentMode == VideoMode.uploaded && _fullTranscript != null &&
               _fullTranscript!.isNotEmpty)
@@ -1111,29 +1109,8 @@ Duration roundedToFrame(Duration d) {
                 Icons.download_rounded,
                 color: Color(0xFF00ACAB),
               ),
-              tooltip: "Download voice notes",
+              tooltip: "Скачать голосовые заметки",
             ),
-          IconButton(
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => EndoscopistApp()),
-              );
-            },
-            icon: const Icon(
-                Icons.arrow_back_ios_new_rounded,
-                color: Color(0xFF00ACAB)
-            ),
-            tooltip: "Back to menu",
-          ),
-          /*IconButton(
-          onPressed: exportText,
-          icon: const Icon(
-            Icons.settings_rounded,
-            color: Color(0xFF00ACAB),
-          ),
-          tooltip: "Settings",
-        ),*/ //Settings??
         ],
       );
     }
@@ -1153,121 +1130,138 @@ Duration roundedToFrame(Duration d) {
           .of(context)
           .size;
 
-      return Scaffold(
-        backgroundColor: Colors.white,
-        body: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Sidebar List - Updated to show screenshots instead of timecodes
-            if (_currentMode == VideoMode.uploaded ||
-                _currentMode == VideoMode.camera)
+      return MaterialApp(
+        debugShowCheckedModeBanner: false,
+        theme: ThemeData(
+            brightness: Brightness.light,
+            fontFamily: 'Nunito',
+            colorScheme: ColorScheme.fromSeed(
+              seedColor: Color(0xFF00ACAB),
+              brightness: Brightness.light,
+            ).copyWith(
+              primary: Color(0xFF00ACAB),    // force your exact color
+              secondary: Color(0xFF00ACAB),  // optional, match branding
+              onPrimary: Colors.white,       // for text/icons on primary
+              surface: Colors.white,
+              background: Colors.white,
+            ),
+          ),
+        home: Scaffold(
+          backgroundColor: Colors.white,
+          body: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Sidebar List - Updated to show screenshots instead of timecodes
+              if (_currentMode == VideoMode.uploaded ||
+                  _currentMode == VideoMode.camera)
+                Container(
+                  height: screenSize.height,
+                  width: 200,
+                  margin: const EdgeInsets.symmetric(vertical: 5, horizontal: 5),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFFFFF),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: screenshots.isEmpty
+                      ? const Center(
+                    child: Text(
+                      'Пока нет фото',
+                      style: TextStyle(
+                        color: Colors.grey,
+                        fontSize: 16,
+                      ),
+                    ),
+                  )
+                      : ListView.builder(
+                    itemCount: screenshots.length,
+                    itemBuilder: (context, index) {
+                      final screenshot = screenshots[index];
+                      return GestureDetector(
+                        onTap: () => _seekToTimecode(screenshot.timestampInVideo),
+                        child: Container(
+                          height: 100,
+                          width: 50,
+                          margin: const EdgeInsets.only(bottom: 10),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF00ACAB),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 100,
+                                height: 80,
+                                margin: const EdgeInsets.symmetric(
+                                    horizontal: 10),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: screenshot.imageBytes != null
+                                    ? ClipRRect(
+                                  borderRadius: BorderRadius.circular(10),
+                                  child: Image.memory(
+                                    screenshot.imageBytes!,
+                                    fit: BoxFit.cover,
+                                  ),
+                                )
+                                    : const Icon(
+                                  Icons.image,
+                                  color: Colors.grey,
+                                  size: 40,
+                                ),
+                              ),
+                              Expanded(
+                                child: Center(
+                                  child: Text(
+                                    screenshot.timestampInVideo,
+                                    style: const TextStyle(
+                                      fontSize: 24,
+                                      fontFamily: 'Nunito',
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+
+              // Video Area
               Container(
                 height: screenSize.height,
-                width: 200,
+                width: (_currentMode == VideoMode.uploaded ||
+                    _currentMode == VideoMode.camera)
+                    ? screenSize.width - 260
+                    : screenSize.width - 60,
+                margin: const EdgeInsets.symmetric(vertical: 5),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: const Color(0xFF00ACAB), width: 5),
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(15),
+                  child: _buildVideoArea(),
+                ),
+              ),
+
+              // Navigation & Controls
+              Container(
                 margin: const EdgeInsets.symmetric(vertical: 5, horizontal: 5),
                 decoration: BoxDecoration(
                   color: const Color(0xFFFFFFFF),
                   borderRadius: BorderRadius.circular(20),
                 ),
-                child: screenshots.isEmpty
-                    ? const Center(
-                  child: Text(
-                    'No screenshots yet',
-                    style: TextStyle(
-                      color: Colors.grey,
-                      fontSize: 16,
-                    ),
-                  ),
-                )
-                    : ListView.builder(
-                  itemCount: screenshots.length,
-                  itemBuilder: (context, index) {
-                    final screenshot = screenshots[index];
-                    return GestureDetector(
-                      onTap: () => _seekToTimecode(screenshot.timestampInVideo),
-                      child: Container(
-                        height: 100,
-                        width: 50,
-                        margin: const EdgeInsets.only(bottom: 10),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF00ACAB),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Row(
-                          children: [
-                            Container(
-                              width: 100,
-                              height: 80,
-                              margin: const EdgeInsets.symmetric(
-                                  horizontal: 10),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              child: screenshot.imageBytes != null
-                                  ? ClipRRect(
-                                borderRadius: BorderRadius.circular(10),
-                                child: Image.memory(
-                                  screenshot.imageBytes!,
-                                  fit: BoxFit.cover,
-                                ),
-                              )
-                                  : const Icon(
-                                Icons.image,
-                                color: Colors.grey,
-                                size: 40,
-                              ),
-                            ),
-                            Expanded(
-                              child: Center(
-                                child: Text(
-                                  screenshot.timestampInVideo,
-                                  style: const TextStyle(
-                                    fontSize: 24,
-                                    fontFamily: 'Nunito',
-                                    color: Colors.white,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  },
-                ),
+                child: _buildControlButtons(),
               ),
-
-            // Video Area
-            Container(
-              height: screenSize.height,
-              width: (_currentMode == VideoMode.uploaded ||
-                  _currentMode == VideoMode.camera)
-                  ? screenSize.width - 260
-                  : screenSize.width - 60,
-              margin: const EdgeInsets.symmetric(vertical: 5),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: const Color(0xFF00ACAB), width: 5),
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(15),
-                child: _buildVideoArea(),
-              ),
-            ),
-
-            // Navigation & Controls
-            Container(
-              margin: const EdgeInsets.symmetric(vertical: 5, horizontal: 5),
-              decoration: BoxDecoration(
-                color: const Color(0xFFFFFFFF),
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: _buildControlButtons(),
-            ),
-          ],
-        ),
+            ],
+          ),
+        )
       );
     }
   }

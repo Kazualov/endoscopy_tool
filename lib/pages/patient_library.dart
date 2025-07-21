@@ -71,9 +71,45 @@ class Patient {
   }
 }
 
-
-
 //______________основной виджет__________________//
+
+
+class HoverDeleteIcon extends StatefulWidget {
+  final VoidCallback onDelete;
+
+  const HoverDeleteIcon({required this.onDelete, Key? key}) : super(key: key);
+
+  @override
+  State<HoverDeleteIcon> createState() => _HoverDeleteIconState();
+}
+
+class _HoverDeleteIconState extends State<HoverDeleteIcon> {
+  bool _hovering = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hovering = true),
+      onExit: (_) => setState(() => _hovering = false),
+      child: AnimatedOpacity(
+        opacity: _hovering ? 1 : 0.2,
+        duration: Duration(milliseconds: 150),
+        child: GestureDetector(
+          onTap: widget.onDelete,
+          child: Container(
+            padding: EdgeInsets.all(4),
+            child: Icon(
+              Icons.delete_forever_rounded,
+              size: 30,
+              color: _hovering ? Colors.red : Colors.grey,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class EndoscopistApp extends StatelessWidget {
   const EndoscopistApp({super.key});
 
@@ -82,8 +118,18 @@ class EndoscopistApp extends StatelessWidget {
     return MaterialApp(
       title: 'Обследования',
       theme: ThemeData(
-        primarySwatch: Colors.blue,
-        fontFamily: 'Arial',
+        brightness: Brightness.light,
+        fontFamily: 'Nunito',
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: Color(0xFF00ACAB),
+          brightness: Brightness.light,
+        ).copyWith(
+          primary: Color(0xFF00ACAB),    // force your exact color
+          secondary: Color(0xFF00ACAB),  // optional, match branding
+          onPrimary: Colors.white,       // for text/icons on primary
+          surface: Colors.white,
+          background: Colors.white,
+        ),
       ),
       home: ExaminationGridScreen(),
       debugShowCheckedModeBanner: false,
@@ -119,6 +165,11 @@ class _ExaminationGridScreenState extends State<ExaminationGridScreen> {
         addExamination();
         }
     });
+  }
+
+  Future<void> _deleteExamination(String examId) async{
+    await ApiService.deleteExamination(examId);
+    await loadExamination();
   }
 
   // загрузка осмотров
@@ -228,7 +279,9 @@ class _ExaminationGridScreenState extends State<ExaminationGridScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: Text('Отмена'),
+              child: Text(
+                  'Отмена'
+              ),
             ),
             TextButton(
               onPressed: () {
@@ -400,144 +453,187 @@ class _ExaminationGridScreenState extends State<ExaminationGridScreen> {
   }
 
 
+  bool _isHovered = false;
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        automaticallyImplyLeading: false,
-        backgroundColor: Colors.white,
-        elevation: 1,
-        title: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 10),
-          child: TextField(
-            decoration: InputDecoration(
-              hintText: 'ПОИСК',
-              border: OutlineInputBorder(),
-              contentPadding: EdgeInsets.symmetric(horizontal: 10),
+      backgroundColor: Colors.white,
+      appBar: PreferredSize(
+        preferredSize: Size.fromHeight(kToolbarHeight + 10),
+        child: AppBar(
+          automaticallyImplyLeading: false,
+          backgroundColor: Colors.white,
+          elevation: 0,
+          title: SizedBox(
+            height: 40,
+            child: TextField(
+              decoration: InputDecoration(
+                hintText: 'ПОИСК',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12), // rounded corners
+                  borderSide: BorderSide(
+                    color: Color(0xFF00ACAB), // custom border color
+                    width: 10,          // custom thickness
+                  ),
+                ),
+                contentPadding: EdgeInsets.symmetric(vertical: 2, horizontal: 10),
+              ),
+              onChanged: (value) {
+                setState(() {
+                  searchQuery = value;
+                });
+              },
             ),
-            onChanged: (value) {
-              setState(() {
-                searchQuery = value;
-              });
-            },
           ),
+          actions: [
+            Container(
+              margin: EdgeInsets.symmetric(horizontal: 0, vertical:8),
+              child: IconButton(
+                icon: Icon(Icons.refresh, color: Color(0xFFF00ACAB)),
+                onPressed: () {
+                  loadExamination();
+                },
+              ),
+            ),
+            Container(
+                margin: EdgeInsets.symmetric(horizontal: 0, vertical:8),
+                child: IconButton(
+                icon: Icon(Icons.folder_open_outlined, color: Color(0xFFF00ACAB)),
+                onPressed: () async {
+                  final result = await showSettingsDialog(context);
+                  if (result != null) {
+                    print('Настройки обновлены: ${result.path}');
+                    ApiService.setSaveDirectory(result.path);
+                  }
+                },
+              ),
+            ),
+          ],
         ),
-        actions: [
-          IconButton(
-            icon: Icon(Icons.refresh, color: Colors.black),
-            onPressed: () {
-              loadExamination();
-            },
-          ),
-          IconButton(
-            icon: Icon(Icons.settings, color: Colors.black),
-            onPressed: () async {
-              final result = await showSettingsDialog(context);
-              if (result != null) {
-                print('Настройки обновлены: ${result.resolution}, ${result.path}, ${result.theme}');
-                ApiService.setSaveDirectory(result.path);
+      ),
+      body: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 0.0, horizontal: 15.0),
+        child: Container(
+          color: Colors.white,
+          margin: EdgeInsets.symmetric(vertical: 5),
+          child: isLoading
+              ? Center(child: CircularProgressIndicator())
+              : GridView.builder(
+            itemCount: filteredExamination.length + 1, // +1 for add button
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 5,
+              crossAxisSpacing: 10,
+              mainAxisSpacing: 10,
+            ),
+            itemBuilder: (context, index) {
+              if (index < filteredExamination.length) {
+                final examination = filteredExamination[index];
+                return GestureDetector(
+                  onTap: () async {
+                    final videoPath = await getVideoPath(examination);
+                    print(videoPath);
+                    print("Exists: ${await File(videoPath!.trim()).exists()}");
+                    print('Directory exists: ${await Directory(videoPath).exists()}');
+
+                    final sourceFile = File(videoPath.trim());
+                    if (await sourceFile.exists()) {
+                      final appDir = await getApplicationDocumentsDirectory();
+                      final newPath = path.join(appDir.path, path.basename(videoPath));
+                      await sourceFile.copy(newPath);
+                      print('File copied to: $newPath');
+                    } else {
+                      print('Source file does NOT exist');
+                    }
+
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => MainPage(initialMode: VideoMode.uploaded, videoPath: videoPath!, examinationId: examination.id),
+                      ),
+                    );
+                  },
+                  child: Stack(
+                    children: [
+                      Container(
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Color(0xFF00ACAB), width: 3),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              SizedBox(height: 20), // Spacer to not overlap with the top icon
+
+                              // Icons
+                              Container(
+                                width: 50,
+                                height: 50,
+                                decoration: BoxDecoration(
+                                  border: Border.all(color: Colors.black, width: 2),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: examination.video_id != null
+                                    ? Icon(Icons.video_library, size: 30, color: Colors.blue)
+                                    : Icon(Icons.medical_services, size: 30, color: Colors.grey),
+                              ),
+                              SizedBox(height: 8),
+
+                              // Id
+                              Text(
+                                examination.id,
+                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                                textAlign: TextAlign.center,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              SizedBox(height: 4),
+
+                              // Description
+                              Text(
+                                examination.description!,
+                                style: TextStyle(fontSize: 10, color: Colors.grey[600]),
+                                textAlign: TextAlign.center,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+
+                      Positioned(
+                        top: 8,
+                        right: 8,
+                        child: HoverDeleteIcon(
+                          onDelete: () async {
+                            await _deleteExamination(examination.id.toString());
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+
+                );
+              } else {
+                return GestureDetector(
+                  onTap: () {
+                    addExamination();
+                  },
+                  child: Container(
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Color(0xFF00ACAB), width: 3),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Center(
+                      child: Icon(Icons.add, size: 40),
+                    ),
+                  ),
+                );
               }
             },
           ),
-        ],
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: isLoading
-            ? Center(child: CircularProgressIndicator())
-            : GridView.builder(
-          itemCount: filteredExamination.length + 1, // +1 for add button
-          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 5,
-            crossAxisSpacing: 16,
-            mainAxisSpacing: 16,
-          ),
-          itemBuilder: (context, index) {
-            if (index < filteredExamination.length) {
-              final examination = filteredExamination[index];
-              return GestureDetector(
-                onTap: () async {
-                  final videoPath = await getVideoPath(examination);
-                  print(videoPath);
-                  print("Exists: ${await File(videoPath!.trim()).exists()}");
-                  print('Directory exists: ${await Directory(videoPath).exists()}');
-
-                  final sourceFile = File(videoPath.trim());
-                  if (await sourceFile.exists()) {
-                    final appDir = await getApplicationDocumentsDirectory();
-                    final newPath = path.join(appDir.path, path.basename(videoPath));
-                    await sourceFile.copy(newPath);
-                    print('File copied to: $newPath');
-                  } else {
-                    print('Source file does NOT exist');
-                  }
-
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => MainPage(initialMode: VideoMode.uploaded, videoPath: videoPath!, examinationId: examination.id),
-                    ),
-                  );
-                },
-                child: Container(
-                  decoration: BoxDecoration(
-                    border: Border.all(color: Color(0xFF00ACAB), width: 3),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Container(
-                          width: 50,
-                          height: 50,
-                          decoration: BoxDecoration(
-                            border: Border.all(color: Colors.black, width: 2),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: examination.video_id != null
-                              ? Icon(Icons.video_library, size: 30, color: Colors.blue)
-                              : Icon(Icons.medical_services, size: 30, color: Colors.grey),
-                        ),
-                        SizedBox(height: 8),
-                        Text(
-                          examination.id,
-                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
-                          textAlign: TextAlign.center,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        SizedBox(height: 4),
-                        Text(
-                          examination.description!,
-                          style: TextStyle(fontSize: 10, color: Colors.grey[600]),
-                          textAlign: TextAlign.center,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              );
-            } else {
-              return GestureDetector(
-                onTap: () {
-                  addExamination();
-                },
-                child: Container(
-                  decoration: BoxDecoration(
-                    border: Border.all(color: Color(0xFF00ACAB), width: 3),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Center(
-                    child: Icon(Icons.add, size: 40),
-                  ),
-                ),
-              );
-            }
-          },
-        ),
+        )
       ),
     );
   }

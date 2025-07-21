@@ -78,7 +78,7 @@ class ScreenshotButtonState extends State<ScreenshotButton> {
     return IconButton(
       color: const Color(0xFF00ACAB),
       icon: const Icon(Icons.camera_alt),
-      tooltip: 'Take Screenshot',
+      tooltip: 'Сделать фото',
       onPressed: () => captureAndSaveScreenshot(context),
     );
   }

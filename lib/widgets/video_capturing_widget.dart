@@ -549,7 +549,7 @@ class _CameraStreamWidgetState extends State<CameraStreamWidget> {
         content: Text(message),
         backgroundColor: Colors.green,
         action: directory != null ? SnackBarAction(
-          label: 'Open Folder',
+          label: 'Открыть папку',
           onPressed: () => _openFolder(directory),
         ) : null,
       ),
@@ -582,7 +582,7 @@ class _CameraStreamWidgetState extends State<CameraStreamWidget> {
                 valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
               ),
               SizedBox(width: 10),
-              Text('Uploading video to server...'),
+              Text('Загружаем видео...'),
             ],
           ),
           backgroundColor: Colors.orange,
@@ -602,14 +602,14 @@ class _CameraStreamWidgetState extends State<CameraStreamWidget> {
       if (videoId != null) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Video uploaded successfully!'),
+            content: Text('Видео загруженно успешно!'),
             backgroundColor: Colors.green,
           ),
         );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to upload video'),
+            content: Text('Не получилось загрузить видео'),
             backgroundColor: Colors.orange,
           ),
         );
@@ -621,7 +621,7 @@ class _CameraStreamWidgetState extends State<CameraStreamWidget> {
       ScaffoldMessenger.of(context).clearSnackBars();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Upload error: $e'),
+          content: Text('Ошибка загрузки: $e'),
           backgroundColor: Colors.red,
         ),
       );
@@ -689,16 +689,16 @@ class _CameraStreamWidgetState extends State<CameraStreamWidget> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Settings'),
+        title: const Text('Настройки видео'),
         content: SizedBox(
           width: 500,
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Text('Camera:', style: TextStyle(fontWeight: FontWeight.bold)),
+              const Text('Камера:', style: TextStyle(fontWeight: FontWeight.bold)),
               const SizedBox(height: 8),
               _cameras.isEmpty
-                  ? const Text('No cameras available')
+                  ? const Text('Нет доступных камер')
                   : DropdownButton<int>(
                 isExpanded: true,
                 value: _selectedCameraIndex,
@@ -728,40 +728,15 @@ class _CameraStreamWidgetState extends State<CameraStreamWidget> {
                   await _initializeCameras();
                   setState(() {});
                 },
-                child: const Text('Refresh Cameras'),
-              ),
-              const SizedBox(height: 16),
-
-              const Text('Save Folder:', style: TextStyle(fontWeight: FontWeight.bold)),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      _defaultSaveFolder?.isNotEmpty == true
-                          ? _defaultSaveFolder!
-                          : 'Not set (will prompt when saving)',
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                  TextButton(
-                    onPressed: () async {
-                      final folder = await FilePicker.platform.getDirectoryPath();
-                      if (folder != null) {
-                        setState(() => _defaultSaveFolder = folder);
-                      }
-                    },
-                    child: const Text('Browse'),
-                  ),
-                ],
+                child: const Text('Обновить список'),
               ),
             ],
           ),
         ),
         actions: [
-          TextButton(
+          ElevatedButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            child: const Text('Закрыть'),
           ),
           ElevatedButton(
             onPressed: () async {
@@ -771,7 +746,7 @@ class _CameraStreamWidgetState extends State<CameraStreamWidget> {
                 Navigator.pop(context);
               }
             },
-            child: const Text('Save'),
+            child: const Text('Сохранить'),
           ),
         ],
       ),
@@ -879,7 +854,7 @@ class _CameraStreamWidgetState extends State<CameraStreamWidget> {
                                       ),
                                       const SizedBox(width: 4),
                                       Text(
-                                        _isDetectionEnabled ? 'AI ON' : 'AI OFF',
+                                        _isDetectionEnabled ? 'С ИИ' : 'БЕЗ ИИ',
                                         style: const TextStyle(
                                           color: Colors.white,
                                           fontSize: 12,
@@ -909,7 +884,7 @@ class _CameraStreamWidgetState extends State<CameraStreamWidget> {
                 children: [
                   ElevatedButton.icon(
                     icon: Icon(_isRecording ? Icons.radio_button_checked : Icons.fiber_manual_record),
-                    label: Text(_isRecording ? "Recording..." : "Start Recording"),
+                    label: Text(_isRecording ? "Идет запись..." : "Начать запись"),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: _isRecording ? Color(0xFFD9D9D9) : Color(0xFF00ACAB),
                       foregroundColor: Colors.white,
@@ -920,7 +895,7 @@ class _CameraStreamWidgetState extends State<CameraStreamWidget> {
                   const SizedBox(width: 12),
                   ElevatedButton.icon(
                     icon: const Icon(Icons.stop),
-                    label: const Text("Stop Recording"),
+                    label: const Text("Остановить запись"),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.grey.shade800,
                       foregroundColor: Colors.white,
@@ -933,7 +908,7 @@ class _CameraStreamWidgetState extends State<CameraStreamWidget> {
                   if (widget.examinationId != null)
                     ElevatedButton.icon(
                       icon: Icon(_isDetectionEnabled ? Icons.visibility : Icons.visibility_off),
-                      label: Text(_isDetectionEnabled ? "AI ON" : "AI OFF"),
+                      label: Text(_isDetectionEnabled ? "ВЫКЛ ИИ" : "ВКЛ ИИ"),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: _isDetectionEnabled ? Colors.green : Colors.grey,
                         foregroundColor: Colors.white,
@@ -944,9 +919,9 @@ class _CameraStreamWidgetState extends State<CameraStreamWidget> {
                   const SizedBox(width: 12),
                   IconButton(
                     color: Color(0xFF00ACAB),
-                    icon: const Icon(Icons.settings),
+                    icon: const Icon(Icons.video_settings_outlined),
                     onPressed: _showSettingsDialog,
-                    tooltip: 'Settings',
+                    tooltip: 'Настройки камеры',
                   ),
                 ],
               ),
