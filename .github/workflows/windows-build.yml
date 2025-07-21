@@ -1,4 +1,4 @@
-name: Build Flutter Windows App
+name: Windows Application
 
 on:
   workflow_dispatch:  # Manual trigger
