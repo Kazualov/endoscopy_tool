@@ -3,9 +3,6 @@ import 'dart:io';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
-import 'package:video_player/video_player.dart';
-import 'package:permission_handler/permission_handler.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:path/path.dart' as path;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -245,45 +242,30 @@ class _CameraStreamWidgetState extends State<CameraStreamWidget> {
   }
 
   Future<void> _initializeCameras() async {
-    try {
-      // Сначала запрашиваем разрешения
-      final cameraPermission = await Permission.camera.request();
-      final microphonePermission = await Permission.microphone.request();
+    _cameras = await availableCameras();
 
-      if (cameraPermission != PermissionStatus.granted) {
-        print('Camera permission denied');
-        _showErrorSnackbar('Camera permission is required');
-        return;
-      }
-
-      if (microphonePermission != PermissionStatus.granted) {
-        print('Microphone permission denied');
-        _showErrorSnackbar('Microphone permission is required');
-        return;
-      }
-
-      // Получаем доступные камеры
-      _cameras = await availableCameras();
-      print('Available cameras: ${_cameras.length}');
-
-      for (int i = 0; i < _cameras.length; i++) {
-        print('Camera $i: ${_cameras[i].name} - ${_cameras[i].lensDirection}');
-      }
-
-      if (_cameras.isNotEmpty) {
-        // Проверяем сохраненный индекс камеры
-        final savedIndex = _prefs?.getInt('selected_camera_index') ?? 0;
-        _selectedCameraIndex = savedIndex < _cameras.length ? savedIndex : 0;
-
-        await _initializeCamera();
-      } else {
-        print('No cameras available');
-        _showErrorSnackbar('No cameras found');
-      }
-    } catch (e) {
-      print('Error initializing cameras: $e');
-      _showErrorSnackbar('Error initializing cameras: $e');
+    if (_cameras.isEmpty) {
+      print('❌ No cameras found');
+      return;
     }
+
+    // Log cameras
+    for (var cam in _cameras) {
+      print('🔍 Camera: ${cam.name} (${cam.lensDirection})');
+    }
+
+    final savedName = _prefs?.getString('selected_camera_name');
+    final index = _cameras.indexWhere((cam) => cam.name == savedName);
+    _selectedCameraIndex = index >= 0 ? index : 0;
+
+    await _initializeCamera();
+  }
+
+  Future<void> _saveSettings() async {
+    await _prefs?.setString(
+      'selected_camera_name',
+      _cameras[_selectedCameraIndex].name,
+    );
   }
 
   Future<void> _initializeCamera() async {
@@ -304,7 +286,7 @@ class _CameraStreamWidgetState extends State<CameraStreamWidget> {
       _cameraController = CameraController(
         _cameras[_selectedCameraIndex],
         ResolutionPreset.high,
-        enableAudio: true,
+        enableAudio: !Platform.isMacOS,
       );
 
       await _cameraController!.initialize();
@@ -689,16 +671,16 @@ class _CameraStreamWidgetState extends State<CameraStreamWidget> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Settings'),
+        title: const Text('Настройки'),
         content: SizedBox(
           width: 500,
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Text('Camera:', style: TextStyle(fontWeight: FontWeight.bold)),
+              const Text('Камера:', style: TextStyle(fontWeight: FontWeight.bold)),
               const SizedBox(height: 8),
               _cameras.isEmpty
-                  ? const Text('No cameras available')
+                  ? const Text('Нет доступных камер')
                   : DropdownButton<int>(
                 isExpanded: true,
                 value: _selectedCameraIndex,
@@ -728,33 +710,9 @@ class _CameraStreamWidgetState extends State<CameraStreamWidget> {
                   await _initializeCameras();
                   setState(() {});
                 },
-                child: const Text('Refresh Cameras'),
+                child: const Text('Перезагрузить'),
               ),
               const SizedBox(height: 16),
-
-              const Text('Save Folder:', style: TextStyle(fontWeight: FontWeight.bold)),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      _defaultSaveFolder?.isNotEmpty == true
-                          ? _defaultSaveFolder!
-                          : 'Not set (will prompt when saving)',
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                  TextButton(
-                    onPressed: () async {
-                      final folder = await FilePicker.platform.getDirectoryPath();
-                      if (folder != null) {
-                        setState(() => _defaultSaveFolder = folder);
-                      }
-                    },
-                    child: const Text('Browse'),
-                  ),
-                ],
-              ),
             ],
           ),
         ),
@@ -778,10 +736,10 @@ class _CameraStreamWidgetState extends State<CameraStreamWidget> {
     );
   }
 //
-  Future<void> _saveSettings() async {
-    await _prefs?.setString('default_save_folder', _defaultSaveFolder ?? '');
-    await _prefs?.setInt('selected_camera_index', _selectedCameraIndex);
-  }
+//   Future<void> _saveSettings() async {
+//     await _prefs?.setString('default_save_folder', _defaultSaveFolder ?? '');
+//     await _prefs?.setInt('selected_camera_index', _selectedCameraIndex);
+//   }
 
   @override
   void dispose() {
@@ -869,17 +827,7 @@ class _CameraStreamWidgetState extends State<CameraStreamWidget> {
                                         ),
                                       const SizedBox(width: 4),
                                       Text(
-                                        _isDetectionEnabled ?
-                                        (_isDetectionProcessing ? 'AI...' : 'AI ON') : 'AI OFF',
-                                        style: const TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                      const SizedBox(width: 4),
-                                      Text(
-                                        _isDetectionEnabled ? 'AI ON' : 'AI OFF',
+                                        _isDetectionEnabled ? 'С ИИ' : 'БЕЗ ИИ',
                                         style: const TextStyle(
                                           color: Colors.white,
                                           fontSize: 12,
@@ -909,7 +857,7 @@ class _CameraStreamWidgetState extends State<CameraStreamWidget> {
                 children: [
                   ElevatedButton.icon(
                     icon: Icon(_isRecording ? Icons.radio_button_checked : Icons.fiber_manual_record),
-                    label: Text(_isRecording ? "Recording..." : "Start Recording"),
+                    label: Text(_isRecording ? "Идет запись..." : "Начать запись"),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: _isRecording ? Color(0xFFD9D9D9) : Color(0xFF00ACAB),
                       foregroundColor: Colors.white,
@@ -920,7 +868,7 @@ class _CameraStreamWidgetState extends State<CameraStreamWidget> {
                   const SizedBox(width: 12),
                   ElevatedButton.icon(
                     icon: const Icon(Icons.stop),
-                    label: const Text("Stop Recording"),
+                    label: const Text("Остановить запись"),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.grey.shade800,
                       foregroundColor: Colors.white,
@@ -933,7 +881,7 @@ class _CameraStreamWidgetState extends State<CameraStreamWidget> {
                   if (widget.examinationId != null)
                     ElevatedButton.icon(
                       icon: Icon(_isDetectionEnabled ? Icons.visibility : Icons.visibility_off),
-                      label: Text(_isDetectionEnabled ? "AI ON" : "AI OFF"),
+                      label: Text(_isDetectionEnabled ? "ВКЛ ИИ" : "ВЫКЛ ИИ"),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: _isDetectionEnabled ? Colors.green : Colors.grey,
                         foregroundColor: Colors.white,
@@ -946,7 +894,7 @@ class _CameraStreamWidgetState extends State<CameraStreamWidget> {
                     color: Color(0xFF00ACAB),
                     icon: const Icon(Icons.settings),
                     onPressed: _showSettingsDialog,
-                    tooltip: 'Settings',
+                    tooltip: 'Настройки камеры',
                   ),
                 ],
               ),
