@@ -215,11 +215,11 @@ MIT License. See [LICENSE](./LICENSE) for details.
 
 | Contributor | Role |
 |-------------|------|
-| **Alexandr Kurilenko**<br>📧 `alex@example.com`<br>🐙 [`@alexkurilenko`](https://github.com/alexkurilenko) | 🛠️ Backend Developer <br>🧭 Scrum Master |
-| **Ivan Prikhodko**<br>📧 `ivan@example.com`<br>🐙 [`@ivanprikhodko`](https://github.com/ivanprikhodko) | 🎨 UI/UX Designer |
-| **Danil Elgin**<br>📧 `danil@example.com`<br>🐙 [`@danilelgin`](https://github.com/danilelgin) | 🛠️ Backend Developer <br>📌 Project Owner |
-| **Egor Novokreshchenov**<br>📧 `egor@example.com`<br>🐙 [`@egornovok`](https://github.com/egornovok) | 🧠 AI Engineer <br>🎨 UI Designer |
-| **Azamat Kharisov**<br>📧 `azamat@example.com`<br>🐙 [`@azamatkharisov`](https://github.com/azamatkharisov) | 🛠️ Backend Developer |
+| **Alexandr Kurilenko**<br>📧 `alex@example.com`<br>🐙 [`@alexkurilenko`](https://github.com/sdwqwt2) | 🛠️ Backend Developer <br>🧭 Scrum Master |
+| **Ivan Prikhodko**<br>📧 `ivan@example.com`<br>🐙 [`@ivanprikhodko`](https://github.com/Kazualov) | 🎨 UI/UX Designer |
+| **Danil Elgin**<br>📧 `danil@example.com`<br>🐙 [`@danilelgin`](https://github.com/kite121) | 🛠️ Backend Developer <br>📌 Project Owner |
+| **Egor Novokreshchenov**<br>📧 `egor@example.com`<br>🐙 [`@egornovok`](https://github.com/Eeeee13) | 🧠 AI Engineer <br>🎨 UI Designer |
+| **Azamat Kharisov**<br>📧 `azamat@example.com`<br>🐙 [`@azamatkharisov`](https://github.com/Azammmat) | 🛠️ Backend Developer |
 
 
 ## 🌐 Language (for customer)
