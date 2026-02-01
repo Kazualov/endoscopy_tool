@@ -218,7 +218,7 @@ MIT License. Подробнее в файле [LICENSE](./LICENSE).
 | **Иван Приходько**<br>📧 `ivan@example.com`<br>🐙 [`@ivanprikhodko`](https://github.com/ivanprikhodko) | 🎨 Дизайнер UI/UX <br>📌 Владелец проекта |
 | **Данил Элгин**<br>📧 `danil@example.com`<br>🐙 [`@danilelgin`](https://github.com/danilelgin) | 🛠️ Backend-разработчик <br>📌 Владелец проекта |
 | **Егор Новокрещенов**<br>📧 `egor@example.com`<br>🐙 [`@egornovok`](https://github.com/egornovok) | 🧠 AI-инженер <br>🎨 UI-дизайнер <br>📌 Владелец проекта |
-| **Азамат Харисов**<br>📧 `azamat@example.com`<br>🐙 [`@azamatkharisov`](https://github.com/azamatkharisov) | 🛠️ Backend-разработчик <br⚙️ Data-инженер <br>📌 Владелец проекта |
+| **Азамат Харисов**<br>📧 `azamat@example.com`<br>🐙 [`@azamatkharisov`](https://github.com/azamatkharisov) | 🛠️ Backend-разработчик <br>⚙️ Data-инженер <br>📌 Владелец проекта |
 
 ## 🌐 Language (for customer)
 
