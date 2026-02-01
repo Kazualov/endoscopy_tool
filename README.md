@@ -215,11 +215,11 @@ MIT License. See [LICENSE](./LICENSE) for details.
 
 | Contributor | Role |
 |-------------|------|
-| **Alexandr Kurilenko**<br>🐙 [`@alexkurilenko`](https://github.com/sdwqwt2) | 🛠️ Backend Developer <br>🧭 Scrum Master |
-| **Ivan Prikhodko**<br>🐙 [`@ivanprikhodko`](https://github.com/Kazualov) | 🎨 UI/UX Designer |
+| **Alexandr Kurilenko**<br>🐙 [`@alexkurilenko`](https://github.com/sdwqwt2) | 🛠️ Backend Developer <br>🧭 Scrum Master <br>📌 Project Owner |
+| **Ivan Prikhodko**<br>🐙 [`@ivanprikhodko`](https://github.com/Kazualov) | 🎨 UI/UX Designer <br>📌 Project Owner |
 | **Danil Elgin**<br>🐙 [`@danilelgin`](https://github.com/kite121) | 🛠️ Backend Developer <br>📌 Project Owner |
-| **Egor Novokreshchenov**<br>🐙 [`@egornovok`](https://github.com/Eeeee13) | 🧠 AI Engineer <br>🎨 UI Designer |
-| **Azamat Kharisov**<br>🐙 [`@azamatkharisov`](https://github.com/Azammmat) | 🛠️ Backend Developer |
+| **Egor Novokreshchenov**<br>🐙 [`@egornovok`](https://github.com/Eeeee13) | 🧠 AI Engineer <br>🎨 UI Designer <br>📌 Project Owner |
+| **Azamat Kharisov**<br>🐙 [`@azamatkharisov`](https://github.com/Azammmat) | 🛠️ Main Backend Developer <br>⚙️ Data Engineer <br>📌 Project Owner |
 
 
 ## 🌐 Language (for customer)
