@@ -214,11 +214,11 @@ MIT License. Подробнее в файле [LICENSE](./LICENSE).
 
 | Участник | Роль |
 |-------------|------|
-| **Александр Куриленко**<br>📧 `alex@example.com`<br>🐙 [`@alexkurilenko`](https://github.com/alexkurilenko) | 🛠️ Backend-разработчик <br>🧭 Скрам-мастер <br>📌 Владелец проекта |
-| **Иван Приходько**<br>📧 `ivan@example.com`<br>🐙 [`@ivanprikhodko`](https://github.com/ivanprikhodko) | 🎨 Дизайнер UI/UX <br>📌 Владелец проекта |
-| **Данил Элгин**<br>📧 `danil@example.com`<br>🐙 [`@danilelgin`](https://github.com/danilelgin) | 🛠️ Backend-разработчик <br>📌 Владелец проекта |
-| **Егор Новокрещенов**<br>📧 `egor@example.com`<br>🐙 [`@egornovok`](https://github.com/egornovok) | 🧠 AI-инженер <br>🎨 UI-дизайнер <br>📌 Владелец проекта |
-| **Азамат Харисов**<br>📧 `azamat@example.com`<br>🐙 [`@azamatkharisov`](https://github.com/azamatkharisov) | 🛠️ Backend-разработчик <br>⚙️ Data-инженер <br>📌 Владелец проекта |
+| **Александр Куриленко**<br>🐙 [`@sdwqwt`](https://github.com/sdwqwt2) | 🛠️ Backend-разработчик <br>🧭 Скрам-мастер <br>📌 Владелец проекта |
+| **Иван Приходько**<br>🐙 [`@ruzhbaykaa`](https://github.com/Kazualov) | 🎨 Дизайнер UI/UX <br>📌 Владелец проекта |
+| **Данил Элгин**<br>🐙 [`@Rasarom`](https://github.com/kite121) | 🛠️ Backend-разработчик <br>📌 Владелец проекта |
+| **Егор Новокрещенов**<br>🐙 [`@Novokreshchenov_E`](https://github.com/Eeeee13) | 🧠 AI-инженер <br>🎨 UI-дизайнер <br>📌 Владелец проекта |
+| **Азамат Харисов**<br>🐙 [`@dea1ler`](https://github.com/Azammmat) | 🛠️ Backend-разработчик <br>⚙️ Data-инженер <br>📌 Владелец проекта |
 
 ## 🌐 Language (for customer)
 
